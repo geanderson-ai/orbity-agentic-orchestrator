@@ -267,6 +267,91 @@ impl RuntimeEvent {
             _ => None,
         }
     }
+
+    /// Returns the associated agent_name if any
+    pub fn agent_name(&self) -> Option<&str> {
+        match self {
+            Self::AgentCreated { name, .. } => Some(name),
+            Self::AgentStarted { agent_name, .. }
+            | Self::AgentFinished { agent_name, .. }
+            | Self::AgentFailed { agent_name, .. }
+            | Self::CommandExecuted { agent_name, .. }
+            | Self::ToolCalled { agent_name, .. }
+            | Self::FileRead { agent_name, .. }
+            | Self::FileWritten { agent_name, .. }
+            | Self::NetworkRequest { agent_name, .. }
+            | Self::PolicyAllowed { agent_name, .. }
+            | Self::PolicyDenied { agent_name, .. }
+            | Self::SecretRequested { agent_name, .. }
+            | Self::SecretGranted { agent_name, .. }
+            | Self::TokenUsageUpdated { agent_name, .. } => Some(agent_name),
+            _ => None,
+        }
+    }
+
+    /// Whether this event belongs to Layer 1: Runtime lifecycle
+    pub fn is_runtime_lifecycle(&self) -> bool {
+        matches!(
+            self,
+            Self::AgentCreated { .. }
+                | Self::AgentStarted { .. }
+                | Self::AgentFinished { .. }
+                | Self::AgentFailed { .. }
+                | Self::RunInitiated { .. }
+                | Self::RunCompleted { .. }
+                | Self::RunFailed { .. }
+                | Self::ApprovalRequired { .. }
+                | Self::ApprovalGranted { .. }
+                | Self::ApprovalRejected { .. }
+        )
+    }
+
+    /// Whether this event belongs to Layer 2: Operational execution
+    pub fn is_execution(&self) -> bool {
+        matches!(
+            self,
+            Self::CommandExecuted { .. }
+                | Self::ToolCalled { .. }
+                | Self::FileRead { .. }
+                | Self::FileWritten { .. }
+                | Self::NetworkRequest { .. }
+                | Self::SandboxCreated { .. }
+                | Self::SandboxDestroyed { .. }
+        )
+    }
+
+    /// Whether this event belongs to Layer 3: Audit, security and immutable governance
+    pub fn is_audit_security(&self) -> bool {
+        matches!(
+            self,
+            Self::RunInitiated { .. }
+                | Self::RunCompleted { .. }
+                | Self::RunFailed { .. }
+                | Self::PolicyAllowed { .. }
+                | Self::PolicyDenied { .. }
+                | Self::SecretRequested { .. }
+                | Self::SecretGranted { .. }
+                | Self::FileWritten { .. }
+                | Self::BudgetExceeded { .. }
+                | Self::ApprovalRequired { .. }
+                | Self::ApprovalGranted { .. }
+                | Self::ApprovalRejected { .. }
+        )
+    }
+
+    /// Whether this event belongs to Layer 4: Telemetry & FinOps metrics
+    pub fn is_telemetry(&self) -> bool {
+        matches!(
+            self,
+            Self::TokenUsageUpdated { .. }
+                | Self::BudgetThresholdReached { .. }
+                | Self::BudgetExceeded { .. }
+                | Self::ContextWindowThresholdReached { .. }
+                | Self::CommandExecuted { .. }
+                | Self::ToolCalled { .. }
+                | Self::RunCompleted { .. }
+        )
+    }
 }
 
 /// An envelope wrapping an event with unique metadata
