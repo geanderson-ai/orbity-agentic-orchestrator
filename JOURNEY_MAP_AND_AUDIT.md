@@ -113,9 +113,9 @@ A varredura comprova que **todo o ciclo de vida e a jornada de orquestração mu
 
 ---
 
-## 5. Evidências de Implementação e Execução dos Gates 0, 1 e 2
+## 5. Evidências de Implementação e Execução dos Gates 0, 1, 2 e 3
 
-O Gate 0 (Fundação, Tipos & Domínio de Eventos), o Gate 1 (Persistência SQLite & Audit Store Criptográfico) e o Gate 2 (Mecanismo de Sandbox & Isolamento de Processos) foram completamente implementados e validados no repositório Git com os seguintes commits:
+O Gate 0 (Fundação, Tipos & Domínio de Eventos), o Gate 1 (Persistência SQLite & Audit Store Criptográfico), o Gate 2 (Mecanismo de Sandbox & Isolamento de Processos) e o Gate 3 (Barramento Unificado de Eventos & Observabilidade em 4 Camadas) foram completamente implementados e validados no repositório Git com os seguintes commits:
 
 | Commit | Escopo | Descrição da Entrega |
 |---|---|---|
@@ -137,9 +137,17 @@ O Gate 0 (Fundação, Tipos & Domínio de Eventos), o Gate 1 (Persistência SQLi
 | `cb9f139` | `feat(gate-2)` | `TASK-203` - Controle de recursos e limites de execução com timeouts estritos (`tokio::time::timeout`), terminação com sinal `SIGKILL` e limpeza garantida da árvore de processos. |
 | `44b2bfd` | `feat(gate-2)` | `TASK-204` - Emissão de eventos estruturados de ciclo de vida e políticas (`InstrumentedSandbox` / `SandboxEventEmitter`), gerando eventos canônicos `SandboxCreated`, `SandboxDestroyed`, `CommandExecuted`, `PolicyDenied`, `FileWritten` e `FileRead`. |
 | `2524878` | `test(gate-2)` | **E2E TEST** - Teste integrado do Gate 2 (`sandbox_isolation_and_rollback.rs`): validação de confinamento de root host, bloqueio de path traversal, isolamento de rede offline, timeouts com `SIGKILL`, descarte seguro com rollback, promoção de arquivos para o host e registro de auditoria encadeada com SHA-256 no SQLite. |
+| `e67bc00` | `docs` | Atualização da documentação geral com evidências de conclusão do Gate 2. |
+| `172c0d7` | `feat(gate-3)` | `TASK-301` - Barramento assíncrono de eventos (`EventBus`) com canal de broadcast, fila de alta capacidade MPSC, trait `EventSink` e múltiplos destinos. |
+| `10619a5` | `feat(gate-3)` | `TASK-302` - Camada 1: Runtime Logs (`RuntimeLogSink`) para ciclo de vida de agentes, execuções e eventos HITL com formatação canônica. |
+| `25913ca` | `feat(gate-3)` | `TASK-303` - Camada 2: Execution Logs (`ExecutionLogSink`) para captura de comandos, ferramentas e metadados de arquivos com hash SHA-256. |
+| `826c7f0` | `feat(gate-3)` | `TASK-304` - Camada 3: Audit Logs (`AuditLogSink`) persistindo eventos no SQLite WAL com encadeamento de hash SHA-256. |
+| `6b222cc` | `feat(gate-3)` | `TASK-305` - Camada 4: Telemetry Logs (`TelemetrySink`, `SpanTree`, `TelemetryMetrics`) com spans hierárquicos e exportador OpenTelemetry/OTLP JSON. |
+| `f0e8536` | `test(gate-3)` | **E2E TEST** - Teste integrado de pipeline de 4 camadas simultâneas e teste de carga atingindo vazão de 75.473 ev/s (>15x o teto de 5.000 ev/s). |
 
-### Resultados Consolidados dos Quality Gates (Gates 0, 1 e 2)
+### Resultados Consolidados dos Quality Gates (Gates 0, 1, 2 e 3)
 - **`cargo check --workspace`:** ✅ Sucesso (0 erros)
 - **`cargo clippy --workspace --all-targets -- -D warnings`:** ✅ Sucesso (0 warnings)
-- **`cargo test --workspace`:** ✅ 31 testes aprovados (100% de sucesso)
+- **`cargo test --workspace`:** ✅ 42 testes aprovados (100% de sucesso)
+- **Vazão do Barramento (Load Test):** 🚀 75.473 eventos/segundo (requisito: >= 5.000 ev/s)
 

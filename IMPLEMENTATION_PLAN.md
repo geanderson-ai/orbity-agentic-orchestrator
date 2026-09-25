@@ -296,7 +296,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 
 #### Tarefas
 
-- [ ] **TASK-301: Barramento de Eventos Assíncrono (Event Collector / Bus)**
+- [x] **TASK-301: Barramento de Eventos Assíncrono (Event Collector / Bus)**
   - **Escopo:** Criar barramento em `orbity-core` baseado em `tokio::sync::broadcast` e canais `mpsc` para distribuição eficiente e não-bloqueante de eventos estruturados.
   - **Distribuidores (Sinks):**
     - Sink 1: Stdout em JSON estruturado (para consumo de pipes externos).
@@ -306,19 +306,19 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - Sink 5: WebSocket/SSE Broadcaster para a UI.
   - **Critério de Aceite (DoD):** Eventos publicados são recebidos por todos os subscribers sem perda ou contenção excessiva de memória (buffer circular dimensionado).
 
-- [ ] **TASK-302: Camada 1 - Runtime Logs (Lifecycle do Agente e Processo)**
+- [x] **TASK-302: Camada 1 - Runtime Logs (Lifecycle do Agente e Processo)**
   - **Escopo:** Rastrear início, parada, timeouts, reinicializações e falhas críticas dos agentes.
   - **Critério de Aceite (DoD):** Eventos `AgentStarted`, `AgentFinished`, `AgentFailed` e logs de runtime emitidos com dados de `run_id`, `task_id`, `agent` e estado.
 
-- [ ] **TASK-303: Camada 2 - Execution Logs (Ações Operacionais)**
+- [x] **TASK-303: Camada 2 - Execution Logs (Ações Operacionais)**
   - **Escopo:** Registrar detalhadamente cada comando executado, ferramenta invocada, arquivo lido ou modificado no sandbox.
   - **Critério de Aceite (DoD):** Captura de `CommandExecuted` contendo `exit_code`, `duration_ms`, `sandbox_id` e metadados de arquivo (`FileWritten` com hash do arquivo alterado).
 
-- [ ] **TASK-304: Camada 3 - Audit Logs (Governança e Trilha Imutável)**
+- [x] **TASK-304: Camada 3 - Audit Logs (Governança e Trilha Imutável)**
   - **Escopo:** Gravação em SQLite com encadeamento de hash SHA-256 e políticas de segurança (`PolicyAllowed`, `PolicyDenied`, `SecretRequested`).
   - **Critério de Aceite (DoD):** Gravação síncrona/atômica na tabela `audit_events` via worker dedicado do barramento.
 
-- [ ] **TASK-305: Camada 4 - Telemetry Logs (Métricas & OpenTelemetry)**
+- [x] **TASK-305: Camada 4 - Telemetry Logs (Métricas & OpenTelemetry)**
   - **Escopo:** Configurar `tracing-subscriber` com camadas OpenTelemetry para coletar spans hierárquicos:
     ```
     run
@@ -659,9 +659,9 @@ A tabela abaixo valida que todas as exigências estritas foram mapeadas para tar
 
 ---
 
-## 6. Registro de Execução e Evidências Criptográficas de Commits (Gates 0, 1 e 2)
+## 6. Registro de Execução e Evidências Criptográficas de Commits (Gates 0, 1, 2 e 3)
 
-> **Status Atual:** Gate 0, Gate 1 e Gate 2 concluídos com 100% de aprovação e validados com testes unitários, isolamento rigoroso via Bubblewrap, rollback atômico, promoção controlada de arquivos, concorrência e integração multi-agente real com SQLite WAL.
+> **Status Atual:** Gate 0, Gate 1, Gate 2 e Gate 3 concluídos com 100% de aprovação e validados com testes unitários, isolamento rigoroso via Bubblewrap, observabilidade unificada em 4 camadas (Runtime, Execution, Audit SQLite SHA-256 e Telemetry OTel), teste de carga com vazão de >75.000 ev/s e concorrência real multi-agente.
 
 ### Tabela de Evidências por Commit
 
@@ -685,9 +685,17 @@ A tabela abaixo valida que todas as exigências estritas foram mapeadas para tar
 | `cb9f139` | `feat(gate-2)` | **TASK-203** | Controle de recursos e limites de execução com timeouts estritos (`tokio::time::timeout`), terminação com sinal `SIGKILL` e limpeza garantida da árvore de processos. |
 | `44b2bfd` | `feat(gate-2)` | **TASK-204** | Emissão de eventos estruturados de ciclo de vida e políticas (`InstrumentedSandbox` / `SandboxEventEmitter`), gerando eventos canônicos `SandboxCreated`, `SandboxDestroyed`, `CommandExecuted`, `PolicyDenied`, `FileWritten` e `FileRead`. |
 | `2524878` | `test(gate-2)` | **E2E TEST** | Teste de integração do Gate 2 (`sandbox_isolation_and_rollback.rs`): validação de confinamento de root host, bloqueio de path traversal, isolamento de rede offline, timeouts com `SIGKILL`, descarte seguro com rollback, promoção de arquivos para o host e registro de auditoria encadeada com SHA-256 no SQLite. |
+| `e67bc00` | `docs` | **DOCS** | Atualização da documentação geral (`IMPLEMENTATION_PLAN.md`, `README.md`, `JOURNEY_MAP_AND_AUDIT.md`) com conclusão do Gate 2. |
+| `172c0d7` | `feat(gate-3)` | **TASK-301** | Barramento assíncrono de eventos (`EventBus`) com canal de broadcast, fila de alta capacidade MPSC, trait `EventSink` e sinks `InMemorySink`, `JsonLinesSink` e `StdoutSink`. |
+| `10619a5` | `feat(gate-3)` | **TASK-302** | Camada 1: Runtime Logs (`RuntimeLogSink`, `RuntimeLogRecord`) para rastreamento de ciclo de vida de agentes, estados, execuções e eventos HITL com formatação canônica. |
+| `25913ca` | `feat(gate-3)` | **TASK-303** | Camada 2: Execution Logs (`ExecutionLogSink`, `ExecutionLogRecord`) para captura detalhada de comandos, ferramentas, hashes SHA-256 de arquivos e metadados de sandbox. |
+| `826c7f0` | `feat(gate-3)` | **TASK-304** | Camada 3: Audit Logs (`AuditLogSink`) como bridge assíncrona entre o barramento e o ledger append-only SQLite com encadeamento de hash SHA-256 e verificação criptográfica. |
+| `6b222cc` | `feat(gate-3)` | **TASK-305** | Camada 4: Telemetry Logs (`TelemetrySink`, `SpanTree`, `TelemetryMetrics`) com spans hierárquicos multi-agente, métricas de tokens/latência e exportador compatível com OpenTelemetry/OTLP JSON. |
+| `f0e8536` | `test(gate-3)` | **E2E TEST** | Teste de integração do Gate 3 (`four_layer_observability_and_load.rs`): pipeline simultâneo das 4 camadas operando de forma integrada e teste de carga demonstrando vazão de 75.473 ev/s (>15x o DoD de 5.000 ev/s). |
 
 ### Resultados dos Quality Gates
 - `cargo check --workspace`: ✅ Sucesso (0 erros)
 - `cargo clippy --workspace --all-targets -- -D warnings`: ✅ Sucesso (0 warnings)
-- `cargo test --workspace`: ✅ 31 testes aprovados (100% sucesso)
+- `cargo test --workspace`: ✅ 42 testes aprovados (100% sucesso)
+- `load test throughput`: 🚀 75.473 ev/s (requisito: >= 5.000 ev/s)
 

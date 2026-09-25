@@ -71,7 +71,7 @@ O projeto segue a metodologia de **Quality Gates** estruturada em 8 fases:
 - **[Gate 0: Fundação do Workspace, Tipos & Domínio de Eventos](IMPLEMENTATION_PLAN.md#gate-0-fundação-do-workspace-tipos--domínio-de-eventos)** `[CONCLUÍDO ✅]`
 - **[Gate 1: Persistência SQLite & Audit Store Criptográfico](IMPLEMENTATION_PLAN.md#gate-1-persistência-sqlite--audit-store-criptográfico)** `[CONCLUÍDO ✅]`
 - **[Gate 2: Mecanismo de Sandbox & Isolamento de Processos](IMPLEMENTATION_PLAN.md#gate-2-mecanismo-de-sandbox--isolamento-de-processos)** `[CONCLUÍDO ✅]`
-- **[Gate 3: Barramento Unificado de Eventos & Observabilidade em 4 Camadas](IMPLEMENTATION_PLAN.md#gate-3-barramento-unificado-de-eventos--observabilidade-em-4-camadas)** `[PLANEJADO ⏳]`
+- **[Gate 3: Barramento Unificado de Eventos & Observabilidade em 4 Camadas](IMPLEMENTATION_PLAN.md#gate-3-barramento-unificado-de-eventos--observabilidade-em-4-camadas)** `[CONCLUÍDO ✅]`
 - **[Gate 4: Engine de FinOps, Orçamento & Supervisão com Astra](IMPLEMENTATION_PLAN.md#gate-4-engine-de-finops-orçamento--supervisão-com-astra)** `[PLANEJADO ⏳]`
 - **[Gate 5: Interface CLI de Orquestração](IMPLEMENTATION_PLAN.md#gate-5-interface-cli-de-orquestração)** `[PLANEJADO ⏳]`
 - **[Gate 6: Streaming em Tempo Real & Camada de Visualização](IMPLEMENTATION_PLAN.md#gate-6-streaming-em-tempo-real--camada-de-visualização)** `[PLANEJADO ⏳]`
@@ -79,9 +79,9 @@ O projeto segue a metodologia de **Quality Gates** estruturada em 8 fases:
 
 ---
 
-## 🛡️ Evidências de Implementação dos Gates 0, 1 e 2
+## 🛡️ Evidências de Implementação dos Gates 0, 1, 2 e 3
 
-O **Gate 0**, o **Gate 1** e o **Gate 2** foram implementados em Rust nativo e validados com 31 testes unitários e de integração, incluindo cenário real multi-agente, injeção de adulteração de auditoria e confinamento de sandbox com Bubblewrap:
+O **Gate 0**, o **Gate 1**, o **Gate 2** e o **Gate 3** foram implementados em Rust nativo e validados com 42 testes unitários e de integração, incluindo cenário real multi-agente, injeção de adulteração de auditoria, confinamento de sandbox com Bubblewrap, pipeline simultâneo de 4 camadas de observabilidade e teste de carga com vazão de >75.000 ev/s:
 
 ### Tabela de Rastreabilidade de Commits
 
@@ -105,10 +105,18 @@ O **Gate 0**, o **Gate 1** e o **Gate 2** foram implementados em Rust nativo e v
 | `cb9f139` | `feat(gate-2)` | **TASK-203** | Controle estrito de recursos e timeouts de execução com terminação forçada `SIGKILL` e limpeza garantida da árvore de processos. |
 | `44b2bfd` | `feat(gate-2)` | **TASK-204** | Emissão de eventos estruturados de ciclo de vida e políticas (`InstrumentedSandbox` / `SandboxEventEmitter`) com `PolicyDenied`, `CommandExecuted`, `FileWritten` e `FileRead`. |
 | `2524878` | `test(gate-2)` | **E2E TEST** | Teste integrado de confinamento, isolamento de rede, timeouts com SIGKILL, rollback atômico, promoção seletiva e trilha de auditoria SQLite encadeada. |
+| `e67bc00` | `docs` | **DOCS** | Atualização da documentação geral com evidências de conclusão do Gate 2. |
+| `172c0d7` | `feat(gate-3)` | **TASK-301** | Barramento assíncrono de eventos (`EventBus`) com canal de broadcast, fila de alta capacidade MPSC, trait `EventSink` e múltiplos destinos. |
+| `10619a5` | `feat(gate-3)` | **TASK-302** | Camada 1: Runtime Logs (`RuntimeLogSink`) para ciclo de vida de agentes, execuções e eventos HITL com formatação canônica. |
+| `25913ca` | `feat(gate-3)` | **TASK-303** | Camada 2: Execution Logs (`ExecutionLogSink`) para captura de comandos, ferramentas e metadados de arquivos com hash SHA-256. |
+| `826c7f0` | `feat(gate-3)` | **TASK-304** | Camada 3: Audit Logs (`AuditLogSink`) persistindo eventos no SQLite WAL com encadeamento de hash SHA-256. |
+| `6b222cc` | `feat(gate-3)` | **TASK-305** | Camada 4: Telemetry Logs (`TelemetrySink`, `SpanTree`, `TelemetryMetrics`) com spans hierárquicos e exportador OpenTelemetry/OTLP JSON. |
+| `f0e8536` | `test(gate-3)` | **E2E TEST** | Teste integrado de pipeline de 4 camadas simultâneas e teste de carga atingindo vazão de 75.473 ev/s (>15x o teto de 5.000 ev/s). |
 
-### Resultados dos Testes de Concorrência, Confinamento e Auditoria
-- **Suíte de Testes:** 31 testes executados e aprovados via `cargo test --workspace` (100% sucesso).
+### Resultados dos Testes de Concorrência, Confinamento e Observabilidade
+- **Suíte de Testes:** 42 testes executados e aprovados via `cargo test --workspace` (100% sucesso).
 - **Linter & Compilação:** 0 warnings em `cargo clippy --workspace --all-targets -- -D warnings`.
+- **Vazão do Barramento (Load Test):** 🚀 **75.473 eventos/segundo** (excede o requisito mínimo de 5.000 ev/s em mais de 15x).
 - **Cenário Multi-Agente Concorrente (`crates/orbity-storage/tests/real_multi_agent_scenario.rs`):**
   - **Supervisor Astra:** Coordenação e agregação contábil FinOps.
   - **4 Agentes Concorrentes (Tokio):** `Codex Dev`, `Claude Sentinel`, `Hermes Researcher` e `Pi Assistant`.
@@ -120,6 +128,13 @@ O **Gate 0**, o **Gate 1** e o **Gate 2** foram implementados em Rust nativo e v
   - **Prevenção de Path Traversal:** Rejeição de caminhos com `../` ou rotas de escape para diretórios protegidos.
   - **Timeouts Rígidos com SIGKILL:** Comandos em loop infinito terminados forçadamente sem vazamento de processos.
   - **Rollback Atômico vs Promoção:** Descarte instantâneo de alterações não aprovadas; sincronização limpa com cálculo de hash SHA-256 no diretório permanente mediante aprovação.
+- **Pipeline de 4 Camadas Simultâneas (`crates/orbity-telemetry/tests/four_layer_observability_and_load.rs`):**
+  - **Broadcast Streaming:** 10 de 10 eventos recebidos em tempo real para WebSockets/SSE.
+  - **Camada 1 (Runtime):** 6 eventos de ciclo de vida rastreados e formatados.
+  - **Camada 2 (Execution):** Comandos e arquivos alterados capturados com medição de latência.
+  - **Camada 3 (Audit):** 10 eventos encadeados no SQLite com validação criptográfica SHA-256.
+  - **Camada 4 (Telemetry):** Spans hierárquicos (run -> supervisor -> worker) e métricas consolidadas exportadas em formato OTLP JSON.
+  - **Arquivo Local (.jsonl):** 10 linhas registradas em disco sem corrupção.
 
 ---
 
