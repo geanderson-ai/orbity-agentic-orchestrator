@@ -211,17 +211,44 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 
 ### GATE 2: Mecanismo de Sandbox & Isolamento de Processos
 
-> **Objetivo:** Fornecer um ambiente controlado, seguro e auditável para a execução de ferramentas, compiladores (ex: `cargo test`), scripts e comandos disparados pelos agentes.
+> **Objetivo:** Fornecer um ambiente controlado, seguro e auditável para a execução de ferramentas, compiladores (ex: `cargo test`), scripts e comandos disparados pelos agentes, com **controle estrito de chamadas externas de rede** e **ciclo de vida híbrido de filesystem (efêmero durante testes com rollback automático e persistência permanente apenas sob aprovação)**.
 
 #### Critérios de Entrada
 - Gate 1 concluído e aprovado.
-- Definição clara dos limites de contenção (sistema de arquivos, variáveis de ambiente, processos filhos).
+- Definição clara dos limites de contenção (sistema de arquivos, variáveis de ambiente, processos filhos e isolamento de rede).
+
+#### Diretrizes Arquiteturais de Rede e Filesystem
+1. **Controle de Chamadas Externas (Rede):**
+   - Chamadas aos modelos de IA (APIs OpenAI, Anthropic, Gemini) ocorrem pelo orquestrador no Host com credenciais protegidas por `SecretMasker`.
+   - Comandos internos da sandbox operam sob políticas explícitas:
+     - `NetworkMode::Isolated` (Padrão para builds/testes): `--unshare-net`, 100% offline (apenas loopback `lo`), bloqueando exfiltração de dados e SSRF.
+     - `NetworkMode::EgressAllowlist(Vec<String>)`: Conexões restritas apenas a domínios pré-aprovados (ex: `crates.io`). Tentativas fora da lista disparam evento `PolicyDenied`.
+     - `NetworkMode::HostMediated`: Ferramentas externas de busca (`web.search`, `docs.fetch`) rodam intermediadas pelo supervisor no Host, injetando apenas o texto higienizado na sandbox.
+2. **Ciclo de Vida do Filesystem (Efêmero vs. Permanente):**
+   - **Root do Host Protegido:** Montado em modo somente leitura (`ro-bind` em `/`, `/usr`, `/lib`, `/bin`).
+   - **Workspace Efêmero de Execução (`tmpfs` ou `/tmp/orbity-sandbox-{id}`):** Toda escrita, compilação e teste ocorre em espaço descartável isolado.
+   - **Rollback Atômico:** Em caso de falha nos testes ou reprovação na revisão, o diretório efêmero é sumariamente destruído (`cleanup`), mantendo o host 100% intacto.
+   - **Promoção Permanente (`Promote`):** Apenas após aprovação de testes e revisão, as alterações validadas são sincronizadas ao repositório permanente do host, emitindo eventos `FileWritten` com hashes SHA-256 no log de auditoria.
 
 #### Tarefas
 
-- [ ] **TASK-201: Abstração e Trait de Sandbox Provider**
+- [ ] **TASK-201: Abstração e Trait de Sandbox Provider com Políticas de Rede e Filesystem**
   - **Escopo:** Definir a interface em `orbity-sandbox`:
     ```rust
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum NetworkMode {
+        Isolated,                      // --unshare-net (100% offline, padrão)
+        EgressAllowlist(Vec<String>),  // Apenas domínios autorizados
+        HostMediated,                  // Chamadas intermediadas pelo supervisor
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum WorkspaceMode {
+        EphemeralTmpfs,                // tmpfs em memória (descarte garantido)
+        EphemeralCopyOnWrite(PathBuf), // Cópia de trabalho em /tmp com snapshot
+        Direct(PathBuf),               // Apenas para monitoramento sem isolamento
+    }
+
     #[async_trait]
     pub trait Sandbox: Send + Sync {
         async fn initialize(&mut self) -> Result<SandboxId, SandboxError>;
@@ -230,31 +257,33 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
         async fn read_file(&self, relative_path: &Path) -> Result<Vec<u8>, SandboxError>;
         async fn snapshot(&self) -> Result<SnapshotId, SandboxError>;
         async fn rollback(&self, snapshot: SnapshotId) -> Result<(), SandboxError>;
+        async fn promote_changes(&self, target_host_path: &Path) -> Result<Vec<FileChangeSummary>, SandboxError>;
         async fn cleanup(&mut self) -> Result<(), SandboxError>;
     }
     ```
-  - **Critério de Aceite (DoD):** Trait compilada com mocks prontos para testes unitários em outros crates, suportando reversão atômica em caso de rejeição na fase de análise.
+  - **Critério de Aceite (DoD):** Trait compilada suportando modos de rede (`Isolated`, `EgressAllowlist`, `HostMediated`), ciclo de vida efêmero com descarte seguro (`rollback`/`cleanup`) e sincronização de arquivos aprovados (`promote_changes`).
 
 - [ ] **TASK-202: Implementação da Sandbox Nativa (Linux bwrap / Namespace Isolation)**
   - **Escopo:** Implementar o provedor de sandbox usando Bubblewrap (`bwrap`) ou Linux namespaces nativos:
     - Root filesystem montado em modo somente leitura (`ro-bind`).
     - Diretório de trabalho isolado montado em leitura/escrita temporário (`tmpfs` ou pasta efêmera `/tmp/orbity-sandbox-{id}`).
     - Isolamento de PID, IPC e UTC.
-    - Isolamento de rede configurável (offline por padrão para comandos de build/testes).
+    - Isolamento de rede estrito via `--unshare-net` (offline por padrão para comandos de build/testes).
     - Variáveis de ambiente filtradas (limpeza de `AWS_*`, `GITHUB_*`, `OPENAI_*` sensíveis do host).
-  - **Critério de Aceite (DoD):** Execução de comando bloqueando acesso a arquivos fora do diretório autorizado (ex: `/etc/passwd` ou `~/.ssh`).
+  - **Critério de Aceite (DoD):** Execução de comando bloqueando acesso a arquivos fora do diretório autorizado (ex: `/etc/passwd` ou `~/.ssh`) e bloqueio total de sockets de rede no modo `Isolated`.
 
 - [ ] **TASK-203: Controle de Recursos e Timeouts Estritos**
   - **Escopo:** Limites de execução por comando (ex: timeout padrão de 30s, cgroup para teto de memória e CPU).
   - **Critério de Aceite (DoD):** Comandos com loop infinito (ex: `yes` ou `while true; do :; done`) são terminados com sinal `SIGKILL` no timeout e retornam evento `CommandTimeout`.
 
 - [ ] **TASK-204: Emissão de Eventos de Ciclo de Vida do Sandbox**
-  - **Escopo:** Integrar a execução do sandbox com a geração de eventos: `SandboxCreated`, `SandboxDestroyed`, `CommandExecuted` (com exit code, stdout resumido, stderr e duração em milissegundos).
+  - **Escopo:** Integrar a execução do sandbox com a geração de eventos: `SandboxCreated`, `SandboxDestroyed`, `CommandExecuted` (com exit code, stdout resumido, stderr e duração em milissegundos) e `PolicyDenied` em caso de tentativa de violação de rede ou filesystem.
   - **Critério de Aceite (DoD):** Cada ação no sandbox produz seu respectivo evento estruturado e preenche os metadados requeridos pelo `overview.md`.
 
 #### Critérios de Saída do Gate 2 (Quality Gate)
-- Tentativa de escapar da sandbox ou alterar arquivos protegidos do host resulta em bloqueio testado e comprovado em teste de integração.
+- Tentativa de escapar da sandbox, acessar rede no modo isolado ou alterar arquivos protegidos do host resulta em bloqueio testado e comprovado em teste de integração.
 - Limpeza garantida de recursos temporários (`cleanup`) mesmo em caso de falha ou interrupção do agente.
+- Promoção atômica para o repositório permanente validada apenas após sucesso de testes e revisão.
 
 ---
 
