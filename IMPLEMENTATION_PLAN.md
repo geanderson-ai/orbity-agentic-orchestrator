@@ -155,9 +155,10 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 - [x] **TASK-005: Modelagem de Contratos de Agentes, Orquestradores e Equipes (YAML + Rust)**
   - **Escopo:** Em `orbity-core`, criar schemas de definição declarativa e tipos de domínio:
     - Structs: `AgentRecord`, `OrchestratorConfig`, `PromptConfig`, `PlanConfig`, `PlanStep`, `WorkerConfig`.
+    - Políticas de Governança Declarativa no YAML: `ApprovalPolicy`, `AutoApprovalRule`, `AutoRejectRule`, `ApprovalMode`, `FallbackAction`, `ExpensiveModelAction`.
     - Enum: `AgentLifecycleState` (`Draft`, `Spawning`, `Idle`, `Planning`, `Executing`, `Paused`, `Completed`, `Failed`, `Archived`).
-    - Parser YAML com `serde_yaml` suportando convenção de pastas (`teams/<nome>.yaml` onde o arquivo vira o nome da equipe, ex: `forester.yaml`, e `agents/<id>.yaml`).
-  - **Critério de Aceite (DoD):** Parser lê e valida com sucesso arquivos como `examples/teams/forester.yaml` e `examples/agents/agente01.yaml` gerando structs tipadas e validadas.
+    - Parser YAML com `serde_yaml` suportando convenção de pastas (`teams/<nome>.yaml` onde o arquivo vira o nome da equipe, ex: `forester.yaml`, e `agents/<id>.yaml`), com carregamento completo de regras de aprovação e rejeição declarativas.
+  - **Critério de Aceite (DoD):** Parser lê e valida com sucesso arquivos como `examples/teams/forester.yaml` e `examples/agents/agente01.yaml` gerando structs tipadas e avaliando regras de aprovação/rejeição declarativas.
 
 #### Critérios de Saída do Gate 0 (Quality Gate)
 - Todos os crates configurados e compilando sem warnings (`cargo clippy --workspace -- -D warnings`).
@@ -449,13 +450,16 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     3. Conduz a síntese final dos resultados do grafo.
   - **Critério de Aceite (DoD):** Astra gera dinamicamente um grafo de execução com nós e arestas válidos a partir de um prompt em linguagem natural.
 
-- [ ] **TASK-409: Motor de Orçamento FinOps por Nó/Aresta, Tripwires e Human-in-the-Loop (HITL)**
+- [ ] **TASK-409: Motor de Orçamento FinOps por Nó/Aresta, Tripwires e Governança Declarativa no YAML (Aprovação/Rejeição sem Pausas Manuais)**
   - **Escopo:** 
     - Verificação de orçamento antes de cada disparo de nó e travessia de aresta.
-    - Suporte a nós `HumanGate`: pausa o grafo, grava checkpoint e emite `ApprovalRequired`.
-    - Retomada com `orbity resume <RUN_ID> --approve`.
+    - Avaliação determinística da política declarativa no YAML (`approval_policy` e `expensive_model_action: "auto_approve"`):
+      - Se `mode: "automatic"` ou `hybrid` com match em `auto_approve`, transiciona autonomamente para `ApprovalGranted` sem pausar a execução nem exigir validação manual interativa.
+      - Se houver violação de `auto_reject` ou teto financeiro global, transiciona autonomamente para `ApprovalRejected` com aborto seguro ou feedback loop.
+      - Apenas se `mode: "manual"` ou regra expressa `fallback_action: "escalate_to_human"`, pausa o grafo, grava checkpoint e emite `ApprovalRequired` aguardando `orbity resume <RUN_ID> --approve`.
+    - Suporte a nós `HumanGate` com avaliação de `approval_rule` inline declarada no YAML (`auto_approve_when`, `auto_reject_when`).
     - Tripwire orçamentário rígido gerando `BudgetExceeded`.
-  - **Critério de Aceite (DoD):** Grafo pausado em nó de aprovação humana e retomado via CLI sem perder contexto.
+  - **Critério de Aceite (DoD):** Grafo executa de ponta a ponta sem pausas quando configurado com `approval_policy: auto_approve` no YAML; nós que exigem intervenção humana manual pausam e retomam via CLI sem perder contexto.
 
 - [ ] **TASK-410: Gerenciador de Ciclo de Vida do Agente e Parser Declarativo de Topologia de Grafo (YAML)**
   - **Escopo:** Implementar CRUD de agentes (`agentCreate`, `agentList`, `agentGet`, `agentUpdate`, `agentDelete`) e deserializador YAML para equipes em grafo (`teams/forester.yaml` com blocos `nodes:` e `edges:`).

@@ -11,6 +11,18 @@ agent:
     - "sqlite"
     - "cli-triad"
 
+  # Política Declarativa de Aprovação e Rejeição
+  approval_policy:
+    mode: "automatic" # Executa sem solicitar validações humanas repetitivas
+    auto_approve:
+      - rule: "safe_inspection_and_cargo"
+        tools: ["codex", "claude", "agy"]
+        patterns: ["cargo test*", "cargo check*", "git diff*"]
+    auto_reject:
+      - rule: "prohibited_patterns"
+        patterns: ["*id_rsa*", "*sudo *", "rm -rf *"]
+    fallback_action: "approve"
+
   # Orquestrador interno obrigatório
   orchestrator:
     type: "embedded"

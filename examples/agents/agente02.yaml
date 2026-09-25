@@ -11,6 +11,17 @@ agent:
     - "fuzzing"
     - "audit"
 
+  # Política Declarativa de Aprovação e Rejeição
+  approval_policy:
+    mode: "automatic" # Modo autônomo sem bloqueios manuais para auditoria e fuzzing
+    auto_approve:
+      - rule: "sandbox_security_tests"
+        patterns: ["cargo test --test security_tests*"]
+    auto_reject:
+      - rule: "host_filesystem_leak"
+        patterns: ["*~/.ssh*", "*--privileged*"]
+    fallback_action: "reject"
+
   # Orquestrador interno
   orchestrator:
     type: "embedded"

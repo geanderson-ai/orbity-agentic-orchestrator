@@ -63,6 +63,8 @@ pub struct BudgetPolicy {
     pub max_tokens: u64,
     pub max_agent_calls: usize,
     pub expensive_model_approval_threshold: Option<f64>,
+    #[serde(default)]
+    pub auto_approve_expensive_models: bool,
     pub alert_at_budget_percentage: Option<f64>,
 }
 
@@ -73,6 +75,7 @@ impl Default for BudgetPolicy {
             max_tokens: 500_000,
             max_agent_calls: 100,
             expensive_model_approval_threshold: Some(1.0),
+            auto_approve_expensive_models: false,
             alert_at_budget_percentage: Some(75.0),
         }
     }
@@ -111,12 +114,21 @@ impl BudgetPolicy {
             max_tokens,
             max_agent_calls,
             expensive_model_approval_threshold: None,
+            auto_approve_expensive_models: false,
             alert_at_budget_percentage: Some(75.0),
         }
     }
 
+    pub fn with_auto_approve_expensive_models(mut self, auto: bool) -> Self {
+        self.auto_approve_expensive_models = auto;
+        self
+    }
+
     /// Checks if a single expensive model call requires approval.
     pub fn requires_approval(&self, call_cost_usd: f64) -> bool {
+        if self.auto_approve_expensive_models {
+            return false;
+        }
         if let Some(threshold) = self.expensive_model_approval_threshold {
             call_cost_usd >= threshold
         } else {
@@ -196,6 +208,7 @@ mod tests {
             max_tokens: 10_000,
             max_agent_calls: 5,
             expensive_model_approval_threshold: Some(0.80),
+            auto_approve_expensive_models: false,
             alert_at_budget_percentage: Some(75.0),
         };
 
@@ -245,5 +258,10 @@ mod tests {
         // Expensive model approval check
         assert!(!policy.requires_approval(0.50));
         assert!(policy.requires_approval(0.85));
+
+        // When auto_approve_expensive_models is enabled from YAML policy
+        let auto_approved_policy = policy.with_auto_approve_expensive_models(true);
+        assert!(!auto_approved_policy.requires_approval(0.85));
+        assert!(!auto_approved_policy.requires_approval(10.0));
     }
 }

@@ -114,11 +114,127 @@ pub struct SandboxPolicy {
     pub memory_limit_mb: Option<u64>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ApprovalMode {
+    #[default]
+    Automatic,
+    Hybrid,
+    Manual,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum FallbackAction {
+    #[default]
+    Approve,
+    Reject,
+    EscalateToHuman,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ExpensiveModelAction {
+    #[default]
+    AutoApprove,
+    AutoReject,
+    AskHuman,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct AutoApprovalRule {
+    pub rule: String,
+    pub condition: Option<String>,
+    #[serde(default)]
+    pub tools: Vec<String>,
+    #[serde(default)]
+    pub patterns: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct AutoRejectRule {
+    pub rule: String,
+    pub condition: Option<String>,
+    #[serde(default)]
+    pub patterns: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct ApprovalPolicy {
+    #[serde(default)]
+    pub mode: ApprovalMode,
+    #[serde(default)]
+    pub auto_approve: Vec<AutoApprovalRule>,
+    #[serde(default)]
+    pub auto_reject: Vec<AutoRejectRule>,
+    #[serde(default)]
+    pub fallback_action: FallbackAction,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApprovalDecision {
+    Approved,
+    Rejected,
+    NeedsHuman,
+}
+
+impl ApprovalPolicy {
+    /// Determines whether a command or action is approved, rejected, or needs human approval based on YAML policy.
+    pub fn evaluate_command(&self, command: &str) -> ApprovalDecision {
+        match self.mode {
+            ApprovalMode::Manual => ApprovalDecision::NeedsHuman,
+            ApprovalMode::Automatic | ApprovalMode::Hybrid => {
+                // Check auto-reject rules first (precedence)
+                for r in &self.auto_reject {
+                    for pat in &r.patterns {
+                        if glob_or_contains(command, pat) {
+                            return ApprovalDecision::Rejected;
+                        }
+                    }
+                }
+                // Check auto-approve rules
+                for a in &self.auto_approve {
+                    for pat in &a.patterns {
+                        if glob_or_contains(command, pat) {
+                            return ApprovalDecision::Approved;
+                        }
+                    }
+                }
+                match self.fallback_action {
+                    FallbackAction::Approve => ApprovalDecision::Approved,
+                    FallbackAction::Reject => ApprovalDecision::Rejected,
+                    FallbackAction::EscalateToHuman => {
+                        if self.mode == ApprovalMode::Automatic {
+                            ApprovalDecision::Approved
+                        } else {
+                            ApprovalDecision::NeedsHuman
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn glob_or_contains(haystack: &str, pattern: &str) -> bool {
+    let p = pattern.trim();
+    if p.starts_with('*') && p.ends_with('*') && p.len() > 2 {
+        haystack.contains(&p[1..p.len() - 1])
+    } else if let Some(prefix) = p.strip_suffix('*') {
+        haystack.starts_with(prefix)
+    } else if let Some(suffix) = p.strip_prefix('*') {
+        haystack.ends_with(suffix)
+    } else {
+        haystack.contains(p)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FinOpsConfig {
     pub max_budget_usd: Option<f64>,
     pub max_total_tokens: Option<u64>,
     pub expensive_model_approval_threshold_usd: Option<f64>,
+    pub expensive_model_action: Option<ExpensiveModelAction>,
     pub alert_at_budget_percentage: Option<f64>,
 }
 
@@ -143,6 +259,7 @@ pub struct AgentConfig {
     pub name: String,
     #[serde(default)]
     pub tags: Vec<String>,
+    pub approval_policy: Option<ApprovalPolicy>,
     pub orchestrator: OrchestratorConfig,
 }
 
@@ -160,6 +277,7 @@ pub struct TeamConfig {
     pub tags: Vec<String>,
     pub finops: Option<FinOpsConfig>,
     pub sandbox_defaults: Option<SandboxPolicy>,
+    pub approval_policy: Option<ApprovalPolicy>,
     pub orchestrator: OrchestratorConfig,
     #[serde(default)]
     pub workers: Vec<WorkerConfig>,
@@ -237,6 +355,10 @@ mod tests {
         assert_eq!(def.agent.orchestrator.team.len(), 3);
         assert_eq!(def.agent.orchestrator.team[0].id, "codex_coder");
         assert_eq!(def.agent.orchestrator.team[0].runner, "codex");
+        assert!(def.agent.approval_policy.is_some());
+        let pol = def.agent.approval_policy.unwrap();
+        assert_eq!(pol.mode, ApprovalMode::Automatic);
+        assert_eq!(pol.evaluate_command("cargo test"), ApprovalDecision::Approved);
     }
 
     #[test]
@@ -248,6 +370,7 @@ mod tests {
 
         assert_eq!(def.agent.id, "agt_02m84k1z");
         assert_eq!(def.agent.orchestrator.team.len(), 2);
+        assert!(def.agent.approval_policy.is_some());
     }
 
     #[test]
@@ -260,7 +383,14 @@ mod tests {
         assert_eq!(def.team.name, "forester");
         assert_eq!(def.team.workers.len(), 5);
         assert!(def.team.finops.is_some());
-        assert_eq!(def.team.finops.unwrap().max_budget_usd, Some(2.00));
+        let finops = def.team.finops.as_ref().unwrap();
+        assert_eq!(finops.max_budget_usd, Some(2.00));
+        assert_eq!(finops.expensive_model_action, Some(ExpensiveModelAction::AutoApprove));
+        assert!(def.team.approval_policy.is_some());
+        let team_pol = def.team.approval_policy.as_ref().unwrap();
+        assert_eq!(team_pol.mode, ApprovalMode::Automatic);
+        assert_eq!(team_pol.evaluate_command("cargo test"), ApprovalDecision::Approved);
+        assert_eq!(team_pol.evaluate_command("rm -rf /"), ApprovalDecision::Rejected);
         assert!(def.team.graph_topology.is_some());
     }
 
@@ -268,5 +398,62 @@ mod tests {
     fn test_compute_sha256() {
         let hash = compute_sha256("test-content");
         assert_eq!(hash.len(), 64);
+    }
+
+    #[test]
+    fn test_approval_policy_evaluation() {
+        let policy = ApprovalPolicy {
+            mode: ApprovalMode::Automatic,
+            auto_approve: vec![
+                AutoApprovalRule {
+                    rule: "safe_test_commands".to_string(),
+                    condition: None,
+                    tools: vec!["codex".to_string()],
+                    patterns: vec!["cargo test*".to_string(), "git status".to_string()],
+                },
+            ],
+            auto_reject: vec![
+                AutoRejectRule {
+                    rule: "forbidden_destructive".to_string(),
+                    condition: None,
+                    patterns: vec!["rm -rf /".to_string(), "*id_rsa*".to_string()],
+                },
+            ],
+            fallback_action: FallbackAction::Reject,
+        };
+
+        // Auto-approve matches
+        assert_eq!(policy.evaluate_command("cargo test --workspace"), ApprovalDecision::Approved);
+        assert_eq!(policy.evaluate_command("git status"), ApprovalDecision::Approved);
+
+        // Auto-reject matches
+        assert_eq!(policy.evaluate_command("rm -rf /"), ApprovalDecision::Rejected);
+        assert_eq!(policy.evaluate_command("cat ~/.ssh/id_rsa"), ApprovalDecision::Rejected);
+
+        // Fallback for unlisted command in Automatic mode
+        assert_eq!(policy.evaluate_command("python3 script.py"), ApprovalDecision::Rejected);
+    }
+
+    #[test]
+    fn test_approval_policy_manual_and_hybrid_mode() {
+        let mut policy = ApprovalPolicy {
+            mode: ApprovalMode::Manual,
+            auto_approve: vec![],
+            auto_reject: vec![],
+            fallback_action: FallbackAction::EscalateToHuman,
+        };
+        // In manual mode, always escalates to human
+        assert_eq!(policy.evaluate_command("cargo test"), ApprovalDecision::NeedsHuman);
+
+        // In hybrid mode with escalate_to_human fallback
+        policy.mode = ApprovalMode::Hybrid;
+        policy.auto_approve.push(AutoApprovalRule {
+            rule: "approved_tests".to_string(),
+            condition: None,
+            tools: vec![],
+            patterns: vec!["cargo test*".to_string()],
+        });
+        assert_eq!(policy.evaluate_command("cargo test"), ApprovalDecision::Approved);
+        assert_eq!(policy.evaluate_command("unknown_tool --do-stuff"), ApprovalDecision::NeedsHuman);
     }
 }

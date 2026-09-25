@@ -77,6 +77,28 @@ team:
     max_budget_usd: 2.00
     max_total_tokens: 300000
     expensive_model_approval_threshold_usd: 0.80
+    expensive_model_action: "auto_approve" # Aprovação declarativa no YAML: modelos caros rodam sem pausa interativa
+
+  # Política Declarativa de Aprovação e Rejeição (elimina validações manuais desnecessárias)
+  approval_policy:
+    mode: "automatic" # "automatic" | "hybrid" | "manual"
+    auto_approve:
+      - rule: "sandbox_tests_passed"
+        condition: "outcome.exit_code == 0"
+      - rule: "cost_within_budget"
+        condition: "cumulative_cost_usd <= max_budget_usd"
+      - rule: "allowed_cli_tools"
+        tools: ["codex", "claude", "agy", "hermes", "pi"]
+      - rule: "safe_inspection_commands"
+        patterns: ["cargo test*", "cargo check*", "cargo clippy*", "git diff*", "git status*"]
+    auto_reject:
+      - rule: "destructive_host_commands"
+        patterns: ["rm -rf /", "*--no-preserve-root*", "curl * | bash", "*id_rsa*"]
+      - rule: "budget_hard_cap_exceeded"
+        condition: "cumulative_cost_usd > max_budget_usd"
+      - rule: "sandbox_timeout_violation"
+        condition: "duration_seconds > timeout_seconds"
+    fallback_action: "approve" # "approve" | "reject" | "escalate_to_human"
 
   sandbox_defaults:
     provider: "bwrap"
@@ -138,6 +160,24 @@ team:
       cli_args: ["--print", "--output-format", "json", "--effort", "medium", "--dangerously-skip-permissions"]
       allowed_tools: ["web.search", "docs.fetch", "mcp.inspect"]
 ```
+
+### 2.3 Política Declarativa de Aprovação e Rejeição no YAML (Sem Validações Manuais Constantes)
+
+Para que a equipe de IA opere com máxima autonomia sem exigir que o desenvolvedor fique continuamente respondendo a prompts de confirmação interativa (**Human-in-the-Loop**), as diretrizes de aprovação e rejeição são declaradas diretamente no próprio `.yaml`:
+
+1. **Modo Autônomo (`mode: "automatic"`):**
+   - O runtime avalia os critérios de forma determinística em sub-milissegundos.
+   - Ações que correspondam às regras de `auto_approve` recebem `ApprovalGranted` automaticamente na trilha criptográfica.
+   - Violações de `auto_reject` disparam `ApprovalRejected` imediato com aborto seguro ou feedback loop, sem intervenção humana.
+
+2. **Modo Híbrido (`mode: "hybrid"`):**
+   - Regras conhecidas de aprovação e rejeição são tratadas de forma autônoma; apenas casos desconhecidos ou comandos fora da lista recaem em `fallback_action: "escalate_to_human"`, solicitando intervenção manual.
+
+3. **Autonomia FinOps (`expensive_model_action: "auto_approve"`):**
+   - Quando ativado no bloco `finops:`, modelos com custo elevado (ex: Claude Opus, GPT-4) são automaticamente liberados para raciocínio crítico, desde que o teto financeiro global (`max_budget_usd`) não seja ultrapassado.
+
+4. **Regras de Nó de Grafo (`human_gate` com `approval_rule`):**
+   - Nós de validação como deploy ou merge declaram `approval_rule.auto_approve_when: "outcome.exit_code == 0"`, dispensando validação manual quando todos os testes na sandbox Bubblewrap passaram com sucesso.
 
 ---
 

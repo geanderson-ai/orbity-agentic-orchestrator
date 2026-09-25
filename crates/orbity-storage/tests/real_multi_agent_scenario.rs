@@ -364,6 +364,7 @@ async fn test_real_multi_agent_concurrent_orchestration_and_audit() {
         max_tokens: team_def.team.finops.as_ref().and_then(|f| f.max_total_tokens).unwrap_or(300_000),
         max_agent_calls: 50,
         expensive_model_approval_threshold: Some(0.80),
+        auto_approve_expensive_models: false,
         alert_at_budget_percentage: Some(75.0),
     };
 

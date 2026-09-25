@@ -18,7 +18,29 @@ team:
     max_budget_usd: 2.00
     max_total_tokens: 300000
     expensive_model_approval_threshold_usd: 0.80
+    expensive_model_action: "auto_approve" # Aprovação declarativa no YAML: modelos caros rodam sem pausa interativa
     alert_at_budget_percentage: 75
+
+  # Política Declarativa de Aprovação e Rejeição (elimina validações manuais desnecessárias)
+  approval_policy:
+    mode: "automatic" # "automatic" | "hybrid" | "manual"
+    auto_approve:
+      - rule: "sandbox_tests_passed"
+        condition: "outcome.exit_code == 0"
+      - rule: "cost_within_budget"
+        condition: "cumulative_cost_usd <= max_budget_usd"
+      - rule: "allowed_cli_tools"
+        tools: ["codex", "claude", "agy", "hermes", "pi"]
+      - rule: "safe_inspection_commands"
+        patterns: ["cargo test*", "cargo check*", "cargo clippy*", "git diff*", "git status*"]
+    auto_reject:
+      - rule: "destructive_host_commands"
+        patterns: ["rm -rf /", "*--no-preserve-root*", "curl * | bash", "*id_rsa*"]
+      - rule: "budget_hard_cap_exceeded"
+        condition: "cumulative_cost_usd > max_budget_usd"
+      - rule: "sandbox_timeout_violation"
+        condition: "duration_seconds > timeout_seconds"
+    fallback_action: "approve"
 
   # Configurações padrão de Sandbox para todo o time
   sandbox_defaults:
@@ -215,6 +237,11 @@ team:
         kind: "human_gate"
         prompt: "Aprovar deploy e merge do código testado em sandbox?"
         timeout_seconds: 86400
+        approval_rule:
+          mode: "automatic" # Avaliado diretamente pelas regras declarativas do YAML sem solicitar validação interativa
+          auto_approve_when: "outcome.exit_code == 0 && test_verifier.status == 'passed'"
+          auto_reject_when: "outcome.exit_code != 0 || budget_hard_cap_exceeded == true"
+          timeout_action: "reject"
 
     # Definição das Arestas de Execução (Edges)
     edges:
