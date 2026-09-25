@@ -445,8 +445,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_bwrap_network_isolation() {
-        let mut config = SandboxConfig::default();
-        config.network = NetworkMode::Isolated;
+        let config = SandboxConfig {
+            network: NetworkMode::Isolated,
+            ..Default::default()
+        };
         let mut sandbox = BwrapSandbox::new(config);
         sandbox.initialize().await.unwrap();
 
