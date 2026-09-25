@@ -189,8 +189,10 @@ impl Default for EventBusConfig {
 /// Distributes `EventEnvelope` instances to:
 /// 1. Broadcast subscribers (e.g. SSE/WebSocket streams or TUI receivers)
 /// 2. Registered `EventSink` instances (Stdout, JSONL, SQLite Audit, Telemetry)
+#[derive(Clone)]
 pub struct EventBus {
     config: EventBusConfig,
+
     tx_queue: mpsc::Sender<EventEnvelope>,
     tx_broadcast: broadcast::Sender<EventEnvelope>,
     sinks: Arc<RwLock<Vec<Arc<dyn EventSink>>>>,
