@@ -703,11 +703,34 @@ A tabela abaixo valida que todas as exigências estritas foram mapeadas para tar
        [Gate 7: Hardening & E2E]
 ```
 
+### 5.1 Próximo Passo Imediato: Implementação do GATE 4
+
+Com os Gates 0, 1, 2 e 3 100% concluídos e validados, a fundação técnica do runtime está consolidada:
+1. **Core Domain & Types** (`orbity-core`): Modelagem canônica, FinOps, políticas de aprovação/rejeição no YAML.
+2. **SQLite Storage & Cryptographic Audit** (`orbity-storage`): WAL, pooling, encadeamento SHA-256 e verificação de adulteração.
+3. **Sandbox Confinada** (`orbity-sandbox`): Bubblewrap, root `ro-bind`, tmpfs efêmero, isolamento de rede e timeouts com SIGKILL.
+4. **Observabilidade em 4 Camadas** (`orbity-telemetry` & `orbity-core::bus`): Runtime, Execution, Audit e Telemetry logs com vazão >75.000 ev/s.
+
+O próximo passo é **executar a implementação do GATE 4**:
+* **Crates Responsáveis:** `crates/orbity-graph` e `crates/orbity-agent`.
+* **Trilha de Tarefas do Gate 4 (`TASK-401` a `TASK-410`):**
+  1. `TASK-401`: Motor de Grafo Acíclico Dirigido (DAG) e Tipos de Nós/Arestas (`GraphNode`, `GraphEdge`, `GraphDefinition`).
+  2. `TASK-402`: Algoritmo de Ordenação Topológica de Kahn & Detecção de Ciclos Inválidos.
+  3. `TASK-403`: Fan-out Paralelo e Fan-in com Barreira de Sincronização.
+  4. `TASK-404`: Feedback Loops Controlados & Políticas de Retry com Backoff.
+  5. `TASK-405`: Checkpointing Criptográfico de Grafo em SQLite WAL (`graph_checkpoints`).
+  6. `TASK-406`: Motor de Injeção de Contexto Dinâmico entre Nós (`inject_context`).
+  7. `TASK-407`: Suíte de Adaptadores das 5 CLIs Nativas (`codex`, `claude`, `agy`, `hermes`, `pi`).
+  8. `TASK-408`: Agente Orquestrador Astra (Supervisor, Graph Planner & Blackboard Memory).
+  9. `TASK-409`: Motor de Orçamento FinOps por Nó/Aresta, Tripwires e Governança Declarativa no YAML (Aprovação/Rejeição sem Pausas Manuais).
+  10. `TASK-410`: Gerenciador de Ciclo de Vida do Agente e Parser Declarativo de Topologia de Grafo (YAML).
+* **Meta de Validação:** Teste integrado E2E demonstrando fan-out/fan-in, feedback loop com auto-correção, checkpointing no SQLite e governança FinOps.
+
 ---
 
 ## 6. Registro de Execução e Evidências Criptográficas de Commits (Gates 0, 1, 2 e 3)
 
-> **Status Atual:** Gate 0, Gate 1, Gate 2 e Gate 3 concluídos com 100% de aprovação e validados com testes unitários, isolamento rigoroso via Bubblewrap, observabilidade unificada em 4 camadas (Runtime, Execution, Audit SQLite SHA-256 e Telemetry OTel), teste de carga com vazão de >75.000 ev/s e concorrência real multi-agente.
+> **Status Atual:** Gate 0, Gate 1, Gate 2 e Gate 3 concluídos com 100% de aprovação e validados com 44 testes automatizados, isolamento rigoroso via Bubblewrap, observabilidade unificada em 4 camadas (Runtime, Execution, Audit SQLite SHA-256 e Telemetry OTel), teste de carga com vazão de >75.000 ev/s e concorrência real multi-agente.
 
 ### Tabela de Evidências por Commit
 
@@ -738,10 +761,13 @@ A tabela abaixo valida que todas as exigências estritas foram mapeadas para tar
 | `826c7f0` | `feat(gate-3)` | **TASK-304** | Camada 3: Audit Logs (`AuditLogSink`) como bridge assíncrona entre o barramento e o ledger append-only SQLite com encadeamento de hash SHA-256 e verificação criptográfica. |
 | `6b222cc` | `feat(gate-3)` | **TASK-305** | Camada 4: Telemetry Logs (`TelemetrySink`, `SpanTree`, `TelemetryMetrics`) com spans hierárquicos multi-agente, métricas de tokens/latência e exportador compatível com OpenTelemetry/OTLP JSON. |
 | `f0e8536` | `test(gate-3)` | **E2E TEST** | Teste de integração do Gate 3 (`four_layer_observability_and_load.rs`): pipeline simultâneo das 4 camadas operando de forma integrada e teste de carga demonstrando vazão de 75.473 ev/s (>15x o DoD de 5.000 ev/s). |
+| `f308ae1` | `docs(gate-3)` | **DOCS** | Atualização da documentação geral (`IMPLEMENTATION_PLAN.md`, `README.md`, `JOURNEY_MAP_AND_AUDIT.md`) com conclusão do Gate 3. |
+| `1e18a97` | `docs(gate-5/6)` | **DOCS** | Atualização do Gate 5 para aplicação servidora reativa Tokio Topcoat (`topcoat` v0.9+) e reorganização da CLI & TUI para o Gate 6. |
+| `6d2cc49` | `feat(contracts)` | **TASK-005/TASK-409** | Políticas declarativas de aprovação e rejeição no YAML (`ApprovalPolicy`, `expensive_model_action`, `auto_approve`, `auto_reject`) eliminando validações manuais desnecessárias. |
 
 ### Resultados dos Quality Gates
 - `cargo check --workspace`: ✅ Sucesso (0 erros)
 - `cargo clippy --workspace --all-targets -- -D warnings`: ✅ Sucesso (0 warnings)
-- `cargo test --workspace`: ✅ 42 testes aprovados (100% sucesso)
+- `cargo test --workspace`: ✅ 44 testes aprovados (100% sucesso)
 - `load test throughput`: 🚀 75.473 ev/s (requisito: >= 5.000 ev/s)
 

@@ -81,7 +81,7 @@ O projeto segue a metodologia de **Quality Gates** estruturada em 8 fases:
 
 ## 🛡️ Evidências de Implementação dos Gates 0, 1, 2 e 3
 
-O **Gate 0**, o **Gate 1**, o **Gate 2** e o **Gate 3** foram implementados em Rust nativo e validados com 42 testes unitários e de integração, incluindo cenário real multi-agente, injeção de adulteração de auditoria, confinamento de sandbox com Bubblewrap, pipeline simultâneo de 4 camadas de observabilidade e teste de carga com vazão de >75.000 ev/s:
+O **Gate 0**, o **Gate 1**, o **Gate 2** e o **Gate 3** foram implementados em Rust nativo e validados com 44 testes unitários e de integração, incluindo cenário real multi-agente, injeção de adulteração de auditoria, confinamento de sandbox com Bubblewrap, pipeline simultâneo de 4 camadas de observabilidade e teste de carga com vazão de >75.000 ev/s:
 
 ### Tabela de Rastreabilidade de Commits
 
@@ -112,9 +112,12 @@ O **Gate 0**, o **Gate 1**, o **Gate 2** e o **Gate 3** foram implementados em R
 | `826c7f0` | `feat(gate-3)` | **TASK-304** | Camada 3: Audit Logs (`AuditLogSink`) persistindo eventos no SQLite WAL com encadeamento de hash SHA-256. |
 | `6b222cc` | `feat(gate-3)` | **TASK-305** | Camada 4: Telemetry Logs (`TelemetrySink`, `SpanTree`, `TelemetryMetrics`) com spans hierárquicos e exportador OpenTelemetry/OTLP JSON. |
 | `f0e8536` | `test(gate-3)` | **E2E TEST** | Teste integrado de pipeline de 4 camadas simultâneas e teste de carga atingindo vazão de 75.473 ev/s (>15x o teto de 5.000 ev/s). |
+| `f308ae1` | `docs(gate-3)` | **DOCS** | Atualização da documentação geral (`IMPLEMENTATION_PLAN.md`, `README.md`, `JOURNEY_MAP_AND_AUDIT.md`) com conclusão do Gate 3. |
+| `1e18a97` | `docs(gate-5/6)` | **DOCS** | Atualização do Gate 5 para aplicação servidora reativa Tokio Topcoat (`topcoat` v0.9+) e reorganização da CLI para o Gate 6. |
+| `6d2cc49` | `feat(contracts)` | **TASK-005/TASK-409** | Políticas declarativas de aprovação e rejeição no YAML (`ApprovalPolicy`, `expensive_model_action`, `auto_approve`, `auto_reject`) eliminando validações manuais desnecessárias. |
 
 ### Resultados dos Testes de Concorrência, Confinamento e Observabilidade
-- **Suíte de Testes:** 42 testes executados e aprovados via `cargo test --workspace` (100% sucesso).
+- **Suíte de Testes:** 44 testes executados e aprovados via `cargo test --workspace` (100% sucesso).
 - **Linter & Compilação:** 0 warnings em `cargo clippy --workspace --all-targets -- -D warnings`.
 - **Vazão do Barramento (Load Test):** 🚀 **75.473 eventos/segundo** (excede o requisito mínimo de 5.000 ev/s em mais de 15x).
 - **Cenário Multi-Agente Concorrente (`crates/orbity-storage/tests/real_multi_agent_scenario.rs`):**

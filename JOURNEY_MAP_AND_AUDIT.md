@@ -144,10 +144,13 @@ O Gate 0 (Fundação, Tipos & Domínio de Eventos), o Gate 1 (Persistência SQLi
 | `826c7f0` | `feat(gate-3)` | `TASK-304` - Camada 3: Audit Logs (`AuditLogSink`) persistindo eventos no SQLite WAL com encadeamento de hash SHA-256. |
 | `6b222cc` | `feat(gate-3)` | `TASK-305` - Camada 4: Telemetry Logs (`TelemetrySink`, `SpanTree`, `TelemetryMetrics`) com spans hierárquicos e exportador OpenTelemetry/OTLP JSON. |
 | `f0e8536` | `test(gate-3)` | **E2E TEST** - Teste integrado de pipeline de 4 camadas simultâneas e teste de carga atingindo vazão de 75.473 ev/s (>15x o teto de 5.000 ev/s). |
+| `f308ae1` | `docs(gate-3)` | Atualização da documentação geral (`IMPLEMENTATION_PLAN.md`, `README.md`, `JOURNEY_MAP_AND_AUDIT.md`) com conclusão do Gate 3. |
+| `1e18a97` | `docs(gate-5/6)`| Atualização do Gate 5 para aplicação servidora reativa Tokio Topcoat (`topcoat` v0.9+) e reorganização da CLI para o Gate 6. |
+| `6d2cc49` | `feat(contracts)`| Políticas declarativas de aprovação e rejeição no YAML (`ApprovalPolicy`, `auto_approve`, `auto_reject`) eliminando validações manuais. |
 
 ### Resultados Consolidados dos Quality Gates (Gates 0, 1, 2 e 3)
 - **`cargo check --workspace`:** ✅ Sucesso (0 erros)
 - **`cargo clippy --workspace --all-targets -- -D warnings`:** ✅ Sucesso (0 warnings)
-- **`cargo test --workspace`:** ✅ 42 testes aprovados (100% de sucesso)
+- **`cargo test --workspace`:** ✅ 44 testes aprovados (100% de sucesso)
 - **Vazão do Barramento (Load Test):** 🚀 75.473 eventos/segundo (requisito: >= 5.000 ev/s)
 
