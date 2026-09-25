@@ -53,6 +53,10 @@ impl AuditStore {
         Self { pool }
     }
 
+    pub fn pool(&self) -> &SqliteStoragePool {
+        &self.pool
+    }
+
     /// Appends a new runtime event to the audit ledger of a run atomically.
     pub async fn append_event(
         &self,
