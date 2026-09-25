@@ -1,0 +1,18 @@
+[package]
+name = "orbity-agent"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+orbity-core.workspace = true
+orbity-storage.workspace = true
+orbity-sandbox.workspace = true
+orbity-graph.workspace = true
+tokio.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
