@@ -60,8 +60,9 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
                             └─────────┬─────────┘
                                       │
                                       ▼
-                           Servidor Axum (SSE/WS)
-                           ──> UI Visual (Cards/SVG)
+                       Servidor Tokio Topcoat (v0.9+)
+                   (WebSockets Server-Push / live! / emit!)
+                       ──> UI Reativa (Views/Shards/SVG)
 ```
 
 ### Tecnologias e Crates do Ecossistema Rust
@@ -71,7 +72,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 - **Serialização & Tipagem:** `serde`, `serde_json`, `chrono`
 - **Observabilidade:** `tracing`, `tracing-subscriber`, `opentelemetry`, `tracing-opentelemetry`
 - **Isolamento de Sandbox:** `nix`, `caps`, Bubblewrap (`bwrap`) wrapper ou Linux Namespaces/cgroups
-- **Servidor Streaming (Visualização):** `axum`, `tower-http`, `tokio-tungstenite` (WebSocket)
+- **Servidor de Aplicação Reativa & Streaming:** Tokio Topcoat (`topcoat` v0.9+), `tokio`, `toasty` (ORM/DB layer), WebSockets server-push, macros `live!`, `emit!`, `view!`, `signal` e `#[shard]`
 
 ---
 
@@ -84,8 +85,8 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 | **Gate 2** | **Mecanismo de Sandbox & Isolamento de Processos** | Criação, destruição e contenção de ferramentas e comandos executados pelos agentes via sandbox segura. |
 | **Gate 3** | **Barramento Unificado de Eventos & Observabilidade em 4 Camadas** | Pipeline de Runtime, Execution, Audit e Telemetry logs via Rust `tracing` e OpenTelemetry. |
 | **Gate 4** | **Graph Engineering (`orbity-graph`), Astra Supervisor & Multi-Agent Network** | Computação orientada a grafos com Nós e Arestas, ordenação topológica, loops de feedback, fan-in/fan-out, FinOps e orquestrador Astra. |
-| **Gate 5** | **Interface CLI de Orquestração** | Comandos para disparo de tarefas, inspeção de auditoria, verificação de integridade e acompanhamento. |
-| **Gate 6** | **Streaming em Tempo Real & Camada de Visualização** | Servidor Axum com WebSockets/SSE emitindo grafos de execução (Cards + SVG Edges) e traces distribuídos. |
+| **Gate 5** | **Aplicação Servidora Reativa com Tokio Topcoat** | Servidor de aplicação full-stack reativo em Rust (`topcoat`), views reativas, shards com morphing DOM, streaming SSR (`live!`/`emit!`) e WebSockets server-push para monitoramento dos agentes. |
+| **Gate 6** | **Interface CLI de Orquestração & Modo Terminal TUI** | Binário de linha de comando (`orbity`) com `clap` (v4), streaming no terminal com `ratatui`, modo headless UNIX JSON, preflight health check das 5 CLIs e reconciliação automática de YAML. |
 | **Gate 7** | **Testes E2E, Validação de Segurança & Hardening** | Testes de injeção de violação de hash, contenção de sandbox, limites de orçamento e benchmarking. |
 
 ---
@@ -113,7 +114,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - `crates/orbity-graph`: Motor de Graph Engineering, tipos de Nós e Arestas, ordenação topológica, DAG e ciclos controlados.
     - `crates/orbity-agent`: Adaptadores para Astra, Codex, Claude, Agy, Hermes, Pi e ciclo de vida.
     - `crates/orbity-telemetry`: Configuração de tracing, OpenTelemetry e métricas.
-    - `crates/orbity-server`: API Axum, endpoints SSE e WebSockets.
+    - `crates/orbity-server`: Servidor de aplicação full-stack reativo Tokio Topcoat com views, shards e WebSockets server-push.
     - `crates/orbity-cli`: Ponto de entrada executável para o usuário final.
   - **Critério de Aceite (DoD):** `cargo check --workspace` compila com sucesso; dependências entre crates devidamente referenciadas via `path`.
 
@@ -468,16 +469,91 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 
 ---
 
-### GATE 5: Interface CLI de Orquestração
+### GATE 5: Aplicação Servidora Reativa com Tokio Topcoat
 
-> **Objetivo:** Fornecer a linha de comando completa (`meza`) para submissão de tarefas, acompanhamento em tempo real, auditoria e governança do sistema.
+> **Objetivo:** Implementar o servidor de aplicação full-stack reativo em Rust utilizando o framework oficial **Tokio Topcoat** (v0.9+ por Carl Lerche e Julien), fornecendo interface web e console de orquestração em tempo real com views reativas (`view!`), sinais (`signal`), componentes em shards (`#[shard]`), streaming SSR com macros `live!` e `emit!`, e WebSockets server-push para monitoramento contínuo dos agentes, controle de orçamentos e auditoria.
 
 #### Critérios de Entrada
-- Gate 1 a 4 operando de forma integrada.
+- Gate 1 a 4 operando de forma integrada (Core, Storage SQLite WAL, Sandbox Bubblewrap, EventBus 4 Camadas, Graph Engineering e Astra Supervisor).
 
 #### Tarefas
 
-- [ ] **TASK-501: Estrutura de Comandos com `clap` (v4 Derive)**
+- [ ] **TASK-501: Arquitetura de Aplicação Servidora com Tokio Topcoat (`orbity-server`)**
+  - **Escopo:** Configurar em `crates/orbity-server` a aplicação servidora full-stack com Tokio Topcoat (v0.9+):
+    - Inicialização do contexto da aplicação (`Cx`), roteamento de páginas e componentes, e integração com o runtime assíncrono Tokio.
+    - Bridge nativa com o barramento `orbity-core::bus::EventBus` para injeção de eventos em tempo real no contexto da aplicação Topcoat.
+    - Configuração de middlewares de autenticação, rate limiting e headers de segurança.
+  - **Critério de Aceite (DoD):** Servidor Topcoat inicializa, consome menos de 25MB de RAM e responde a rotas com tipagem estrita Rust.
+
+- [ ] **TASK-502: Views Reativas, Sinais de Cliente e Componentes Shards (`view!`, `signal`, `#[shard]`)**
+  - **Escopo:** Construir a interface de monitoramento e controle dos agentes com Topcoat:
+    - Uso da macro `view!` com expressões de runtime tipadas compiladas para JS, executando no browser sem roundtrips ao servidor para alternância de abas, filtros e controles de exibição.
+    - Sinais reativos (`let query = signal(cx, String::new);`, `let selected_agent = signal(cx, || None);`).
+    - Componentes `#[shard]` re-renderizados no servidor sob demanda quando os argumentos ou sinais mudam, atualizando o DOM via morphing sem perder estado ou foco.
+  - **Critério de Aceite (DoD):** Interface reativa com cards de agentes atualizados instantaneamente; busca e filtros de tarefas executam shards no servidor com morphing suave.
+
+- [ ] **TASK-503: Streaming Reativo de UI com Macros `live!` e `emit!` (Progresso de Execução & Suspense)**
+  - **Escopo:** Implementar telas de acompanhamento dinâmico durante tarefas longas:
+    - Uso de `live!` e `emit!` para emitir skeletons de carregamento (Suspense) enquanto o Astra e os operários planejam.
+    - Emissão de progresso contínuo de nós e arestas:
+      ```rust
+      #[page]
+      pub async fn execution_progress(cx: &Cx) -> Result<impl View> {
+          Ok(live! {
+              emit! { <div class="skeleton">"Planejando topologia com Astra..."</div> }?;
+              while let Some(progress) = task_stream(cx).await? {
+                  emit! { <div class="progress-card">"Progresso: " (progress.percent) "% (" (progress.current_node) ")"</div> }?;
+              }
+              emit! { <div class="completed">"Execução finalizada com sucesso!"</div> }
+          })
+      }
+      ```
+  - **Critério de Aceite (DoD):** Tarefas longas transmitem progresso fluido via streaming Topcoat sem recarregar a página.
+
+- [ ] **TASK-504: Server-Push via WebSocket de Longa Duração (Topcoat 0.9)**
+  - **Escopo:** Implementar conexão WebSocket de longa duração utilizando o recurso nativo de server-push do Topcoat 0.9:
+    - Conexão do browser ao servidor que subscreve diretamente ao fluxo de eventos do `EventBus`.
+    - Loop reativo de `live!` com `emit!` enviando deltas de UI em tempo real sempre que um agente inicia, executa comandos na sandbox ou consome tokens:
+      ```rust
+      #[component]
+      pub async fn live_agent_board(cx: &Cx) -> Result<impl View> {
+          Ok(live! {
+              let bus = app_context::<EventBus>(cx);
+              let mut rx = bus.subscribe();
+              loop {
+                  let event = rx.recv().await?;
+                  emit! { agent_card_update(cx, &event) }?;
+              }
+          })
+      }
+      ```
+  - **Critério de Aceite (DoD):** Multi-agentes em execução concorrente refletem mudanças de estado, logs das 4 camadas e topologia de grafo instantaneamente via WebSocket sem polling.
+
+- [ ] **TASK-505: Console de Governança, FinOps Reativo e Interação Human-in-the-Loop (HITL)**
+  - **Escopo:** Criar os painéis interativos de governança no Topcoat:
+    - Botões `@click` para aprovação/rejeição de ações sensíveis ou orçamentos excedentes (`ApprovalGranted` / `ApprovalRejected`), desbloqueando o agente no runtime.
+    - Widget FinOps reativo exibindo consumo de tokens (input, output, cache, reasoning) e custo acumulado em USD contra o teto orçamentário.
+    - Visualizador interativo da trilha de auditoria append-only SQLite com verificação gráfica da integridade dos hashes SHA-256 e detecção de adulteração em tempo real.
+  - **Critério de Aceite (DoD):** Aprovação HITL feita pela interface Web desbloqueia a execução do agente em menos de 50ms; integridade da cadeia de auditoria verificável com um clique.
+
+#### Critérios de Saída do Gate 5 (Quality Gate)
+- Aplicação servidora Tokio Topcoat compilada e operando com pegada de memória ultraleve (<25MB RAM).
+- Streaming de UI e Server-Push via WebSockets funcionando de ponta a ponta sem polling.
+- Views reativas com `signal` e `#[shard]` operando com morphing de DOM sem perdas de foco.
+- Aprovação e rejeição de ações Human-in-the-Loop funcionando interativamente pela UI.
+
+---
+
+### GATE 6: Interface CLI de Orquestração & Modo Terminal TUI
+
+> **Objetivo:** Fornecer a linha de comando completa (`orbity`) para submissão de tarefas, acompanhamento em tempo real no terminal, subcomandos de gerenciamento declarativo (YAML), preflight health check e integração com a aplicação servidora Tokio Topcoat.
+
+#### Critérios de Entrada
+- Gate 1 a 5 implementados.
+
+#### Tarefas
+
+- [ ] **TASK-601: Estrutura de Comandos com `clap` (v4 Derive)**
   - **Escopo:** Criar os subcomandos da CLI `orbity`:
     - `orbity run <PROMPT>`: Inicia uma nova orquestração. Opções: `--budget-usd <VAL>`, `--max-tokens <VAL>`, `--sandbox <MODE>`, `--interactive`.
     - `orbity resume <RUN_ID> [--approve|--reject]`: Retoma uma execução pausada pelo guardrail FinOps (Human-in-the-Loop).
@@ -485,28 +561,29 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - `orbity logs <RUN_ID>`: Exibe logs (com filtros: `--layer runtime|execution|audit|telemetry`, `--json`).
     - `orbity audit verify <RUN_ID>`: Executa a validação criptográfica da trilha de auditoria SQLite.
     - `orbity finops summary [--since <DATE>]`: Apresenta relatório consolidado de gastos por ferramenta e modelo.
+    - `orbity serve [--port <PORT>]`: Inicia o servidor de aplicação Tokio Topcoat com o dashboard reativo.
     - `orbity sandbox list/clean`: Inspeciona e limpa ambientes de sandbox residuais.
   - **Critério de Aceite (DoD):** Comandos com ajuda completa (`--help`), validação tipada de argumentos e saídas consistentes.
 
-- [ ] **TASK-502: Modo Streaming no Terminal & TUI com `ratatui`**
-  - **Escopo:** Exibição interativa durante o comando `meza run`:
+- [ ] **TASK-602: Modo Streaming no Terminal & TUI com `ratatui`**
+  - **Escopo:** Exibição interativa durante o comando `orbity run`:
     - Cabeçalho: Status geral, tempo decorrido, tokens totais e custo estimado acumulado.
     - Painel de Agentes: Cards em grade com estado (`running`, `waiting`, `done`, `failed`) e consumo individual.
     - Log View: Streaming dos eventos operacionais recebidos pelo barramento.
   - **Critério de Aceite (DoD):** Terminal atualizado sem flickering; encerramento limpo via `Ctrl+C` com cancelamento gracioso dos processos e sandboxes filhos.
 
-- [ ] **TASK-503: Modo Headless / Pipeline UNIX (JSON Output)**
+- [ ] **TASK-603: Modo Headless / Pipeline UNIX (JSON Output)**
   - **Escopo:** Permitir uso do `orbity run --output json` para que outras ferramentas, CI/CD ou scripts leiam stdout formatado linha a linha.
   - **Critério de Aceite (DoD):** Nenhuma mensagem informativa polui o canal de stdout no modo JSON; logs operacionais são direcionados para stderr ou arquivo.
 
-- [ ] **TASK-504: Subcomandos de Agentes e Equipes Declarativas (`orbity agent` e `orbity team`)**
+- [ ] **TASK-604: Subcomandos de Agentes e Equipes Declarativas (`orbity agent` e `orbity team`)**
   - **Escopo:** Implementar subcomandos CLI para CRUD e carregamento via YAML:
     - `orbity agent create [-f <YAML>]` / `orbity agent list` / `orbity agent get <ID>` / `orbity agent update <ID>` / `orbity agent delete <ID>`.
     - `orbity team load <PATH_YAML>` (ex: `./examples/teams/forester.yaml`).
     - `orbity team list` / `orbity team run <TEAM_NAME> <PROMPT>`.
   - **Critério de Aceite (DoD):** Comandos com autocomplete, formatação de saída amigável em tabelas no terminal e execução de ponta a ponta a partir de arquivos YAML.
 
-- [ ] **TASK-505: Sistema de Preflight Health Check na Inicialização da CLI (`orbity init` / `orbity doctor`)**
+- [ ] **TASK-605: Sistema de Preflight Health Check na Inicialização da CLI (`orbity init` / `orbity doctor`)**
   - **Escopo:** Rotina de bootstrap automático executada na primeira execução da CLI ou sob demanda:
     - Verificação de runtime de sandbox (Bubblewrap `/usr/bin/bwrap`).
     - Verificação e descoberta automática das 5 ferramentas no PATH:
@@ -519,7 +596,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - Diagnóstico de eventuais binários ausentes com instruções de resolução e fallbacks de roteamento.
   - **Critério de Aceite (DoD):** Comando `orbity doctor` e preflight check na 1ª execução detectam com precisão as 5 ferramentas instaladas no sistema e persistem o status de saúde.
 
-- [ ] **TASK-506: Motor de Reconciliação Declarativa Automática na Inicialização da CLI (Folder Scanner & Hash Sync)**
+- [ ] **TASK-606: Motor de Reconciliação Declarativa Automática na Inicialização da CLI (Folder Scanner & Hash Sync)**
   - **Escopo:** Varredura atômica em sub-milissegundos disparada a cada execução da CLI nas pastas `agents/` e `teams/`:
     - Leitura dos arquivos `.yaml` e cálculo do hash SHA-256 do conteúdo.
     - Comparação instantânea com a coluna `config_hash` das tabelas `agents` e `teams` no SQLite.
@@ -531,48 +608,13 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - Exibição de sumário visual informativo no terminal quando houver mudanças sincronizadas.
   - **Critério de Aceite (DoD):** Adição, edição e remoção de arquivos em `examples/agents/` sincronizam automaticamente o banco SQLite e emitem eventos `AgentSyncedFromYaml` na trilha com hash encadeado.
 
-#### Critérios de Saída do Gate 5 (Quality Gate)
+#### Critérios de Saída do Gate 6 (Quality Gate)
 - O binário compilado `orbity` responde a todos os subcomandos de forma idiomática e amigável.
 - Preflight health check executado com sucesso validando as 5 CLIs (`codex`, `claude`, `agy`, `hermes`, `pi`).
 - Reconciliação automática das pastas `agents/` e `teams/` funcional, sincronizando novidades e alterações sem intervenção manual.
 - Comandos de gestão de agentes (`agent create`, `list`, `update`, `delete`) e equipes (`team load`, `run`) testados e operacionais.
+- Comando `orbity serve` dispara com sucesso a aplicação servidora Tokio Topcoat desenvolvida no Gate 5.
 - Verificação de auditoria executável diretamente pela linha de comando retornando código de saída `0` para integridade confirmada e `1` para violação.
-
----
-
-### GATE 6: Streaming em Tempo Real & Camada de Visualização
-
-> **Objetivo:** Disponibilizar servidor Axum embutido no runtime com endpoints de WebSocket e Server-Sent Events (SSE) para alimentar dashboards de observabilidade em tempo real (Agent Cards, SVG Edges e Trace Views).
-
-#### Critérios de Entrada
-- Gate 3 (Barramento) e Gate 4 (Orquestração Astra) implementados.
-
-#### Tarefas
-
-- [ ] **TASK-601: Servidor Axum Embutido e API de Eventos**
-  - **Escopo:** Em `orbity-server`, disponibilizar servidor HTTP/WebSocket que pode ser iniciado pelo comando `meza serve` (ou `orbity serve`) ou como thread no `orbity run --dashboard`:
-    - `GET /api/v1/runs`: Listagem de execuções históricas.
-    - `GET /api/v1/runs/:id`: Detalhes de uma execução, árvore de tarefas e tokens.
-    - `GET /api/v1/runs/:id/events/sse`: Stream Server-Sent Events de todos os eventos da execução.
-    - `GET /api/v1/runs/:id/ws`: Conexão bidirecional WebSocket para controle e streaming.
-  - **Critério de Aceite (DoD):** Endpoints com respostas JSON rápidas e streaming contínuo sem queda de conexões.
-
-- [ ] **TASK-602: Estrutura do Grafo de Execução em Tempo Real (Graph Payload)**
-  - **Escopo:** Endpoint e payload que sintetiza a topologia dos agentes:
-    - Nós: Agente (`Astra`, `Codex`, `Claude`, `Hermes`), estado atual (`running`, `waiting`, `failed`, `done`), tokens gastos, custo em dólar.
-    - Arestas: Direção da delegação (ex: `Astra -> Codex`, `Astra -> Claude`).
-  - **Critério de Aceite (DoD):** Atualização imediata do grafo sempre que uma tarefa transiciona de estado ou consome tokens.
-
-- [ ] **TASK-603: Dashboard Web Leve (HTML + SVG Puro / Cards sem sobrecarga de BPM)**
-  - **Escopo:** Servir interface web estática embutida no binário Rust (via `rust-embed` ou `include_str!`):
-    1. **Graph View:** Cards dos agentes conectados por curvas SVG dinâmicas.
-    2. **Timeline View:** Gráfico estilo Gantt da duração de cada agente na execução.
-    3. **Trace View:** Spans hierárquicos mostrando a sequência exata de chamadas de ferramentas e comandos.
-    4. **FinOps Widget:** Marcadores de consumo de tokens vs. orçamento máximo estipulado.
-  - **Critério de Aceite (DoD):** Dashboard abre no navegador com latência inferior a 100ms via WebSocket e renderiza a orquestração em tempo real.
-
-#### Critérios de Saída do Gate 6 (Quality Gate)
-- O dashboard web conecta ao backend Rust, consome a stream de eventos e reflete com precisão os estados dos agentes sem necessidade de recarregar a página.
 
 ---
 
@@ -621,14 +663,13 @@ A tabela abaixo valida que todas as exigências estritas foram mapeadas para tar
 
 | Requisito Obrigatório | Gates Relacionados | Tasks Específicas | Como é Atendido |
 |---|---|---|---|
-| **Rust** | Gate 0 ao 7 | Todas | Arquitetura 100% nativa em Rust, tipagem estrita com Serde, Tokio e SQLx. |
-| **CLI** | Gate 5 | TASK-501, 502, 503 | Binário `meza` com comandos `run`, `status`, `logs`, `audit verify`, `finops`. |
-| **Astra** | Gate 4 | TASK-403, 404 | Supervisor de planejamento, decomposição, orquestração multi-agente e síntese. |
-| **SQLite** | Gate 1 | TASK-101, 102, 103, 104 | Armazenamento de runs, tasks, métricas de tokens e ledger de auditoria com hash encadeado. |
-| **Sandbox** | Gate 2 | TASK-201, 202, 203, 204 | Isolamento de comandos de agentes via Bubblewrap/Namespaces com cgroups e timeouts. |
-| **Observabilidade 4 Camadas** | Gate 3 | TASK-301, 302, 303, 304, 305 | Runtime, Execution, Audit e Telemetry integrados ao Rust Tracing e OpenTelemetry. |
-| **FinOps & Tokens** | Gate 4 | TASK-402, 404 | Contabilização de input, output, cache, reasoning e enforcement de tetos orçamentários. |
-| **Visualização em Tempo Real** | Gate 6 | TASK-601, 602, 603 | Axum com SSE/WebSocket, topologia em cards e arestas SVG em tempo real. |
+| **Rust Core & Tokio** | Gate 0 ao 7 | Todas | Arquitetura 100% nativa em Rust, tipagem estrita com Serde, Tokio e SQLx. |
+| **SQLite WAL & Audit Chain** | Gate 1 | TASK-101 a 104 | Armazenamento de runs, tasks, métricas de tokens e ledger de auditoria com hash encadeado SHA-256. |
+| **Sandbox Confinada** | Gate 2 | TASK-201 a 204 | Isolamento de comandos de agentes via Bubblewrap/Namespaces com cgroups, rede offline e tmpfs efêmero. |
+| **Observabilidade 4 Camadas** | Gate 3 | TASK-301 a 305 | Runtime, Execution, Audit e Telemetry integrados ao Rust Tracing, barramento assíncrono e OpenTelemetry. |
+| **Astra & Graph Engineering** | Gate 4 | TASK-401 a 410 | Supervisor de planejamento, decomposição em DAG, ordenação topológica, fan-in/fan-out, FinOps por nó e síntese. |
+| **Aplicação Servidora Tokio Topcoat** | Gate 5 | TASK-501 a 505 | Servidor full-stack reativo Tokio Topcoat (v0.9+) com views (`view!`), shards (`#[shard]`), streaming SSR (`live!`/`emit!`) e WebSockets server-push. |
+| **Interface CLI & Terminal TUI** | Gate 6 | TASK-601 a 606 | Binário `orbity` com `clap` (v4), streaming TUI com `ratatui`, `orbity serve`, preflight check e sync automático de YAML. |
 
 ---
 
@@ -648,11 +689,12 @@ A tabela abaixo valida que todas as exigências estritas foram mapeadas para tar
                   ▼
        [Gate 4: Astra & FinOps]
                   │
-       ┌──────────┴───────────────┐
-       ▼                          ▼
-[Gate 5: CLI Engine]       [Gate 6: Web Streaming]
-       │                          │
-       └──────────┬───────────────┘
+                  ▼
+   [Gate 5: Tokio Topcoat Server]
+                  │
+                  ▼
+      [Gate 6: CLI Engine & TUI]
+                  │
                   ▼
        [Gate 7: Hardening & E2E]
 ```

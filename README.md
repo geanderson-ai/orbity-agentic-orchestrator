@@ -41,7 +41,7 @@ O workspace Cargo é particionado em crates desacopladas:
 | **`crates/orbity-graph`** | Motor de Graph Engineering, tipos `GraphNode`, `GraphEdge`, ordenação topológica, DAG e checkpoints. |
 | **`crates/orbity-agent`** | Supervisor Astra, suíte de 5 CLIs (`codex`, `claude`, `agy`, `hermes`, `pi`) e ciclo de vida de agentes. |
 | **`crates/orbity-telemetry`** | Barramento de observabilidade com Rust `tracing` e exportador OpenTelemetry para Grafana/Loki. |
-| **`crates/orbity-server`** | Servidor Axum embutido com streaming em tempo real (SSE e WebSockets) para a interface gráfica. |
+| **`crates/orbity-server`** | Servidor de aplicação full-stack Tokio Topcoat (v0.9+) com views reativas, shards com morphing DOM e WebSockets server-push. |
 | **`crates/orbity-cli`** | Binário de linha de comando com auto-sync de YAMLs, modo TUI (`ratatui`) e preflight health check. |
 
 ---
@@ -72,9 +72,9 @@ O projeto segue a metodologia de **Quality Gates** estruturada em 8 fases:
 - **[Gate 1: Persistência SQLite & Audit Store Criptográfico](IMPLEMENTATION_PLAN.md#gate-1-persistência-sqlite--audit-store-criptográfico)** `[CONCLUÍDO ✅]`
 - **[Gate 2: Mecanismo de Sandbox & Isolamento de Processos](IMPLEMENTATION_PLAN.md#gate-2-mecanismo-de-sandbox--isolamento-de-processos)** `[CONCLUÍDO ✅]`
 - **[Gate 3: Barramento Unificado de Eventos & Observabilidade em 4 Camadas](IMPLEMENTATION_PLAN.md#gate-3-barramento-unificado-de-eventos--observabilidade-em-4-camadas)** `[CONCLUÍDO ✅]`
-- **[Gate 4: Engine de FinOps, Orçamento & Supervisão com Astra](IMPLEMENTATION_PLAN.md#gate-4-engine-de-finops-orçamento--supervisão-com-astra)** `[PLANEJADO ⏳]`
-- **[Gate 5: Interface CLI de Orquestração](IMPLEMENTATION_PLAN.md#gate-5-interface-cli-de-orquestração)** `[PLANEJADO ⏳]`
-- **[Gate 6: Streaming em Tempo Real & Camada de Visualização](IMPLEMENTATION_PLAN.md#gate-6-streaming-em-tempo-real--camada-de-visualização)** `[PLANEJADO ⏳]`
+- **[Gate 4: Graph Engineering, Astra Supervisor & Multi-Agent Network](IMPLEMENTATION_PLAN.md#gate-4-graph-engineering-orbity-graph-astra-supervisor--multi-agent-network)** `[PLANEJADO ⏳]`
+- **[Gate 5: Aplicação Servidora Reativa com Tokio Topcoat](IMPLEMENTATION_PLAN.md#gate-5-aplicação-servidora-reativa-com-tokio-topcoat)** `[PLANEJADO ⏳]`
+- **[Gate 6: Interface CLI de Orquestração & Modo Terminal TUI](IMPLEMENTATION_PLAN.md#gate-6-interface-cli-de-orquestração--modo-terminal-tui)** `[PLANEJADO ⏳]`
 - **[Gate 7: Testes E2E, Validação de Segurança & Hardening](IMPLEMENTATION_PLAN.md#gate-7-testes-e2e-validação-de-segurança--hardening)** `[PLANEJADO ⏳]`
 
 ---

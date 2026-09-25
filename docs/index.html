@@ -887,7 +887,7 @@
           <span class="pillar-tag">tokio</span>
           <span class="pillar-tag">tracing</span>
           <span class="pillar-tag">serde_json</span>
-          <span class="pillar-tag">axum</span>
+          <span class="pillar-tag">topcoat</span>
         </div>
       </div>
 
@@ -1123,8 +1123,8 @@
         <button class="gate-tab-btn" onclick="switchGate(2)">Gate 2: Sandbox</button>
         <button class="gate-tab-btn" onclick="switchGate(3)">Gate 3: Observabilidade</button>
         <button class="gate-tab-btn" onclick="switchGate(4)">Gate 4: Graph Engineering</button>
-        <button class="gate-tab-btn" onclick="switchGate(5)">Gate 5: CLI Engine</button>
-        <button class="gate-tab-btn" onclick="switchGate(6)">Gate 6: Web Streaming</button>
+        <button class="gate-tab-btn" onclick="switchGate(5)">Gate 5: Tokio Topcoat Server</button>
+        <button class="gate-tab-btn" onclick="switchGate(6)">Gate 6: CLI Engine & TUI</button>
         <button class="gate-tab-btn" onclick="switchGate(7)">Gate 7: Hardening E2E</button>
       </div>
 
@@ -1363,26 +1363,29 @@
       },
       {
         id: 5,
-        title: "Gate 5: Interface CLI de Orquestração",
+        title: "Gate 5: Aplicação Servidora Reativa com Tokio Topcoat",
         status: "Projetado",
-        summary: "Linha de comando rica com subcomandos de governança, TUI interativa e gestão de equipes.",
+        summary: "Servidor full-stack reativo em Rust (Topcoat v0.9+) com views reativas, shards com morphing DOM, streaming live!/emit! e WebSockets server-push.",
         tasks: [
-          { id: "TASK-501", name: "Estrutura de Subcomandos com clap v4", desc: "Comandos: run, status, logs, audit verify, finops summary, sandbox clean.", dod: "Manual interativo com validação de argumentos." },
-          { id: "TASK-502", name: "Modo Terminal Streaming & TUI (ratatui)", desc: "Visualização interativa do grafo de nós e logs no terminal.", dod: "Interrupção limpa com Ctrl+C e cancelamento ordenado." },
-          { id: "TASK-503", name: "Modo Headless / JSON Pipeline", desc: "Suporte a orbity run --output json para scripts de CI/CD.", dod: "Stdout estritamente formatado em JSON sem ruído." },
-          { id: "TASK-504", name: "Subcomandos de Agentes e Equipes Declarativas", desc: "Comandos orbity agent (create, list, update, delete) e orbity team (load, list, run).", dod: "Validação completa com forester.yaml." },
-          { id: "TASK-505", name: "Preflight Health Check na Inicialização da CLI", desc: "Detecção e checagem de integridade das 5 CLIs (codex, claude, agy, hermes, pi) e sandbox bwrap.", dod: "Comando orbity doctor e verificação na 1ª execução com relatório formatado." }
+          { id: "TASK-501", name: "Arquitetura de Aplicação Servidora com Tokio Topcoat", desc: "Inicialização do contexto Cx, roteamento de páginas e componentes, e bridge nativa com EventBus.", dod: "Servidor Topcoat consome <25MB RAM e responde com tipagem estrita Rust." },
+          { id: "TASK-502", name: "Views Reativas, Sinais e Componentes Shards (view!, signal, #[shard])", desc: "Cards de agentes, filtros e controles de exibição sem roundtrips ao servidor, com morphing DOM suave.", dod: "Alternância e busca reativas sem perda de foco ou estado." },
+          { id: "TASK-503", name: "Streaming Reativo de UI com live! e emit! (Suspense & Progresso)", desc: "Skeletons de carregamento e emissão contínua de progresso de nós e arestas de tarefas longas.", dod: "Streaming fluido de progresso sem recarregar a página." },
+          { id: "TASK-504", name: "Server-Push via WebSocket de Longa Duração (Topcoat 0.9)", desc: "Conexão WebSocket contínua enviando deltas de UI em tempo real para multi-agentes.", dod: "Reflexão instantânea de estados, logs das 4 camadas e topologia de grafo sem polling." },
+          { id: "TASK-505", name: "Console de Governança, FinOps e Human-in-the-Loop (HITL)", desc: "Aprovação/rejeição interativa HITL (@click), widget FinOps reativo e visualizador da trilha de auditoria SHA-256.", dod: "Aprovação HITL na web desbloqueia agente em <50ms; integridade auditável com 1 clique." }
         ]
       },
       {
         id: 6,
-        title: "Gate 6: Streaming em Tempo Real & Camada de Visualização",
+        title: "Gate 6: Interface CLI de Orquestração & Modo Terminal TUI",
         status: "Projetado",
-        summary: "Servidor Axum embutido fornecendo WebSocket/SSE para alimentar dashboards visuais com cards e arestas SVG.",
+        summary: "Linha de comando rica com subcomandos de governança, TUI interativa ratatui, auto-sync de YAML e preflight doctor.",
         tasks: [
-          { id: "TASK-601", name: "Servidor Axum e Endpoints SSE/WS", desc: "Servidor leve embutido no binário meza para transmissão de eventos.", dod: "Conexões WebSocket simultâneas sem queda." },
-          { id: "TASK-602", name: "Estruturação do Grafo de Topologia", desc: "Payload sintetizando nós, arestas e métricas em tempo real.", dod: "Atualização instantânea na transição de estados de tarefas." },
-          { id: "TASK-603", name: "Dashboard Web Leve (SVG + Cards)", desc: "Visualizador estilo distributed tracing, Gantt timeline e widgets FinOps.", dod: "Página embutida sem necessidade de compilação externa pesada." }
+          { id: "TASK-601", name: "Estrutura de Subcomandos com clap v4", desc: "Comandos: run, resume, status, logs, audit verify, finops summary, serve, sandbox clean.", dod: "Manual interativo (--help) e validação tipada de argumentos." },
+          { id: "TASK-602", name: "Modo Terminal Streaming & TUI (ratatui)", desc: "Visualização interativa do grafo de nós, métricas FinOps e logs no terminal.", dod: "Interrupção limpa com Ctrl+C e cancelamento gracioso dos processos." },
+          { id: "TASK-603", name: "Modo Headless / Pipeline UNIX (JSON Output)", desc: "Suporte a orbity run --output json para scripts e pipelines de CI/CD.", dod: "Stdout estritamente formatado em JSON sem poluição de logs operacionais." },
+          { id: "TASK-604", name: "Subcomandos de Agentes e Equipes Declarativas", desc: "Comandos orbity agent (create, list, update, delete) e orbity team (load, list, run).", dod: "Validação completa e execução de ponta a ponta a partir de forester.yaml." },
+          { id: "TASK-605", name: "Preflight Health Check na Inicialização da CLI (orbity doctor)", desc: "Detecção e checagem de integridade das 5 CLIs (codex, claude, agy, hermes, pi) e sandbox bwrap.", dod: "Comando orbity doctor e verificação na 1ª execução com relatório formatado." },
+          { id: "TASK-606", name: "Reconciliação Declarativa Automática de Pastas (Folder Scanner & Hash Sync)", desc: "Varredura atômica em sub-milissegundos de agents/ e teams/ com sincronização automática no SQLite.", dod: "Adição, edição e remoção de YAMLs sincronizam banco e emitem eventos auditados." }
         ]
       },
       {

@@ -353,7 +353,7 @@ Para MVP:
     
 -   **streaming:** WebSocket
     
--   **backend:** Axum em Rust
+-   **backend:** Tokio Topcoat (v0.9+) em Rust
     
 -   **estado:** evento em memória + persistência no runtime
     
