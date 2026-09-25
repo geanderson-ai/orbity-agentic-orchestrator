@@ -4,7 +4,7 @@
 > **Status:** Proposto / Pronto para Execução  
 > **Linguagem Base:** Rust (2021/2024 edition)  
 > **Interfaces Principais:** CLI (Linha de Comando) & Webhook/SSE/WebSocket para Dashboard  
-> **Componentes Obrigatórios:** Rust, CLI (`clap`/`ratatui`), Orquestrador Astra (Supervisor/Planner), Persistência & Auditoria SQLite (Append-Only Hash-Chained), Sandbox (Isolamento de Processos/Contêineres).  
+> **Componentes Obrigatórios:** Rust, CLI (`clap`/`ratatui`), Orquestração e Servidor Reativo Tokio Topcoat (Sem Astra), Persistência & Auditoria SQLite WAL (Append-Only Hash-Chained), Sandbox Bubblewrap (Isolamento de Processos).  
 > **Origem dos Requisitos:** `overview.md`
 
 ---
@@ -21,7 +21,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
                                       │
                                       ▼
                         ┌────────────────────────────┐
-                        │   Supervisor Astra (Core)  │
+                        │  Topcoat Graph Engine (Core)│
                         │   Planner / Router / FinOps│
                         └─────────────┬──────────────┘
                                       │
@@ -84,7 +84,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 | **Gate 1** | **Persistência SQLite & Audit Store Criptográfico** | Armazenamento de execuções/tarefas e ledger append-only com hash encadeado para integridade estrita. |
 | **Gate 2** | **Mecanismo de Sandbox & Isolamento de Processos** | Criação, destruição e contenção de ferramentas e comandos executados pelos agentes via sandbox segura. |
 | **Gate 3** | **Barramento Unificado de Eventos & Observabilidade em 4 Camadas** | Pipeline de Runtime, Execution, Audit e Telemetry logs via Rust `tracing` e OpenTelemetry. |
-| **Gate 4** | **Graph Engineering (`orbity-graph`), Astra Supervisor & Multi-Agent Network** | Computação orientada a grafos com Nós e Arestas, ordenação topológica, loops de feedback, fan-in/fan-out, FinOps e orquestrador Astra. |
+| **Gate 4** | **Graph Engineering (`orbity-graph`) & Orquestração Multi-Agente Tokio (Sem Astra)** | Computação orientada a grafos com Nós e Arestas, ordenação topológica de Kahn, loops de feedback, fan-in/fan-out, checkpoints SQLite, FinOps e suíte de 5 CLIs, sem dependência de supervisor Astra. |
 | **Gate 5** | **Aplicação Servidora Reativa com Tokio Topcoat** | Servidor de aplicação full-stack reativo em Rust (`topcoat`), views reativas, shards com morphing DOM, streaming SSR (`live!`/`emit!`) e WebSockets server-push para monitoramento dos agentes. |
 | **Gate 6** | **Interface CLI de Orquestração & Modo Terminal TUI** | Binário de linha de comando (`orbity`) com `clap` (v4), streaming no terminal com `ratatui`, modo headless UNIX JSON, preflight health check das 5 CLIs e reconciliação automática de YAML. |
 | **Gate 7** | **Testes E2E, Validação de Segurança & Hardening** | Testes de injeção de violação de hash, contenção de sandbox, limites de orçamento e benchmarking. |
@@ -112,7 +112,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - `crates/orbity-storage`: Camada SQLite, migrações e audit store encadeado.
     - `crates/orbity-sandbox`: Abstração de processos isolados e confinamento.
     - `crates/orbity-graph`: Motor de Graph Engineering, tipos de Nós e Arestas, ordenação topológica, DAG e ciclos controlados.
-    - `crates/orbity-agent`: Adaptadores para Astra, Codex, Claude, Agy, Hermes, Pi e ciclo de vida.
+    - `crates/orbity-agent`: Adaptadores para a suíte de 5 CLIs (Codex, Claude, Agy, Hermes, Pi) e ciclo de vida.
     - `crates/orbity-telemetry`: Configuração de tracing, OpenTelemetry e métricas.
     - `crates/orbity-server`: Servidor de aplicação full-stack reativo Tokio Topcoat com views, shards e WebSockets server-push.
     - `crates/orbity-cli`: Ponto de entrada executável para o usuário final.
@@ -324,7 +324,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
   - **Escopo:** Configurar `tracing-subscriber` com camadas OpenTelemetry para coletar spans hierárquicos:
     ```
     run
-     └─ span: astra (supervisor)
+     └─ span: topcoat (orchestrator)
           ├─ span: codex (worker)
           ├─ span: hermes (worker)
           └─ span: claude (worker)
@@ -337,9 +337,9 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 
 ---
 
-### GATE 4: Graph Engineering (`orbity-graph`), Astra Supervisor & Multi-Agent Network
+### GATE 4: Graph Engineering (`orbity-graph`) & Orquestração Multi-Agente em Tokio (Sem Astra)
 
-> **Objetivo:** Implementar o motor de computação orientada a grafos (**Graph Engineering** com Nodes e Edges) em `orbity-graph`, o agente supervisor Astra responsável por planejar e decompor tarefas em grafos dirigidos, orquestração da suíte de 5 CLIs (`codex`, `claude`, `agy`, `hermes`, `pi`), controle estrito de FinOps por nó/aresta e checkpoints imutáveis de estado.
+> **Objetivo:** Implementar o motor de computação orientada a grafos (**Graph Engineering** com Nodes e Edges) em `orbity-graph`, o orquestrador nativo assíncrono Tokio responsável pela execução de tarefas em grafos dirigidos (DAG), ordenação topológica de Kahn, paralelismo fan-out, barreira fan-in, loops de feedback para auto-correção, persistência de checkpoints criptográficos em SQLite WAL, injeção de contexto e adaptadores da suíte de 5 CLIs locais (`codex`, `claude`, `agy`, `hermes`, `pi`), coordenados deterministicamente por código e YAML sem dependência de um supervisor Astra.
 
 #### Critérios de Entrada
 - Gate 2 (Sandbox) e Gate 3 (Barramento de Eventos) operacionais.
@@ -351,7 +351,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
   - **Escopo:** Criar o crate `crates/orbity-graph` e modelar as estruturas fundamentais:
     ```rust
     pub enum NodeKind {
-        Supervisor { engine: String },            // Ex: Astra planner/evaluator
+        Orchestrator { engine: String },          // Ex: Topcoat workflow engine
         Agent { cli: CliType, config: AgentSpec },// Ex: Codex, Claude, Agy, Hermes, Pi
         Tool { command: String, timeout_secs: u64 },
         ConditionalRouter { predicate_expr: String },
@@ -443,12 +443,13 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
   - **Escopo:** Extratores de tokens normalizados (input, output, cache, reasoning, custo estimado) integrados ao barramento de eventos.
   - **Critério de Aceite (DoD):** Cada nó de agente emite evento `TokenUsageUpdated` estruturado com medição por nó e agregada do grafo.
 
-- [ ] **TASK-408: Agente Orquestrador Astra (Supervisor, Graph Planner & Blackboard Memory)**
-  - **Escopo:** Lógica do supervisor Astra que:
-    1. Analisa a intenção do usuário e sintetiza uma `GraphDefinition` com nós especializados e arestas.
-    2. Coordena a memória Blackboard (`TaskArtifact`, leituras e escritas isoladas).
-    3. Conduz a síntese final dos resultados do grafo.
-  - **Critério de Aceite (DoD):** Astra gera dinamicamente um grafo de execução com nós e arestas válidos a partir de um prompt em linguagem natural.
+- [ ] **TASK-408: Motor de Orquestração Topológico do Grafo & Memória Blackboard (Graph Orchestrator & Blackboard Memory)**
+  - **Escopo:** Motor de orquestração assíncrono em Tokio que:
+    1. Executa a topologia declarativa (`GraphDefinition`) carregada do YAML ou construída via código.
+    2. Coordena a memória Blackboard (`TaskArtifact`, persistência e injeção de saídas intermediárias em `task_artifacts` no SQLite e arquivos temporários na sandbox).
+    3. Despacha tarefas para as 5 CLIs (`codex`, `claude`, `agy`, `hermes`, `pi`) respeitando dependências topológicas.
+    4. Consolida e sintetiza os resultados do grafo (código compilado, relatórios e métricas) sem necessidade de agente supervisor LLM intermediário (sem Astra).
+  - **Critério de Aceite (DoD):** Grafo de execução coordena com sucesso múltiplos nós operários, compartilhando dados via Blackboard e entregando o resultado sintetizado final.
 
 - [ ] **TASK-409: Motor de Orçamento FinOps por Nó/Aresta, Tripwires e Governança Declarativa no YAML (Aprovação/Rejeição sem Pausas Manuais)**
   - **Escopo:** 
@@ -468,7 +469,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 #### Critérios de Saída do Gate 4 (Quality Gate)
 - O motor `orbity-graph` executa grafos com fan-out paralelo, fan-in de barreira e loops de feedback controlados com teto de repetições.
 - Checkpoints criptográficos em SQLite permitem retomada de grafos interrompidos sem perda de integridade.
-- Orquestrador Astra coordena tarefas respeitando limites de FinOps por nó e teto global.
+- Motor de grafos coordena tarefas respeitando limites de FinOps por nó e teto global sem dependência de supervisor Astra.
 - Suíte de 5 CLIs e nós de aprovação humana (HITL) operando de forma integrada na topologia.
 
 ---
@@ -478,7 +479,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 > **Objetivo:** Implementar o servidor de aplicação full-stack reativo em Rust utilizando o framework oficial **Tokio Topcoat** (v0.9+ por Carl Lerche e Julien), fornecendo interface web e console de orquestração em tempo real com views reativas (`view!`), sinais (`signal`), componentes em shards (`#[shard]`), streaming SSR com macros `live!` e `emit!`, e WebSockets server-push para monitoramento contínuo dos agentes, controle de orçamentos e auditoria.
 
 #### Critérios de Entrada
-- Gate 1 a 4 operando de forma integrada (Core, Storage SQLite WAL, Sandbox Bubblewrap, EventBus 4 Camadas, Graph Engineering e Astra Supervisor).
+- Gate 1 a 4 operando de forma integrada (Core, Storage SQLite WAL, Sandbox Bubblewrap, EventBus 4 Camadas, Graph Engineering e Orquestrador Topcoat).
 
 #### Tarefas
 
@@ -498,13 +499,13 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 
 - [ ] **TASK-503: Streaming Reativo de UI com Macros `live!` e `emit!` (Progresso de Execução & Suspense)**
   - **Escopo:** Implementar telas de acompanhamento dinâmico durante tarefas longas:
-    - Uso de `live!` e `emit!` para emitir skeletons de carregamento (Suspense) enquanto o Astra e os operários planejam.
+    - Uso de `live!` e `emit!` para emitir skeletons de carregamento (Suspense) enquanto o motor de grafos executa nós e arestas.
     - Emissão de progresso contínuo de nós e arestas:
       ```rust
       #[page]
       pub async fn execution_progress(cx: &Cx) -> Result<impl View> {
           Ok(live! {
-              emit! { <div class="skeleton">"Planejando topologia com Astra..."</div> }?;
+              emit! { <div class="skeleton">"Executando topologia de grafo..."</div> }?;
               while let Some(progress) = task_stream(cx).await? {
                   emit! { <div class="progress-card">"Progresso: " (progress.percent) "% (" (progress.current_node) ")"</div> }?;
               }
@@ -647,7 +648,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
   - **Critério de Aceite (DoD):** O motor de FinOps bloqueia a execução no limite de \$0.10, finaliza a execução com status `BudgetExceeded` e preserva os registros no SQLite.
 
 - [ ] **TASK-704: Teste de Stress Multi-Agente Concorrente**
-  - **Escopo:** Executar 4 instâncias concorrentes do supervisor Astra orquestrando Codex, Hermes e Claude simultaneamente.
+  - **Escopo:** Executar 4 instâncias concorrentes do motor de grafos orquestrando Codex, Hermes e Claude simultaneamente.
   - **Critério de Aceite (DoD):** Nenhuma contenção de lock fatal no SQLite (modo WAL), integridade dos hashes preservada em todas as 4 runs e ausência de vazamento de memória.
 
 - [ ] **TASK-705: Documentação Operacional e Guia de Execução**
@@ -671,7 +672,7 @@ A tabela abaixo valida que todas as exigências estritas foram mapeadas para tar
 | **SQLite WAL & Audit Chain** | Gate 1 | TASK-101 a 104 | Armazenamento de runs, tasks, métricas de tokens e ledger de auditoria com hash encadeado SHA-256. |
 | **Sandbox Confinada** | Gate 2 | TASK-201 a 204 | Isolamento de comandos de agentes via Bubblewrap/Namespaces com cgroups, rede offline e tmpfs efêmero. |
 | **Observabilidade 4 Camadas** | Gate 3 | TASK-301 a 305 | Runtime, Execution, Audit e Telemetry integrados ao Rust Tracing, barramento assíncrono e OpenTelemetry. |
-| **Astra & Graph Engineering** | Gate 4 | TASK-401 a 410 | Supervisor de planejamento, decomposição em DAG, ordenação topológica, fan-in/fan-out, FinOps por nó e síntese. |
+| **Graph Engineering & Orquestração Multi-Agente** | Gate 4 | TASK-401 a 410 | Motor de grafos em Tokio (DAG, Kahn, fan-in/fan-out, feedback loops, checkpoints SQLite, 5 CLIs, FinOps) sem dependência de supervisor Astra. |
 | **Aplicação Servidora Tokio Topcoat** | Gate 5 | TASK-501 a 505 | Servidor full-stack reativo Tokio Topcoat (v0.9+) com views (`view!`), shards (`#[shard]`), streaming SSR (`live!`/`emit!`) e WebSockets server-push. |
 | **Interface CLI & Terminal TUI** | Gate 6 | TASK-601 a 606 | Binário `orbity` com `clap` (v4), streaming TUI com `ratatui`, `orbity serve`, preflight check e sync automático de YAML. |
 
@@ -691,7 +692,7 @@ A tabela abaixo valida que todas as exigências estritas foram mapeadas para tar
        [Gate 3: Observabilidade]
                   │
                   ▼
-       [Gate 4: Astra & FinOps]
+   [Gate 4: Graph Engine (Sem Astra)]
                   │
                   ▼
    [Gate 5: Tokio Topcoat Server]
@@ -721,7 +722,7 @@ O próximo passo é **executar a implementação do GATE 4**:
   5. `TASK-405`: Checkpointing Criptográfico de Grafo em SQLite WAL (`graph_checkpoints`).
   6. `TASK-406`: Motor de Injeção de Contexto Dinâmico entre Nós (`inject_context`).
   7. `TASK-407`: Suíte de Adaptadores das 5 CLIs Nativas (`codex`, `claude`, `agy`, `hermes`, `pi`).
-  8. `TASK-408`: Agente Orquestrador Astra (Supervisor, Graph Planner & Blackboard Memory).
+  8. `TASK-408`: Motor de Orquestração Topológico do Grafo & Memória Blackboard (sem Astra).
   9. `TASK-409`: Motor de Orçamento FinOps por Nó/Aresta, Tripwires e Governança Declarativa no YAML (Aprovação/Rejeição sem Pausas Manuais).
   10. `TASK-410`: Gerenciador de Ciclo de Vida do Agente e Parser Declarativo de Topologia de Grafo (YAML).
 * **Meta de Validação:** Teste integrado E2E demonstrando fan-out/fan-in, feedback loop com auto-correção, checkpointing no SQLite e governança FinOps.

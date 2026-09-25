@@ -12,7 +12,7 @@
 
 <br/>
 
-**Orbity** é um runtime e orquestrador corporativo de agentes autônomos de inteligência artificial construído em **Rust**, focado em **segurança de sandbox estrita**, **governança com trilha de auditoria append-only imutável em SQLite (com encadeamento de hash SHA-256)**, **observabilidade em 4 camadas** e **FinOps em tempo real** coordenado pelo supervisor **Astra**. Orgulhosamente desenvolvido e projetado no Brasil 🇧🇷.
+**Orbity** é um runtime e orquestrador corporativo de agentes autônomos de inteligência artificial construído em **Rust**, focado em **segurança de sandbox estrita**, **governança com trilha de auditoria append-only imutável em SQLite (com encadeamento de hash SHA-256)**, **observabilidade em 4 camadas** e **FinOps em tempo real** orquestrado nativamente pelo motor reativo **Tokio Topcoat**. Orgulhosamente desenvolvido e projetado no Brasil 🇧🇷.
 
 🌐 **GitHub Pages do Projeto:** Disponível na pasta [`docs/`](docs/index.html) com visualizador interativo em tempo real, simulador de grafos, matriz de Gates & Tasks e console de auditoria.
 
@@ -22,7 +22,7 @@
 
 1. **🦀 Rust & Concorrência Tokio:** Desempenho nativo com barramento assíncrono de eventos de alta vazão (>5.000 ev/s), gerenciamento de memória seguro e ausência de locks globais.
 2. **🕸️ Graph Engineering (`Nodes` & `Edges`):** Modelagem rigorosa de times e fluxos como grafos computacionais dirigidos, com ordenação topológica (Kahn), fan-out paralelo, fan-in de barreira e loops de feedback controlados.
-3. **🧠 Supervisor Astra:** Agente orquestrador que sintetiza grafos dirigidos, delega subtarefas especializadas para a suíte de 5 CLIs (`Codex`, `Claude`, `Agy`, `Hermes`, `Pi`) e gerencia a memória Blackboard.
+3. **🧠 Orquestrador Tokio Topcoat & Motor de Grafos:** Arquitetura reativa que executa grafos dirigidos (DAGs), delega subtarefas especializadas para a suíte de 5 CLIs (`Codex`, `Claude`, `Agy`, `Hermes`, `Pi`) e gerencia a memória Blackboard sem dependência de supervisor Astra.
 4. **🔗 SQLite Audit Store com Hashes Encadeados:** Trilha de auditoria append-only estilo blockchain-lite em modo WAL. Cada evento incorpora o hash SHA-256 do evento anterior, permitindo detecção matemática de qualquer adulteração nos registros históricos.
 5. **🛡️ Sandbox Confinada (bwrap / namespaces):** Isolamento total da execução de ferramentas e comandos externos: root filesystem em modo somente leitura (`ro-bind`), diretório de trabalho efêmero em `tmpfs`, isolamento de rede configurável e limpeza de credenciais sensíveis.
 6. **💰 FinOps & 4 Camadas de Logs:** Separação estrita entre Runtime, Execution, Audit e Telemetry logs (OpenTelemetry exportável para Grafana/Loki), com monitoramento de tokens e tripwires orçamentários por nó e por aresta.
@@ -39,7 +39,7 @@ O workspace Cargo é particionado em crates desacopladas:
 | **`crates/orbity-storage`** | Persistência SQLite WAL, migrações e ledger append-only com encadeamento criptográfico SHA-256. |
 | **`crates/orbity-sandbox`** | Isolamento de comandos e ferramentas via Linux namespaces / Bubblewrap (`bwrap`), tmpfs e cgroups. |
 | **`crates/orbity-graph`** | Motor de Graph Engineering, tipos `GraphNode`, `GraphEdge`, ordenação topológica, DAG e checkpoints. |
-| **`crates/orbity-agent`** | Supervisor Astra, suíte de 5 CLIs (`codex`, `claude`, `agy`, `hermes`, `pi`) e ciclo de vida de agentes. |
+| **`crates/orbity-agent`** | Orquestração de tarefas, suíte de 5 CLIs (`codex`, `claude`, `agy`, `hermes`, `pi`) e ciclo de vida de agentes. |
 | **`crates/orbity-telemetry`** | Barramento de observabilidade com Rust `tracing` e exportador OpenTelemetry para Grafana/Loki. |
 | **`crates/orbity-server`** | Servidor de aplicação full-stack Tokio Topcoat (v0.9+) com views reativas, shards com morphing DOM e WebSockets server-push. |
 | **`crates/orbity-cli`** | Binário de linha de comando com auto-sync de YAMLs, modo TUI (`ratatui`) e preflight health check. |
@@ -72,7 +72,7 @@ O projeto segue a metodologia de **Quality Gates** estruturada em 8 fases:
 - **[Gate 1: Persistência SQLite & Audit Store Criptográfico](IMPLEMENTATION_PLAN.md#gate-1-persistência-sqlite--audit-store-criptográfico)** `[CONCLUÍDO ✅]`
 - **[Gate 2: Mecanismo de Sandbox & Isolamento de Processos](IMPLEMENTATION_PLAN.md#gate-2-mecanismo-de-sandbox--isolamento-de-processos)** `[CONCLUÍDO ✅]`
 - **[Gate 3: Barramento Unificado de Eventos & Observabilidade em 4 Camadas](IMPLEMENTATION_PLAN.md#gate-3-barramento-unificado-de-eventos--observabilidade-em-4-camadas)** `[CONCLUÍDO ✅]`
-- **[Gate 4: Graph Engineering, Astra Supervisor & Multi-Agent Network](IMPLEMENTATION_PLAN.md#gate-4-graph-engineering-orbity-graph-astra-supervisor--multi-agent-network)** `[PLANEJADO ⏳]`
+- **[Gate 4: Graph Engineering & Orquestração Multi-Agente Tokio (Sem Astra)](IMPLEMENTATION_PLAN.md#gate-4-graph-engineering-orbity-graph--orquestração-multi-agente-em-tokio-sem-astra)** `[PLANEJADO ⏳]`
 - **[Gate 5: Aplicação Servidora Reativa com Tokio Topcoat](IMPLEMENTATION_PLAN.md#gate-5-aplicação-servidora-reativa-com-tokio-topcoat)** `[PLANEJADO ⏳]`
 - **[Gate 6: Interface CLI de Orquestração & Modo Terminal TUI](IMPLEMENTATION_PLAN.md#gate-6-interface-cli-de-orquestração--modo-terminal-tui)** `[PLANEJADO ⏳]`
 - **[Gate 7: Testes E2E, Validação de Segurança & Hardening](IMPLEMENTATION_PLAN.md#gate-7-testes-e2e-validação-de-segurança--hardening)** `[PLANEJADO ⏳]`
@@ -121,7 +121,7 @@ O **Gate 0**, o **Gate 1**, o **Gate 2** e o **Gate 3** foram implementados em R
 - **Linter & Compilação:** 0 warnings em `cargo clippy --workspace --all-targets -- -D warnings`.
 - **Vazão do Barramento (Load Test):** 🚀 **75.473 eventos/segundo** (excede o requisito mínimo de 5.000 ev/s em mais de 15x).
 - **Cenário Multi-Agente Concorrente (`crates/orbity-storage/tests/real_multi_agent_scenario.rs`):**
-  - **Supervisor Astra:** Coordenação e agregação contábil FinOps.
+  - **Orquestrador Tokio Topcoat:** Coordenação e agregação contábil FinOps.
   - **4 Agentes Concorrentes (Tokio):** `Codex Dev`, `Claude Sentinel`, `Hermes Researcher` e `Pi Assistant`.
   - **12 Eventos Criptográficos:** Encadeados com sucesso no SQLite WAL; hash final SHA-256 verificado.
   - **Injeção de Violação:** Alteração deliberada de 1 byte no SQLite detectada com 100% de precisão pelo `AuditVerifier` acusando `AuditVerificationResult::Tampered` no índice exato da violação.
@@ -169,7 +169,7 @@ orbity doctor
 # Carregar equipe forester a partir de seu arquivo YAML (ex: forester.yaml vira equipe 'forester')
 orbity team load ./examples/teams/forester.yaml
 
-# Executar tarefa com a equipe 'forester' liderada pelo supervisor Astra
+# Executar tarefa com a equipe 'forester' via motor de grafos Topcoat
 orbity team run forester "Auditar e refatorar conexões de banco SQLite em orbity-storage"
 
 # ==============================================================================

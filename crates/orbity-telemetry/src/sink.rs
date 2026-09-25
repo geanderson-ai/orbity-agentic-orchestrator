@@ -105,8 +105,8 @@ impl EventSink for TelemetrySink {
                 } => {
                     let root_id = tree.start_run_span(run_id);
                     if let Some(team) = team_name {
-                        // Start supervisor span under root
-                        let sup_id = tree.start_supervisor_span(run_id, "astra");
+                        // Start orchestrator span under root
+                        let sup_id = tree.start_supervisor_span(run_id, "topcoat");
                         tracing::info!(
                             target: "orbity::telemetry",
                             run_id = %run_id,

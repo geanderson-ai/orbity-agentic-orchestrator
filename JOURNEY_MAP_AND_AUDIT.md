@@ -2,7 +2,7 @@
 
 > **Orbity Agentic Platform**  
 > **Status da Auditoria:** 100% Contemplado e Mapeado  
-> **Pilares:** Rust Core • Orquestrador Astra • Sandbox Bubblewrap • Trilha SQLite SHA-256 • 5 CLIs (`codex`, `claude`, `agy`, `hermes`, `pi`)
+> **Pilares:** Rust Core • Orquestrador Tokio Topcoat • Sandbox Bubblewrap • Trilha SQLite SHA-256 • 5 CLIs (`codex`, `claude`, `agy`, `hermes`, `pi`)
 
 ---
 
@@ -17,8 +17,8 @@ A jornada de vida de uma orquestração multi-agente no Orbity foi auditada e di
 │   1. CRIAÇÃO    │   2. EXECUÇÃO   │    3. ANÁLISE     │   4. FINALIZAÇÃO    │
 │  (Setup & Init) │(Plan & Delegate)│(Review & FinOps)  │ (Synthesis & Clean) │
 ├─────────────────┼─────────────────┼───────────────────┼─────────────────────┤
-│ • Preflight 5   │ • User Goal In  │ • Validação Testes│ • Síntese Astra     │
-│   CLIs + bwrap  │ • Planner Astra │   na Sandbox      │ • Relatório FinOps  │
+│ • Preflight 5   │ • User Goal In  │ • Validação Testes│ • Síntese Topcoat   │
+│   CLIs + bwrap  │ • DAG Topológico│   na Sandbox      │ • Relatório FinOps  │
 │ • Parse YAML    │   (DAG & Deps)  │ • Code Review     │   (Tokens & USD)    │
 │   (forester.yml)│ • Roteamento 5  │   (Claude Code)   │ • Teardown Sandbox  │
 │ • Alocação ID   │   CLIs Locais   │ • Tripwires FinOps│   (tmpfs wipe)      │
@@ -52,7 +52,7 @@ A jornada de vida de uma orquestração multi-agente no Orbity foi auditada e di
 | Etapa | O que acontece | Componente Responsável | Garantia de Engenharia |
 |---|---|---|---|
 | **2.1 Recepção do Prompt** | Disparo via CLI: `orbity team run forester "Corrigir vazamento de conexões SQLite"`. | `orbity-cli::run` | Atribuição de `run_id` e alocação de cota de orçamento FinOps. |
-| **2.2 Planejamento em DAG** | O supervisor **Astra** (ou **Agy** em modo plan) analisa a solicitação e gera um Grafo Acíclico Dirigido (DAG) decompondo o problema em etapas sequenciais e paralelas. | `orbity-agent::orchestrator` | Transição de estado para `Planning` e emissão do grafo topológico. |
+| **2.2 Execução em DAG** | O orquestrador **Tokio Topcoat** analisa a solicitação e carrega o Grafo Acíclico Dirigido (DAG) decompondo o fluxo em etapas sequenciais e paralelas. | `orbity-agent::orchestrator` | Transição de estado para `Executing` e despacho do grafo topológico. |
 | **2.3 Despacho Especializado** | Roteamento das subtarefas para a ferramenta mais qualificada entre as 5 CLIs nativas: <br>• **Agy:** Pesquisa de contexto na codebase e MCP tools (`agy -p`).<br>• **Codex:** Escrita de código Rust e suíte de testes (`codex exec`).<br>• **Pi:** Edições rápidas e cirúrgicas sem poluir o ambiente (`pi -p`).<br>• **Hermes:** Execução de ferramentas e busca web (`hermes run`).<br>• **Claude:** Revisão crítica e análise de invariantes (`claude -p`). | `orbity-agent::cli_runner` | Transição para `Executing`; uso do melhor modelo/CLI para cada tarefa. |
 | **2.4 Blackboard Context (Memória)** | Os operários compartilham dados e descobertas através de artefatos estruturados na sandbox e metadados persistidos na tabela `task_artifacts` do SQLite. | `orbity-storage::blackboard` | Continuidade sem perda de contexto entre operários do time. |
 | **2.5 Execução Confinada & Timers** | Comandos de compilação e teste rodam dentro da sandbox com limites de cgroup e timeouts estritos (com finalização forçada `SIGKILL`). | `orbity-sandbox::process` | Prevenção contra loops infinitos e travamentos de build. |
@@ -78,7 +78,7 @@ A jornada de vida de uma orquestração multi-agente no Orbity foi auditada e di
 
 | Etapa | O que acontece | Componente Responsável | Garantia de Engenharia |
 |---|---|---|---|
-| **4.1 Síntese do Orquestrador** | O líder **Astra** consolida os resultados dos operários, compõe o relatório técnico final, lista os arquivos alterados e resume as decisões arquiteturais. | `AstraSupervisor` | Entrega executiva clara e estruturada para o usuário final. |
+| **4.1 Síntese do Orquestrador** | O orquestrador **Tokio Topcoat** consolida os resultados dos operários, compõe o relatório técnico final, lista os arquivos alterados e resume as métricas. | `TopcoatOrchestrator` | Entrega executiva clara e estruturada para o usuário final. |
 | **4.2 Fechamento Contábil FinOps** | Registro consolidado na tabela `runs` com: total de tokens (input, output, cache, reasoning), custo exato em USD e duração total da sessão. | `orbity-storage::token_ledger` | Rastreabilidade total de ROI e custo computacional por agente e equipe. |
 | **4.3 Teardown e Limpeza de Sandbox** | Destruição do ambiente efêmero da sandbox: limpeza forçada de `tmpfs`, desmonte de volumes `ro-bind` e encerramento de qualquer processo órfão remanescente. | `orbity-sandbox::cleanup` | Liberação integral de memória RAM e recursos de sistema operacional. |
 | **4.4 Selamento da Trilha de Auditoria** | Gravação do bloco de encerramento (`AgentFinished` ou `RunCompleted`) com o último hash encadeado na tabela `audit_events`. | `orbity-storage::audit_chain` | Encerramento formal e criptograficamente verificável da orquestração. |
@@ -93,7 +93,7 @@ A jornada de vida de uma orquestração multi-agente no Orbity foi auditada e di
 |---|---|---|---|---|---|
 | **Rust Core & Tokio** | Workspace multi-crate, traits | Barramento MPSC assíncrono | Processamento não-bloqueante | Flush seguro de buffers | ✅ 100% |
 | **Graph Engineering** | Valida nós/arestas (Kahn DAG) | Fan-out Tokio, Fan-in barreira | Feedback Loops & Retry limits | Checkpoints criptográficos | ✅ 100% |
-| **Orquestrador Astra** | Configurado via YAML com time | Decompõe em DAG e despacha | Monitora execução e quotas | Realiza a síntese da entrega | ✅ 100% |
+| **Orquestrador Tokio Topcoat** | Configurado via YAML com time | Executa em DAG e despacha | Monitora execução e quotas | Realiza a síntese da entrega | ✅ 100% |
 | **Sandbox Confinada** | Monta ro-bind + tmpfs | Isola processos e comandos | Descarta tmpfs em rollback | Desmonta volumes e limpa PID | ✅ 100% |
 | **SQLite Hash-Chain** | Bloco Genesis registrado | Grava nós append-only | `orbity audit verify` valida | Bloco final selado | ✅ 100% |
 | **5 CLIs Locais** | Preflight check no doctor | `codex`, `claude`, `agy`, `hermes`, `pi` | Extração normalizada de tokens | Agregação por ferramenta | ✅ 100% |

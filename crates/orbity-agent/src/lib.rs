@@ -1,1 +1,1 @@
-//! Orbity Agent - Agent lifecycle, CLI runner adapters and Astra supervisor.
+//! Orbity Agent - Agent lifecycle, CLI runner adapters and Topcoat orchestrator.

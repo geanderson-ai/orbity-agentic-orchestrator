@@ -58,7 +58,7 @@ team:
   # ============================================================================
   orchestrator:
     id: "forester-lead"
-    name: "Astra Forester Supervisor"
+    name: "Forester Lead Orchestrator"
     role: "Lead Architect & Security Officer"
     runner: "agy" # Executa via Antigravity CLI com planning mode
     cli_options:
@@ -278,7 +278,7 @@ team:
         type: "feedback_loop"
         max_iterations: 3
 
-      # 6. Aprovação humana aceita retorna ao Astra supervisor para síntese e arquivamento
+      # 6. Aprovação humana aceita retorna ao orquestrador para síntese e arquivamento
       - from: "release-approval"
         to: "forester-lead"
         type: "conditional"

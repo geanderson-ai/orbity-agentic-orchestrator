@@ -30,7 +30,7 @@ No Orbity, um "Agente" não é apenas uma simples chamada a uma LLM com memória
 │   ┌────────────────────────────────────────────────────────────────┐   │
 │   │         REDE TOPOLÓGICA DE OPERÁRIOS (Graph Engineering)       │   │
 │   │                                                                │   │
-│   │         [Node: Astra Lead] ─── (Fan-out Paralelo) ───┐         │   │
+│   │         [Node: Topcoat Lead] ─ (Fan-out Paralelo) ───┐         │   │
 │   │                 │                                    │         │   │
 │   │                 ▼                                    ▼         │   │
 │   │        [Node: Codex Dev]                    [Node: Hermes]     │   │
@@ -111,7 +111,7 @@ team:
   # Orquestrador Líder Obrigatório
   orchestrator:
     id: "forester-lead"
-    name: "Astra Forester Supervisor"
+    name: "Forester Lead Orchestrator"
     role: "Lead Architect & Security Officer"
     runner: "agy" # Antigravity CLI com planning mode
     cli_options:
@@ -251,7 +251,7 @@ pub struct PlanConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PlanExecutionStrategy {
     StaticGraph,        // Topologia fixa declarada no YAML
-    DynamicAstraGraph,  // Astra sintetiza o grafo em tempo de execução
+    DynamicTopcoatGraph, // Topcoat sintetiza o grafo em tempo de execução
     HybridGraph,        // Topologia base com expansões dinâmicas
 }
 
@@ -527,7 +527,7 @@ A jornada multi-agente integra o ciclo de vida da instância com a máquina de e
         │                     │ execute_graph / job_assigned            │
         │                     ▼                                         │
         │             ┌────────────────┐                                │
-        │             │    PLANNING    │ (Astra expande nós e arestas)  │
+        │             │    PLANNING    │ (Topcoat expande nós e arestas)│
         │             └───────┬────────┘                                │
         │                     │ Grafo pronto                            │
         │                     ▼                                         │
@@ -668,7 +668,7 @@ A CLI oferece controle completo tanto imperativo quanto declarativo baseado na p
 orbity team load ./examples/teams/forester.yaml
 # Saída:
 # ✓ Equipe 'forester' registrada com sucesso!
-#   └─ Orquestrador Líder: Astra Forester Supervisor (ID: forester-lead)
+#   └─ Orquestrador Líder: Forester Lead Orchestrator (ID: forester-lead)
 #   └─ Workers Registrados: 3 (codex-worker, claude-auditor, hermes-researcher)
 #   └─ Orçamento Teto: $1.50 USD
 

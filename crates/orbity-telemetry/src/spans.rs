@@ -101,7 +101,7 @@ impl SpanTree {
         span_id
     }
 
-    /// Starts a supervisor span under the run span (e.g. `supervisor:astra`).
+    /// Starts a supervisor/orchestrator span under the run span (e.g. `supervisor:topcoat`).
     pub fn start_supervisor_span(&mut self, run_id: &str, supervisor_name: &str) -> String {
         let parent_id = self.run_root_spans.get(run_id).cloned();
         let mut span = SpanRecord::new(
@@ -210,7 +210,7 @@ mod tests {
         let run_id = "run-span-tree-01";
 
         let root_id = tree.start_run_span(run_id);
-        let supervisor_id = tree.start_supervisor_span(run_id, "astra");
+        let supervisor_id = tree.start_supervisor_span(run_id, "topcoat");
         let worker_id = tree.start_agent_span(run_id, "codex", Some("task-01".to_string()), Some(supervisor_id.clone()));
 
         let worker_span = tree.get_span(&worker_id).expect("worker span exists");

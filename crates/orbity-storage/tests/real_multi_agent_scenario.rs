@@ -2,7 +2,7 @@
 //!
 //! Validates:
 //! 1. Declarative team parsing (forester.yaml).
-//! 2. Concurrent workers (Codex, Claude, Hermes, Pi) coordinated by Astra supervisor.
+//! 2. Concurrent workers (Codex, Claude, Hermes, Pi) coordinated by Topcoat orchestrator.
 //! 3. Concurrent SQLite transactions in WAL mode writing tasks, token ledgers and audit records.
 //! 4. FinOps token and cost accounting.
 //! 5. Cryptographic hash-chain integrity verification.
@@ -60,7 +60,7 @@ async fn test_real_multi_agent_concurrent_orchestration_and_audit() {
     };
     team_dao.upsert(&team_record).await.expect("Upsert team");
 
-    // 4. Supervisor Astra initiates execution run
+    // 4. Topcoat orchestrator initiates execution run
     let run_id = format!("run-multi-{}", Uuid::new_v4());
     let run_dao = RunDao::new(pool.clone());
     let audit_store = AuditStore::new(pool.clone());

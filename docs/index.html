@@ -837,7 +837,7 @@
       </h1>
 
       <p class="hero-desc">
-        Runtime de alto desempenho em Rust com isolamento Sandbox estrito, governança em SQLite append-only com encadeamento de hash SHA-256, observabilidade de 4 camadas e orquestração inteligente supervisionada pelo agente Astra.
+        Runtime de alto desempenho em Rust com isolamento Sandbox estrito, governança em SQLite append-only com encadeamento de hash SHA-256, observabilidade de 4 camadas e orquestração full-stack reativa com Tokio Topcoat e motor de grafos DAG (sem Astra).
       </p>
 
       <div class="hero-cta">
@@ -920,7 +920,7 @@
       <!-- Pilar 4 -->
       <div class="pillar-card">
         <div class="pillar-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">🧠</div>
-        <h3 class="pillar-title">Supervisor Astra</h3>
+        <h3 class="pillar-title">Orquestrador Tokio Topcoat</h3>
         <p class="pillar-desc">Orquestrador e roteador central. Decompõe tarefas complexas em DAGs de execução, despacha sub-rotinas para agentes operários (Codex, Claude, Hermes) e sintetiza as respostas.</p>
         <div class="pillar-tags">
           <span class="pillar-tag">dag-planner</span>
@@ -987,7 +987,7 @@
           <div class="graph-svg-container">
             <svg class="flow-svg" viewBox="0 0 500 360">
               <defs>
-                <linearGradient id="gradAstra" x1="0%" y1="0%" x2="100%" y2="100%">
+                <linearGradient id="gradTopcoat" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stop-color="#6366f1" />
                   <stop offset="100%" stop-color="#4f46e5" />
                 </linearGradient>
@@ -1010,15 +1010,15 @@
               </defs>
 
               <!-- Conexões SVG -->
-              <path id="edge-astra-codex" d="M 250 85 L 110 200" stroke="#334155" stroke-width="2" stroke-dasharray="4" fill="none" />
-              <path id="edge-astra-agy" d="M 250 85 L 250 200" stroke="#334155" stroke-width="2" stroke-dasharray="4" fill="none" />
-              <path id="edge-astra-claude" d="M 250 85 L 390 200" stroke="#334155" stroke-width="2" stroke-dasharray="4" fill="none" />
+              <path id="edge-topcoat-codex" d="M 250 85 L 110 200" stroke="#334155" stroke-width="2" stroke-dasharray="4" fill="none" />
+              <path id="edge-topcoat-agy" d="M 250 85 L 250 200" stroke="#334155" stroke-width="2" stroke-dasharray="4" fill="none" />
+              <path id="edge-topcoat-claude" d="M 250 85 L 390 200" stroke="#334155" stroke-width="2" stroke-dasharray="4" fill="none" />
 
-              <!-- Nó Astra (Supervisor) -->
-              <g id="node-astra" class="agent-node" transform="translate(180, 25)">
-                <rect width="140" height="60" rx="10" fill="url(#gradAstra)" stroke="#818cf8" stroke-width="1.5" />
-                <text x="70" y="26" text-anchor="middle" fill="#fff" font-weight="700" font-size="12">ASTRA (Supervisor)</text>
-                <text id="status-astra" x="70" y="44" text-anchor="middle" fill="#c7d2fe" font-size="10">IDLE</text>
+              <!-- Nó Topcoat (Orquestrador) -->
+              <g id="node-topcoat" class="agent-node" transform="translate(180, 25)">
+                <rect width="140" height="60" rx="10" fill="url(#gradTopcoat)" stroke="#818cf8" stroke-width="1.5" />
+                <text x="70" y="26" text-anchor="middle" fill="#fff" font-weight="700" font-size="12">TOPCOAT (Engine)</text>
+                <text id="status-topcoat" x="70" y="44" text-anchor="middle" fill="#c7d2fe" font-size="10">IDLE</text>
               </g>
 
               <!-- Nó Codex (Code/Sandbox) -->
@@ -1090,7 +1090,7 @@
           </div>
           <span class="chain-arrow">→</span>
           <div class="chain-block">
-            <div class="chain-block-title">#1 AgentStarted (Astra)</div>
+            <div class="chain-block-title">#1 AgentStarted (Topcoat)</div>
             <div>prev: e3b0c442</div>
             <div class="chain-hash">hash: 9a81f3b0...</div>
           </div>
@@ -1182,7 +1182,7 @@
           &nbsp;&nbsp;<span style="color:#10b981;">[✓] hermes</span>&nbsp;&nbsp;v0.21.0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-> /home/geanderson/.local/bin/hermes<br>
           &nbsp;&nbsp;<span style="color:#10b981;">[✓] pi</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v0.78.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-> /home/geanderson/.hermes/node/bin/pi<br><br>
           <span style="color:#10b981; font-weight:700;">✓ 5 de 5 CLIs operacionais. Ambiente pronto para orquestração multi-agente!</span>
-          <span style="color:#10b981;">[Astra::Planner]</span> Decompondo solicitação em 3 subtarefas:<br>
+          <span style="color:#10b981;">[Topcoat::Engine]</span> Decompondo solicitação em 3 subtarefas:<br>
           &nbsp;&nbsp;├─ [Task 1] Codex: Gerar migrations SQLx (Sandbox: isolado)<br>
           &nbsp;&nbsp;├─ [Task 2] Codex: Executar 'cargo test' (Sandbox: bwrap tmpfs)<br>
           &nbsp;&nbsp;└─ [Task 3] Claude: Revisar diff e impacto em performance<br><br>
@@ -1215,7 +1215,7 @@
             </td>
             <td>Lifecycle do agente e processos: start, stop, timeout, retry, crash.</td>
             <td>Stdout / Arquivo local com rotação. Rastreamento técnico imediato.</td>
-            <td><code>{"event":"agent.started","agent":"astra","run_id":"run_123"}</code></td>
+            <td><code>{"event":"agent.started","agent":"topcoat","run_id":"run_123"}</code></td>
           </tr>
           <tr>
             <td>
@@ -1345,7 +1345,7 @@
       },
       {
         id: 4,
-        title: "Gate 4: Graph Engineering (orbity-graph), Astra & Multi-Agent Network",
+        title: "Gate 4: Graph Engineering & Orquestração Multi-Agente Tokio (Sem Astra)",
         status: "Projetado",
         summary: "Computação dirigida por grafos com Nodes & Edges, ordenação de Kahn, barreiras Fan-in/Fan-out, loops de feedback controlados e checkpoints criptográficos.",
         tasks: [
@@ -1356,7 +1356,7 @@
           { id: "TASK-405", name: "Checkpoints de Grafo no SQLite com Hashes", desc: "Persistência do GraphState a cada aresta com hash SHA-256 encadeado e resume.", dod: "Recuperação de execução interrompida sem perda de contexto." },
           { id: "TASK-406", name: "Adaptadores da Suíte de 5 CLIs", desc: "Runners para Codex CLI, Claude Code, Agy Antigravity, Hermes Agent e Pi Assistant.", dod: "Invocação isolada e não-interativa em sandbox bwrap." },
           { id: "TASK-407", name: "Normalização de Tokens das 5 Ferramentas", desc: "Parsing de métricas de tokens (input, output, cache, reasoning) das 5 CLIs.", dod: "Testes unitários cobrindo todas as 5 CLIs." },
-          { id: "TASK-408", name: "Supervisor Astra (Graph Planner & Blackboard)", desc: "Decomposição de linguagem natural em nós/arestas e memória compartilhada.", dod: "Síntese autônoma de topologia a partir de objetivo de usuário." },
+          { id: "TASK-408", name: "Motor de Orquestração Topológico do Grafo (sem Astra)", desc: "Execução determinística de nós/arestas, memória Blackboard e síntese final.", dod: "Coordenação completa de múltiplos nós operários e consolidação das entregas." },
           { id: "TASK-409", name: "FinOps por Nó/Aresta e Nó Human-in-the-Loop (HITL)", desc: "Tripwires orçamentários por nó e nó HumanGate com pausa/retomada via orbity resume.", dod: "Pausa preventiva e retomada sem corrupção de estado." },
           { id: "TASK-410", name: "Parser Declarativo de Grafos em YAML (teams/*.yaml)", desc: "CRUD de agentes e deserialização de blocos graph_topology (nodes e edges).", dod: "Carregamento e instanciação de forester.yaml com grafo tipado." }
         ]
@@ -1397,7 +1397,7 @@
           { id: "TASK-701", name: "Teste de Injeção de Fraude na Auditoria", desc: "Modificação forçada de 1 byte na tabela SQLite seguida de meza audit verify.", dod: "Detecção em 100% dos casos com flag de adulteração." },
           { id: "TASK-702", name: "Teste de Confinamento da Sandbox", desc: "Tentativas controladas de leitura de ~/.ssh e escrita no host.", dod: "Bloqueio no nível de sistema operacional registrado como PolicyDenied." },
           { id: "TASK-703", name: "Teste de Tripwire Orçamentário", desc: "Simulação de consumo atingindo teto com encerramento gracioso.", dod: "Orquestração bloqueada antes de gerar excedente financeiro." },
-          { id: "TASK-704", name: "Teste de Carga Multi-Agente Concorrente", desc: "4 supervisors Astra executando workers simultaneamente.", dod: "Ausência de deadlocks ou corrupção no SQLite WAL." },
+          { id: "TASK-704", name: "Teste de Carga Multi-Agente Concorrente", desc: "4 instâncias concorrentes do motor de grafos executando workers simultaneamente.", dod: "Ausência de deadlocks ou corrupção no SQLite WAL." },
           { id: "TASK-705", name: "Documentação Operacional e Manuais", desc: "Manuais de uso, receitas de implantação e especificações.", dod: "Documentação completa aprovada." }
         ]
       }
@@ -1459,13 +1459,13 @@
 
       run: `<span style="color:#64748b;"># Executando comando com equipe forester...</span><br>
 <span style="color:#38bdf8;">$ orbity team run forester "Refatorar camada de banco" --budget-usd 2.00</span><br><br>
-<span style="color:#10b981;">[Astra::Planner]</span> Decompondo solicitação para equipe 'forester':<br>
+<span style="color:#10b981;">[Topcoat::Engine]</span> Decompondo solicitação para equipe 'forester':<br>
 &nbsp;&nbsp;├─ [Step 1] Agy: Pesquisa de contexto e padrões em orbity-storage (agy -p)<br>
 &nbsp;&nbsp;├─ [Step 2] Codex: Gerar migrations SQLx (Sandbox: bwrap tmpfs)<br>
 &nbsp;&nbsp;├─ [Step 3] Pi: Ajustes cirúrgicos nos tipos de dados (pi -p --mode json)<br>
 &nbsp;&nbsp;├─ [Step 4] Codex: Executar 'cargo test' na sandbox (exit_code: 0)<br>
 &nbsp;&nbsp;├─ [Step 5] Claude: Revisar diff e impacto em segurança<br>
-&nbsp;&nbsp;└─ [Step 6] Astra: Síntese e consolidação FinOps<br><br>
+&nbsp;&nbsp;└─ [Step 6] Topcoat: Síntese e consolidação FinOps<br><br>
 <span style="color:#f59e0b;">[FinOps]</span> Budget reservado: $2.00 | Consumo real: $0.34<br>
 <span style="color:#a855f7;">[Audit]</span> Genesis block estabelecido (hash: e3b0c442...)`,
 
@@ -1473,7 +1473,7 @@
 <span style="color:#38bdf8;">$ orbity audit verify run_74f9c</span><br><br>
 <span style="color:#10b981;">[AuditVerifier]</span> Carregando 18 eventos da tabela 'audit_events'...<br>
 &nbsp;&nbsp;✓ #0 Genesis Hash: e3b0c442... [OK]<br>
-&nbsp;&nbsp;✓ #1 AgentStarted (astra): 9a81f3b0... [OK]<br>
+&nbsp;&nbsp;✓ #1 AgentStarted (topcoat): 9a81f3b0... [OK]<br>
 &nbsp;&nbsp;✓ #2 SandboxCreated (sbx_42): 4c62d01a... [OK]<br>
 &nbsp;&nbsp;✓ #3 CommandExecuted (cargo test): 7f81bc22... [OK]<br>
 &nbsp;&nbsp;✓ #4 TokenUsageRecorded: 3b19ff88... [OK]<br><br>
@@ -1483,7 +1483,7 @@
 <span style="color:#38bdf8;">$ orbity finops summary --since 2026-09-01</span><br><br>
 FERRAMENTA   INPUT TOKENS   OUTPUT TOKENS   CACHE TOKENS   CUSTO USD<br>
 ──────────────────────────────────────────────────────────────────<br>
-Astra        12,400         1,850           4,200          $0.07<br>
+Topcoat      12,400         1,850           4,200          $0.07<br>
 Agy          28,500         4,200           12,000         $0.14<br>
 Codex        38,900         7,200           14,500         $0.22<br>
 Claude       44,800         4,100           18,000         $0.31<br>
@@ -1494,7 +1494,7 @@ Pi           15,200         1,900           6,400          $0.06<br>
 
       logs: `<span style="color:#64748b;"># Streaming de logs estruturados (Audit Layer)...</span><br>
 <span style="color:#38bdf8;">$ orbity logs run_74f9c --layer audit --json</span><br><br>
-<span style="color:#e2e8f0;">{"timestamp":"2026-09-25T13:02:10Z","run_id":"run_74f9c","sequence":1,"event":"agent.started","agent":"astra","hash":"9a81f3b0"}</span><br>
+<span style="color:#e2e8f0;">{"timestamp":"2026-09-25T13:02:10Z","run_id":"run_74f9c","sequence":1,"event":"agent.started","agent":"topcoat","hash":"9a81f3b0"}</span><br>
 <span style="color:#e2e8f0;">{"timestamp":"2026-09-25T13:02:11Z","run_id":"run_74f9c","sequence":2,"event":"sandbox.created","sandbox_id":"sbx_42","hash":"4c62d01a"}</span><br>
 <span style="color:#e2e8f0;">{"timestamp":"2026-09-25T13:02:12Z","run_id":"run_74f9c","sequence":3,"event":"policy.allowed","policy":"fs.read_only","hash":"7f81bc22"}</span>`
     };
@@ -1554,41 +1554,41 @@ Pi           15,200         1,900           6,400          $0.06<br>
       termBody.innerHTML = '';
       eventCount = 0;
 
-      appendLog('00:00:01', 'log-badge-runtime', 'RUNTIME', 'Supervisor Astra inicializado. Criando DAG de orquestração...');
-      setAgentState('astra', 'PLANNING');
+      appendLog('00:00:01', 'log-badge-runtime', 'RUNTIME', 'Orquestrador Tokio Topcoat inicializado. Executando DAG...');
+      setAgentState('topcoat', 'PLANNING');
 
       simInterval = setInterval(() => {
         step++;
         if (step === 1) {
           appendLog('00:00:02', 'log-badge-audit', 'AUDIT', 'Genesis block criado. SHA-256: e3b0c442...');
-          appendLog('00:00:02', 'log-badge-exec', 'EXEC', 'Astra delegou pesquisa profunda para Agy Antigravity (agy -p).');
-          setAgentState('astra', 'DELEGATING');
+          appendLog('00:00:02', 'log-badge-exec', 'EXEC', 'Topcoat despachou pesquisa profunda para Agy Antigravity (agy -p).');
+          setAgentState('topcoat', 'DELEGATING');
           setAgentState('agy', 'RESEARCHING', '$0.05');
-          setEdgeActive('edge-astra-agy', true);
+          setEdgeActive('edge-topcoat-agy', true);
           tokens += 9200;
           cost += 0.05;
         } else if (step === 2) {
           setAgentState('agy', 'DONE', '$0.07');
-          setEdgeActive('edge-astra-agy', false);
+          setEdgeActive('edge-topcoat-agy', false);
           appendLog('00:00:03', 'log-badge-runtime', 'SANDBOX', 'Sandbox bwrap criado (ID: sbx_981). Root montado ro-bind.');
           appendLog('00:00:04', 'log-badge-exec', 'EXEC', "Codex CLI executou 'cargo test' no sandbox (exit_code: 0, 1140ms).");
           tokens += 14200;
           cost += 0.12;
           setAgentState('codex', 'DONE', '$0.18');
-          setEdgeActive('edge-astra-codex', false);
-          setEdgeActive('edge-astra-claude', true);
+          setEdgeActive('edge-topcoat-codex', false);
+          setEdgeActive('edge-topcoat-claude', true);
           setAgentState('claude', 'REVIEWING', '$0.08');
         } else if (step === 3) {
           appendLog('00:00:05', 'log-badge-finops', 'FINOPS', 'Consumo atualizado: 26,400 tokens ($0.23 gastas de $2.00 budget).');
           appendLog('00:00:06', 'log-badge-exec', 'EXEC', 'Claude Code concluiu auditoria de segurança. Invariantes de memória confirmados.');
           setAgentState('claude', 'DONE', '$0.14');
-          setEdgeActive('edge-astra-claude', false);
+          setEdgeActive('edge-topcoat-claude', false);
           tokens += 12800;
           cost += 0.11;
         } else if (step === 4) {
           appendLog('00:00:07', 'log-badge-audit', 'AUDIT', 'Gravando bloco #5 na tabela SQLite. Hash encadeado: 89fa210b...');
-          appendLog('00:00:08', 'log-badge-runtime', 'RUNTIME', 'Astra sintetizou a entrega das 3 CLIs (Agy, Codex, Claude). Sucesso total!');
-          setAgentState('astra', 'DONE');
+          appendLog('00:00:08', 'log-badge-runtime', 'RUNTIME', 'Topcoat sintetizou a entrega das 3 CLIs (Agy, Codex, Claude). Sucesso total!');
+          setAgentState('topcoat', 'DONE');
           tokens += 4300;
           cost += 0.04;
           clearInterval(simInterval);
@@ -1628,13 +1628,13 @@ Pi           15,200         1,900           6,400          $0.06<br>
       cost = 0;
       valTokens.innerText = "0";
       valCost.innerText = "$0.00";
-      setAgentState('astra', 'IDLE');
+      setAgentState('topcoat', 'IDLE');
       setAgentState('codex', 'IDLE', '$0.00');
       setAgentState('agy', 'IDLE', '$0.00');
       setAgentState('claude', 'IDLE', '$0.00');
-      setEdgeActive('edge-astra-codex', false);
-      setEdgeActive('edge-astra-agy', false);
-      setEdgeActive('edge-astra-claude', false);
+      setEdgeActive('edge-topcoat-codex', false);
+      setEdgeActive('edge-topcoat-agy', false);
+      setEdgeActive('edge-topcoat-claude', false);
       document.querySelectorAll('.chain-block').forEach(b => b.classList.remove('tampered'));
       document.getElementById('chainStatus').innerText = "✓ CADEIA ÍNTEGRA";
       document.getElementById('chainStatus').style.color = "#34d399";

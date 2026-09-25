@@ -47,7 +47,7 @@ async fn test_four_layer_observability_simultaneous_pipeline() {
 
     let run_id = "run-pipeline-e2e";
 
-    // --- STEP 1: Run Initiated (Astra Supervisor) ---
+    // --- STEP 1: Run Initiated (Topcoat Orchestrator) ---
     bus.emit(
         run_id,
         RuntimeEvent::RunInitiated {
@@ -179,7 +179,7 @@ async fn test_four_layer_observability_simultaneous_pipeline() {
     .await
     .unwrap();
 
-    // --- STEP 10: Run Completed (Astra Synthesis) ---
+    // --- STEP 10: Run Completed (Topcoat Graph Synthesis) ---
     bus.emit(
         run_id,
         RuntimeEvent::RunCompleted {
