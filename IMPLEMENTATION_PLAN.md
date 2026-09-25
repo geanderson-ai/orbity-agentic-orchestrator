@@ -104,7 +104,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 
 #### Tarefas
 
-- [ ] **TASK-001: Estruturação do Cargo Workspace Multi-Crate**
+- [x] **TASK-001: Estruturação do Cargo Workspace Multi-Crate**
   - **Escopo:** Criar estrutura modular para garantir isolamento de responsabilidades e tempos rápidos de compilação.
   - **Módulos:**
     - `crates/orbity-core`: Tipos fundamentais, enums de eventos, structs de tokens e interfaces comuns.
@@ -117,7 +117,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - `crates/orbity-cli`: Ponto de entrada executável para o usuário final.
   - **Critério de Aceite (DoD):** `cargo check --workspace` compila com sucesso; dependências entre crates devidamente referenciadas via `path`.
 
-- [ ] **TASK-002: Modelagem Canônica de Eventos Estruturados**
+- [x] **TASK-002: Modelagem Canônica de Eventos Estruturados**
   - **Escopo:** Implementar em `orbity-core` a taxonomia completa dos eventos do ciclo de vida:
     - Ciclo de Vida: `AgentStarted`, `AgentFinished`, `AgentFailed`.
     - Execução: `CommandExecuted`, `ToolCalled`, `FileRead`, `FileWritten`, `NetworkRequest`.
@@ -126,7 +126,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - FinOps: `TokenUsageUpdated`, `BudgetThresholdReached`, `BudgetExceeded`, `ContextWindowThresholdReached`.
   - **Critério de Aceite (DoD):** Enum `RuntimeEvent` implementando `Serialize`, `Deserialize`, `Clone` e `Debug`, com testes unitários de serialização JSON sem perdas de schema.
 
-- [ ] **TASK-003: Modelagem de FinOps e Tokenomics**
+- [x] **TASK-003: Modelagem de FinOps e Tokenomics**
   - **Escopo:** Criar as estruturas de auditoria de consumo:
     ```rust
     pub struct TokenUsage {
@@ -146,12 +146,12 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     ```
   - **Critério de Aceite (DoD):** Métodos de soma/acumulação e verificação de limites orçamentários com testes unitários cobrindo transbordamento de cota.
 
-- [ ] **TASK-004: Sanitização e Redação de Segredos (Secret Masker)**
+- [x] **TASK-004: Sanitização e Redação de Segredos (Secret Masker)**
   - **Escopo:** Mecanismo obrigatório para impedir vazamento de chaves de API, credenciais e dados confidenciais nos logs estruturados.
   - **Especificação:** Registro de metadados com hash ou ID ofuscado (`secret_id: "github_token"`, `value_logged: false`).
   - **Critério de Aceite (DoD):** Teste unitário validando que strings contendo chaves conhecidas (ex: `sk-...`) são mascaradas antes da persistência e serialização de qualquer evento.
 
-- [ ] **TASK-005: Modelagem de Contratos de Agentes, Orquestradores e Equipes (YAML + Rust)**
+- [x] **TASK-005: Modelagem de Contratos de Agentes, Orquestradores e Equipes (YAML + Rust)**
   - **Escopo:** Em `orbity-core`, criar schemas de definição declarativa e tipos de domínio:
     - Structs: `AgentRecord`, `OrchestratorConfig`, `PromptConfig`, `PlanConfig`, `PlanStep`, `WorkerConfig`.
     - Enum: `AgentLifecycleState` (`Draft`, `Spawning`, `Idle`, `Planning`, `Executing`, `Paused`, `Completed`, `Failed`, `Archived`).
@@ -174,7 +174,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 
 #### Tarefas
 
-- [ ] **TASK-101: Configuração do Banco SQLite e Migrações de Esquema**
+- [x] **TASK-101: Configuração do Banco SQLite e Migrações de Esquema**
   - **Escopo:** Criar migrations automatizadas em `orbity-storage` com pragmas de performance (`PRAGMA journal_mode=WAL;`, `PRAGMA synchronous=NORMAL;`, `PRAGMA foreign_keys=ON;`).
   - **Tabelas:**
     - `teams` (name, description, config_yaml, config_hash, created_at, updated_at)
@@ -187,19 +187,19 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - `audit_events` (id, run_id, task_id, sequence_num, event_type, payload_json, previous_hash, current_hash, recorded_at)
   - **Critério de Aceite (DoD):** Migrações executadas com sucesso via código; esquema suporta índices para consultas por `run_id`, `task_id`, `agent_name`, `team_name` e `state`.
 
-- [ ] **TASK-102: Motor de Audit Append-Only com Hashes Encadeados**
+- [x] **TASK-102: Motor de Audit Append-Only com Hashes Encadeados**
   - **Escopo:** Implementar a lógica criptográfica para garantir que qualquer adulteração nos eventos passados quebre o hash encadeado:
     $$\text{current\_hash} = \text{SHA256}(\text{previous\_hash} \parallel \text{sequence\_num} \parallel \text{event\_type} \parallel \text{payload\_json} \parallel \text{recorded\_at})$$
   - **Estrutura:** Genesis block para o primeiro evento da `run` (`previous_hash = "0000000000000000000000000000000000000000000000000000000000000000"`).
   - **Critério de Aceite (DoD):** Inserção estritamente atômica de eventos; tentativa de inserir nó com hash incorreto ou fora de ordem é rejeitada.
 
-- [ ] **TASK-103: Verificador de Integridade Histórica (Audit Verifier)**
+- [x] **TASK-103: Verificador de Integridade Histórica (Audit Verifier)**
   - **Escopo:** Criar rotina que percorre toda a cadeia de uma `run_id` recalculando os hashes de cada evento para validar a imutabilidade da trilha.
   - **Critério de Aceite (DoD):** Teste unitário e de integração demonstrando que:
     1. Execuções válidas retornam `AuditVerification::Valid`.
     2. Modificação manual de 1 caractere no banco SQLite em `payload_json` acusa erro `AuditVerification::Tampered { event_id, expected_hash, actual_hash }`.
 
-- [ ] **TASK-104: Repositórios de Acesso a Dados (DAOs)**
+- [x] **TASK-104: Repositórios de Acesso a Dados (DAOs)**
   - **Escopo:** Implementar traits e repositórios para `RunRepository`, `TaskRepository`, `TokenLedgerRepository` e `AuditRepository`.
   - **Critério de Aceite (DoD):** Operações CRUD essenciais com suporte a transações assíncronas do `sqlx`.
 
