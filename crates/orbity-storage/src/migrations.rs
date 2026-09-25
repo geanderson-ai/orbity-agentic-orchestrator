@@ -102,7 +102,6 @@ CREATE TABLE IF NOT EXISTS audit_events (
     previous_hash TEXT NOT NULL,
     current_hash TEXT NOT NULL,
     recorded_at TEXT NOT NULL,
-    FOREIGN KEY(run_id) REFERENCES runs(id) ON DELETE CASCADE,
     UNIQUE(run_id, sequence_num)
 );
 
