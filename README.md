@@ -200,17 +200,66 @@ orbity audit verify run_74f9c
 
 # Relatório consolidado de FinOps (tokens e custo por agente)
 orbity finops summary --since 2026-09-01
+
+# ==============================================================================
+# 4. SERVIDOR REATIVO TOKIO TOPCOAT (Console Web & WebSockets)
+# ==============================================================================
+
+# Iniciar servidor full-stack reativo Tokio Topcoat com dashboard em tempo real:
+orbity serve --port 8080
+# Console disponível em: http://127.0.0.1:8080
 ```
 
 ---
 
-## 📚 Documentos do Projeto
+## 🛠️ Guia de Implantação e Instalação em Produção
 
-- [Mapa da Jornada Multi-Agente & Varredura (Criação, Execução, Análise, Finalização)](JOURNEY_MAP_AND_AUDIT.md)
-- [Contratos, Ciclo de Vida e Setup Declarativo (YAML)](CONTRACTS_AND_LIFECYCLE.md)
-- [Plano de Implementação em Gates e Tasks](IMPLEMENTATION_PLAN.md)
-- [Exemplo de Equipe Declarativa: forester.yaml](examples/teams/forester.yaml)
-- [Exemplo de Agente Declarativo: agente01.yaml](examples/agents/agente01.yaml)
-- [Documento de Overview Original](overview.md)
-- [Página Web GitHub Pages](docs/index.html)
-- [Workflow de Deploy do GitHub Pages](.github/workflows/deploy-pages.yml)
+### 1. Pré-requisitos de Sistema (Linux)
+- **Kernel Linux:** $\ge 5.15$ com unprivileged user namespaces ativado (`sysctl -w kernel.unprivileged_userns_clone=1`).
+- **Bubblewrap:** `/usr/bin/bwrap` para confinamento seguro de processos (`sudo apt install bubblewrap` ou `dnf install bubblewrap`).
+- **SQLite:** 3.45+ compilado com suporte a WAL.
+- **Suíte de 5 CLIs Nativas:** `codex`, `claude`, `agy`, `hermes` e `pi` acessíveis no `$PATH`.
+
+### 2. Compilação Otimizada
+```bash
+# Compilar todo o workspace em modo release com otimizações estritas
+cargo build --release --workspace
+
+# O binário executável final estará disponível em:
+./target/release/orbity --help
+```
+
+### 3. Execução como Serviço de Sistema (`systemd`)
+Para ambientes de servidores e nuvem, crie o arquivo de serviço `/etc/systemd/system/orbity.service`:
+```ini
+[Unit]
+Description=Orbity Multi-Agent Reactive Orchestrator
+After=network.target
+
+[Service]
+Type=simple
+User=orbity
+Group=orbity
+WorkingDirectory=/opt/orbity
+ExecStart=/opt/orbity/target/release/orbity serve --port 8080
+Restart=always
+RestartSec=5s
+LimitNOFILE=65536
+Environment="RUST_LOG=info,orbity_core=debug,orbity_server=debug"
+Environment="DATABASE_URL=sqlite:///opt/orbity/orbity.db?mode=rwc"
+
+[Install]
+WantedBy=multi-user.target
+```
+
+---
+
+## 📚 Documentação Técnica Completa do Projeto
+
+- [📖 Manual Didático de Arquitetura & Engenharia (Produção)](overview.md) — Explicação aprofundada de todos os componentes, fluxo de vida, garantias de segurança e FinOps.
+- [🗺️ Mapa da Jornada Multi-Agente & Varredura Completa](JOURNEY_MAP_AND_AUDIT.md) — As 4 fases de vida: Criação, Execução, Análise e Finalização.
+- [📜 Contratos, Ciclo de Vida e Setup Declarativo (YAML)](CONTRACTS_AND_LIFECYCLE.md) — Especificações de esquemas, políticas de auto-aprovação e enums Rust.
+- [📋 Plano de Implementação em Quality Gates (0 ao 7)](IMPLEMENTATION_PLAN.md) — Registro completo dos 8 gates, DoD e evidências de commits.
+- [Exemplo de Equipe Declarativa: forester.yaml](examples/teams/forester.yaml) — Arquivo YAML pronto para orquestração em produção.
+- [Exemplo de Agente Declarativo: agente01.yaml](examples/agents/agente01.yaml) — Exemplo de agente individual.
+- [🌐 Portal Interativo GitHub Pages](docs/index.html) — Simulador de grafos interativo, console de auditoria e matriz de tarefas.

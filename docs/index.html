@@ -874,7 +874,7 @@
 
   <!-- Pillars Section -->
   <section id="arquitetura" class="container" style="padding-top: 3rem;">
-    <h2 class="section-title">Os Cinco Pilares Arquiteturais</h2>
+    <h2 class="section-title">Os Seis Pilares Arquiteturais</h2>
     <p class="section-subtitle">Construído em Rust para atender aos mais rigorosos padrões de segurança, governança e eficiência computacional.</p>
 
     <div class="pillars-grid">
@@ -1296,7 +1296,7 @@
       {
         id: 0,
         title: "Gate 0: Fundação do Workspace, Tipos & Domínio de Eventos",
-        status: "Projetado",
+        status: "Concluído ✅",
         summary: "Configuração do workspace Cargo multi-crate, modelagem rigorosa de tipos de eventos e mascarador de segredos.",
         tasks: [
           { id: "TASK-001", name: "Estruturação do Cargo Workspace Multi-Crate", desc: "Separação nos crates: orbity-core, orbity-storage, orbity-sandbox, orbity-agent, orbity-telemetry, orbity-server e orbity-cli.", dod: "cargo check --workspace compila sem warnings." },
@@ -1309,7 +1309,7 @@
       {
         id: 1,
         title: "Gate 1: Persistência SQLite & Audit Store Criptográfico",
-        status: "Projetado",
+        status: "Concluído ✅",
         summary: "Armazenamento relacional assíncrono em SQLite WAL e trilha de auditoria append-only baseada em hash encadeado SHA-256.",
         tasks: [
           { id: "TASK-101", name: "Configuração do SQLite WAL e Migrações", desc: "Criação das tabelas teams, agents, agent_workers, runs, tasks, sandboxes e audit_events.", dod: "Migrações executadas com integridade referencial." },
@@ -1321,7 +1321,7 @@
       {
         id: 2,
         title: "Gate 2: Mecanismo de Sandbox & Isolamento de Processos",
-        status: "Projetado",
+        status: "Concluído ✅",
         summary: "Ambiente de execução isolado para ferramentas e agentes, prevenindo escape e acessos não autorizados.",
         tasks: [
           { id: "TASK-201", name: "Abstração e Trait de Sandbox Provider", desc: "Definição do trait assíncrono Sandbox em orbity-sandbox.", dod: "Mocks prontos para testes unitários." },
@@ -1333,7 +1333,7 @@
       {
         id: 3,
         title: "Gate 3: Barramento de Eventos & Observabilidade em 4 Camadas",
-        status: "Projetado",
+        status: "Concluído ✅",
         summary: "Distribuição de eventos em 4 camadas independentes via Tokio MPSC e exportação OpenTelemetry.",
         tasks: [
           { id: "TASK-301", name: "Barramento Assíncrono (Event Collector)", desc: "Distribuição concorrente para múltiplos sinks (Stdout, JSONL, SQLite, OTEL).", dod: "Vazão superior a 5.000 eventos/s sem retenção de memória." },
@@ -1346,7 +1346,7 @@
       {
         id: 4,
         title: "Gate 4: Graph Engineering & Orquestração Multi-Agente Tokio (Sem Astra)",
-        status: "Projetado",
+        status: "Concluído ✅",
         summary: "Computação dirigida por grafos com Nodes & Edges, ordenação de Kahn, barreiras Fan-in/Fan-out, loops de feedback controlados e checkpoints criptográficos.",
         tasks: [
           { id: "TASK-401", name: "Modelagem de Graph Engineering em Rust (orbity-graph)", desc: "Estruturas GraphNode, GraphEdge, NodeKind, EdgeKind e GraphDefinition.", dod: "Compilação e validação estrutural do grafo." },
@@ -1364,7 +1364,7 @@
       {
         id: 5,
         title: "Gate 5: Aplicação Servidora Reativa com Tokio Topcoat",
-        status: "Projetado",
+        status: "Concluído ✅",
         summary: "Servidor full-stack reativo em Rust (Topcoat v0.9+) com views reativas, shards com morphing DOM, streaming live!/emit! e WebSockets server-push.",
         tasks: [
           { id: "TASK-501", name: "Arquitetura de Aplicação Servidora com Tokio Topcoat", desc: "Inicialização do contexto Cx, roteamento de páginas e componentes, e bridge nativa com EventBus.", dod: "Servidor Topcoat consome <25MB RAM e responde com tipagem estrita Rust." },
@@ -1377,7 +1377,7 @@
       {
         id: 6,
         title: "Gate 6: Interface CLI de Orquestração & Modo Terminal TUI",
-        status: "Projetado",
+        status: "Concluído ✅",
         summary: "Linha de comando rica com subcomandos de governança, TUI interativa ratatui, auto-sync de YAML e preflight doctor.",
         tasks: [
           { id: "TASK-601", name: "Estrutura de Subcomandos com clap v4", desc: "Comandos: run, resume, status, logs, audit verify, finops summary, serve, sandbox clean.", dod: "Manual interativo (--help) e validação tipada de argumentos." },
@@ -1391,10 +1391,10 @@
       {
         id: 7,
         title: "Gate 7: Testes E2E, Validação de Segurança & Hardening",
-        status: "Projetado",
+        status: "Concluído ✅",
         summary: "Bateria de testes de integridade criptográfica, testes de escape de sandbox e validação sob carga.",
         tasks: [
-          { id: "TASK-701", name: "Teste de Injeção de Fraude na Auditoria", desc: "Modificação forçada de 1 byte na tabela SQLite seguida de meza audit verify.", dod: "Detecção em 100% dos casos com flag de adulteração." },
+          { id: "TASK-701", name: "Teste de Injeção de Fraude na Auditoria", desc: "Modificação forçada de 1 byte na tabela SQLite seguida de orbity audit verify.", dod: "Detecção em 100% dos casos com flag de adulteração." },
           { id: "TASK-702", name: "Teste de Confinamento da Sandbox", desc: "Tentativas controladas de leitura de ~/.ssh e escrita no host.", dod: "Bloqueio no nível de sistema operacional registrado como PolicyDenied." },
           { id: "TASK-703", name: "Teste de Tripwire Orçamentário", desc: "Simulação de consumo atingindo teto com encerramento gracioso.", dod: "Orquestração bloqueada antes de gerar excedente financeiro." },
           { id: "TASK-704", name: "Teste de Carga Multi-Agente Concorrente", desc: "4 instâncias concorrentes do motor de grafos executando workers simultaneamente.", dod: "Ausência de deadlocks ou corrupção no SQLite WAL." },
