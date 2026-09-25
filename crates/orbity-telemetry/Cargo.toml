@@ -7,6 +7,10 @@ license.workspace = true
 
 [dependencies]
 orbity-core.workspace = true
+tokio.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+uuid.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 serde.workspace = true
