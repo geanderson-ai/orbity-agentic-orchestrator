@@ -41,8 +41,9 @@ impl DeclarativeSync {
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.is_file() && (path.extension().map_or(false, |ext| ext == "yaml" || ext == "yml")) {
+            if path.is_file() && (path.extension().is_some_and(|ext| ext == "yaml" || ext == "yml")) {
                 let content = std::fs::read_to_string(&path)?;
+
                 let hash = compute_sha256(&content);
                 let team_name = path.file_stem().unwrap().to_string_lossy().to_string();
 
@@ -95,8 +96,9 @@ impl DeclarativeSync {
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.is_file() && (path.extension().map_or(false, |ext| ext == "yaml" || ext == "yml")) {
+            if path.is_file() && (path.extension().is_some_and(|ext| ext == "yaml" || ext == "yml")) {
                 let content = std::fs::read_to_string(&path)?;
+
                 let hash = compute_sha256(&content);
                 let agent_id = path.file_stem().unwrap().to_string_lossy().to_string();
 
