@@ -1,0 +1,51 @@
+# ==============================================================================
+# Agente / Sub-orquestrador: agente01.yaml
+# Descrição: Agente autônomo baseado na tríade Codex CLI, Claude Code e Agy Antigravity
+# ==============================================================================
+version: "1.0"
+agent:
+  id: "agt_01h89x2k"
+  name: "Agente01"
+  tags:
+    - "refactoring"
+    - "sqlite"
+    - "cli-triad"
+
+  # Orquestrador interno obrigatório
+  orchestrator:
+    type: "embedded"
+    runner: "agy" # Antigravity CLI como motor de raciocínio do orquestrador
+    cli_options:
+      mode: "plan"
+      effort: "medium"
+    prompt:
+      system: |
+        Você é o orquestrador do Agente01. Sua missão é coordenar refatorações com SQLite WAL
+        e validação de integridade criptográfica SHA-256 usando Codex CLI e Claude Code.
+
+    plan:
+      strategy: "Sequential"
+      steps:
+        - name: "Analisar Código Existente"
+          delegate_to: "agy_analyzer"
+        - name: "Escrever Código e Migrações"
+          delegate_to: "codex_coder"
+        - name: "Validar e Revisar em Sandbox"
+          delegate_to: "claude_reviewer"
+
+    # Time de operários ao redor deste agente
+    team:
+      - id: "codex_coder"
+        role: "Rust Code Implementation"
+        runner: "codex"
+        cli_subcommand: "exec"
+
+      - id: "claude_reviewer"
+        role: "Code Review & Security Analysis"
+        runner: "claude"
+        cli_args: ["--print", "--output-format", "json"]
+
+      - id: "agy_analyzer"
+        role: "Deep Research & Architecture Analysis"
+        runner: "agy"
+        cli_args: ["--print", "--output-format", "json"]

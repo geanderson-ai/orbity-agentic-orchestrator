@@ -1,0 +1,22 @@
+/target
+**/*.rs.bk
+*.bk
+Cargo.lock
+
+# SQLite
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+runs/*.jsonl

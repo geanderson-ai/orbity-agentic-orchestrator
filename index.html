@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meza Agentic Orchestrator | Runtime e Orquestrador de Agentes em Rust</title>
+  <meta name="description" content="Orquestrador corporativo de agentes de IA em Rust com isolamento Sandbox, governança em SQLite append-only com encadeamento de hash, observabilidade em 4 camadas e FinOps em tempo real.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-card: rgba(17, 24, 39, 0.75);
+      --bg-card-hover: rgba(30, 41, 59, 0.85);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-highlight: rgba(99, 102, 241, 0.3);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-indigo: #6366f1;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-purple: #a855f7;
+      --code-bg: #030712;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.6;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 85% 30%, rgba(6, 182, 212, 0.1) 0%, transparent 40%),
+        radial-gradient(circle at 50% 80%, rgba(168, 85, 247, 0.08) 0%, transparent 50%);
+      background-attachment: fixed;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+
+    /* Header & Navigation */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background: rgba(9, 13, 22, 0.85);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .nav-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 4.5rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 800;
+      font-size: 1.25rem;
+      color: #fff;
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-badge {
+      width: 2rem;
+      height: 2rem;
+      background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.75rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.2s, transform 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: #fff;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      border: 1px solid transparent;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-indigo), #4f46e5);
+      color: white;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(79, 70, 229, 0.6);
+      background: linear-gradient(135deg, #6366f1, #4338ca);
+    }
+
+    .btn-outline {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-main);
+      border-color: var(--border-color);
+    }
+
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-sm {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 6rem 0 4rem;
+      text-align: center;
+      position: relative;
+    }
+
+    .tagline {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 1rem;
+      border-radius: 9999px;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      color: #a5b4fc;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-title {
+      font-size: clamp(2.5rem, 5.5vw, 4.25rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      max-width: 950px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .text-gradient {
+      background: linear-gradient(135deg, #fff 30%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .text-gradient-accent {
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 780px;
+      margin: 0 auto 2.5rem;
+      font-weight: 400;
+    }
+
+    .hero-cta {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 4rem;
+    }
+
+    /* Stats Banner */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 5rem;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: left;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-highlight);
+    }
+
+    .stat-val {
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Architecture Pillars */
+    .section-title {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.75rem;
+      text-align: center;
+    }
+
+    .section-subtitle {
+      color: var(--text-muted);
+      text-align: center;
+      max-width: 650px;
+      margin: 0 auto 3.5rem;
+      font-size: 1.05rem;
+    }
+
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.75rem;
+      margin-bottom: 6rem;
+    }
+
+    .pillar-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .pillar-card:hover {
+      border-color: var(--border-highlight);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .pillar-icon {
+      width: 3.25rem;
+      height: 3.25rem;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1.25rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .pillar-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: #fff;
+    }
+
+    .pillar-desc {
+      color: var(--text-muted);
+      font-size: 0.925rem;
+      line-height: 1.6;
+      margin-bottom: 1.25rem;
+    }
+
+    .pillar-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .pillar-tag {
+      font-size: 0.75rem;
+      font-family: 'Fira Code', monospace;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      color: #cbd5e1;
+    }
+
+    /* Live Interactive Simulator */
+    .simulator-section {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 2.5rem;
+      margin-bottom: 6rem;
+      position: relative;
+    }
+
+    .sim-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sim-controls {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .sim-board {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 992px) {
+      .sim-board {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .graph-canvas {
+      background: var(--code-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      height: 440px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .graph-svg-container {
+      flex: 1;
+      position: relative;
+    }
+
+    svg.flow-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .agent-node {
+      cursor: pointer;
+      transition: filter 0.2s;
+    }
+
+    .agent-node:hover {
+      filter: brightness(1.2);
+    }
+
+    .terminal-box {
+      background: var(--code-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      height: 440px;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Fira Code', monospace;
+    }
+
+    .terminal-header {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 0.6rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .term-dots {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .term-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #eab308; }
+    .dot-green { background: #22c55e; }
+
+    .terminal-body {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+      font-size: 0.775rem;
+      color: #e2e8f0;
+      line-height: 1.5;
+    }
+
+    .log-line {
+      margin-bottom: 0.35rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .log-time { color: #64748b; }
+    .log-badge-runtime { color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 0 4px; border-radius: 3px; }
+    .log-badge-exec { color: #a855f7; background: rgba(168, 85, 247, 0.1); padding: 0 4px; border-radius: 3px; }
+    .log-badge-audit { color: #22c55e; background: rgba(34, 197, 94, 0.1); padding: 0 4px; border-radius: 3px; }
+    .log-badge-finops { color: #f59e0b; background: rgba(245, 158, 11, 0.1); padding: 0 4px; border-radius: 3px; }
+    .log-badge-alert { color: #f43f5e; background: rgba(244, 63, 94, 0.1); padding: 0 4px; border-radius: 3px; }
+
+    /* Hash Chain visualizer */
+    .chain-container {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: rgba(3, 7, 18, 0.8);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      overflow-x: auto;
+    }
+
+    .chain-block {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 0.6rem 0.9rem;
+      min-width: 170px;
+      font-size: 0.75rem;
+      font-family: 'Fira Code', monospace;
+    }
+
+    .chain-block.tampered {
+      border-color: #f43f5e;
+      background: rgba(244, 63, 94, 0.1);
+    }
+
+    .chain-block-title {
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 0.25rem;
+    }
+
+    .chain-hash {
+      color: #38bdf8;
+      font-size: 0.7rem;
+    }
+
+    .chain-arrow {
+      color: #64748b;
+      font-size: 1.1rem;
+    }
+
+    /* Gates and Tasks Interactive Section */
+    .gates-container {
+      margin-bottom: 6rem;
+    }
+
+    .gates-tabs {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 2rem;
+    }
+
+    .gate-tab-btn {
+      padding: 0.65rem 1.25rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .gate-tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .gate-tab-btn.active {
+      background: var(--accent-indigo);
+      border-color: var(--accent-indigo);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+    }
+
+    .gate-detail-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2.25rem;
+    }
+
+    .gate-detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .gate-title-large {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .gate-status-pill {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+
+    .gate-tasks-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .task-item {
+      background: rgba(3, 7, 18, 0.5);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1.25rem;
+      transition: border-color 0.2s;
+    }
+
+    .task-item:hover {
+      border-color: var(--border-highlight);
+    }
+
+    .task-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .task-id-badge {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #a5b4fc;
+      background: rgba(99, 102, 241, 0.15);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .task-name {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .task-desc {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .task-dod {
+      font-size: 0.8rem;
+      color: #10b981;
+      background: rgba(16, 185, 129, 0.08);
+      border-left: 3px solid #10b981;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0 6px 6px 0;
+    }
+
+    /* CLI Showcase */
+    .cli-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 2.5rem;
+      margin-bottom: 6rem;
+    }
+
+    .cli-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 900px) {
+      .cli-grid { grid-template-columns: 1fr; }
+    }
+
+    .cli-cmd-item {
+      padding: 1rem;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .cli-cmd-item:hover, .cli-cmd-item.active {
+      border-color: var(--accent-indigo);
+      background: rgba(99, 102, 241, 0.08);
+    }
+
+    .cmd-line {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      color: #38bdf8;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .cmd-explanation {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .terminal-interactive {
+      background: var(--code-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.825rem;
+      color: #f1f5f9;
+      height: 100%;
+      overflow-y: auto;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+    }
+
+    /* 4 Layers Table */
+    .layers-table-container {
+      margin-bottom: 6rem;
+      overflow-x: auto;
+    }
+
+    table.layers-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    table.layers-table th {
+      background: rgba(255, 255, 255, 0.04);
+      color: #fff;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+    }
+
+    table.layers-table td {
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-muted);
+    }
+
+    table.layers-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .badge-layer {
+      display: inline-block;
+      font-weight: 600;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border-color);
+      padding: 4rem 0 3rem;
+      background: rgba(9, 13, 22, 0.9);
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 3rem;
+      margin-bottom: 3rem;
+    }
+
+    @media (max-width: 768px) {
+      .footer-grid { grid-template-columns: 1fr; gap: 2rem; }
+    }
+
+    .footer-col h4 {
+      color: #fff;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+
+    .footer-col ul {
+      list-style: none;
+    }
+
+    .footer-col ul li {
+      margin-bottom: 0.5rem;
+    }
+
+    .footer-col a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-col a:hover {
+      color: #fff;
+    }
+
+    .footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="container nav-container">
+      <a href="#" class="logo">
+        <img src="assets/orbity-logo.jpg" alt="Orbity Logo" style="width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid rgba(0,255,163,0.4); box-shadow:0 0 15px rgba(0,255,163,0.3);" />
+        <span>Orbity</span>
+        <span style="font-size:0.9rem; margin-left:2px;" title="Projeto Brasileiro">🇧🇷</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#arquitetura">Arquitetura</a></li>
+        <li><a href="#simulador">Simulador Vivo</a></li>
+        <li><a href="#gates">Gates & Tasks</a></li>
+        <li><a href="#cli">CLI & TUI</a></li>
+        <li><a href="#observabilidade">4 Camadas</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <a href="https://github.com/geanderson/meza-agentic-orchestrator" target="_blank" class="btn btn-outline btn-sm">GitHub</a>
+        <a href="#simulador" class="btn btn-primary btn-sm">Testar Simulador</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <div style="display:flex; justify-content:center; margin-bottom:1.5rem;">
+        <img src="assets/orbity-logo.jpg" alt="Orbity Planet & Orbit Logo" style="width:140px; height:140px; border-radius:50%; border:3px solid rgba(0,255,163,0.3); box-shadow:0 0 40px rgba(0,255,163,0.25); animation: float 6s ease-in-out infinite;" />
+      </div>
+
+      <div class="tagline">
+        <span>🇧🇷 Feito no Brasil • Rust 2024 • SQLite Append-Only • Sandbox Confinada</span>
+      </div>
+
+      <h1 class="hero-title">
+        Orquestração de Agentes IA com <br>
+        <span class="text-gradient-accent">Segurança Criptográfica & FinOps</span>
+      </h1>
+
+      <p class="hero-desc">
+        Runtime de alto desempenho em Rust com isolamento Sandbox estrito, governança em SQLite append-only com encadeamento de hash SHA-256, observabilidade de 4 camadas e orquestração inteligente supervisionada pelo agente Astra.
+      </p>
+
+      <div class="hero-cta">
+        <a href="#simulador" class="btn btn-primary">
+          <span>Executar Demonstração Interativa</span>
+          <span>→</span>
+        </a>
+        <a href="#gates" class="btn btn-outline">
+          <span>Explorar Matriz de Gates (0 a 7)</span>
+        </a>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-val"><span style="color:#6366f1;">4</span> Camadas</div>
+          <div class="stat-label">Runtime, Execution, Audit & Telemetry</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val"><span style="color:#10b981;">100%</span> Imutável</div>
+          <div class="stat-label">Trilha de Auditoria SHA-256 Encadeada</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val"><span style="color:#06b6d4;">0-Escape</span></div>
+          <div class="stat-label">Sandbox Namespaces & Bubblewrap</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val"><span style="color:#f59e0b;">FinOps</span> Realtime</div>
+          <div class="stat-label">Tripwires de Tokens e Orçamento USD</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pillars Section -->
+  <section id="arquitetura" class="container" style="padding-top: 3rem;">
+    <h2 class="section-title">Os Cinco Pilares Arquiteturais</h2>
+    <p class="section-subtitle">Construído em Rust para atender aos mais rigorosos padrões de segurança, governança e eficiência computacional.</p>
+
+    <div class="pillars-grid">
+      <!-- Pilar 1 -->
+      <div class="pillar-card">
+        <div class="pillar-icon" style="background: rgba(99, 102, 241, 0.15); color: #818cf8;">🦀</div>
+        <h3 class="pillar-title">Rust & Tokio Core</h3>
+        <p class="pillar-desc">Runtime assíncrono nativo com barramento de eventos em memória de alta vazão (>5.000 ev/s), concorrência segura sem locks globais e consumo de memória milimétrico.</p>
+        <div class="pillar-tags">
+          <span class="pillar-tag">tokio</span>
+          <span class="pillar-tag">tracing</span>
+          <span class="pillar-tag">serde_json</span>
+          <span class="pillar-tag">axum</span>
+        </div>
+      </div>
+
+      <!-- Pilar 2 -->
+      <div class="pillar-card">
+        <div class="pillar-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">🔗</div>
+        <h3 class="pillar-title">Audit Store SHA-256 SQLite</h3>
+        <p class="pillar-desc">Persistência em modo WAL com ledger append-only criptografado em encadeamento de hashes (estilo blockchain-lite). Qualquer adulteração histórica é matematicamente detectada.</p>
+        <div class="pillar-tags">
+          <span class="pillar-tag">sqlx</span>
+          <span class="pillar-tag">sha2</span>
+          <span class="pillar-tag">sqlite-wal</span>
+          <span class="pillar-tag">tamper-proof</span>
+        </div>
+      </div>
+
+      <!-- Pilar 3 -->
+      <div class="pillar-card">
+        <div class="pillar-icon" style="background: rgba(6, 182, 212, 0.15); color: #22d3ee;">🛡️</div>
+        <h3 class="pillar-title">Sandbox & Isolamento Estrito</h3>
+        <p class="pillar-desc">Execução de ferramentas e comandos restrita por Linux namespaces e Bubblewrap: root filesystem somente leitura, tmpfs efêmero, isolamento de rede e limpeza forçada de segredos.</p>
+        <div class="pillar-tags">
+          <span class="pillar-tag">bwrap</span>
+          <span class="pillar-tag">namespaces</span>
+          <span class="pillar-tag">cgroups</span>
+          <span class="pillar-tag">policy-engine</span>
+        </div>
+      </div>
+
+      <!-- Pilar 4 -->
+      <div class="pillar-card">
+        <div class="pillar-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">🧠</div>
+        <h3 class="pillar-title">Supervisor Astra</h3>
+        <p class="pillar-desc">Orquestrador e roteador central. Decompõe tarefas complexas em DAGs de execução, despacha sub-rotinas para agentes operários (Codex, Claude, Hermes) e sintetiza as respostas.</p>
+        <div class="pillar-tags">
+          <span class="pillar-tag">dag-planner</span>
+          <span class="pillar-tag">codex</span>
+          <span class="pillar-tag">claude</span>
+          <span class="pillar-tag">hermes</span>
+        </div>
+      </div>
+
+      <!-- Pilar 5 -->
+      <div class="pillar-card">
+        <div class="pillar-icon" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">💰</div>
+        <h3 class="pillar-title">FinOps & Orçamento em Tempo Real</h3>
+        <p class="pillar-desc">Rastreamento de tokens em tempo real (input, output, cache, reasoning) com tripwires que abortam execuções fora do teto estipulado antes de gerar cobranças desnecessárias.</p>
+        <div class="pillar-tags">
+          <span class="pillar-tag">token-ledger</span>
+          <span class="pillar-tag">budget-guard</span>
+          <span class="pillar-tag">cost-metrics</span>
+        </div>
+      </div>
+
+      <!-- Pilar 6 -->
+      <div class="pillar-card">
+        <div class="pillar-icon" style="background: rgba(244, 63, 94, 0.15); color: #fb7185;">📊</div>
+        <h3 class="pillar-title">Observabilidade em 4 Camadas</h3>
+        <p class="pillar-desc">Separação rigorosa entre ciclo de vida (Runtime), ações (Execution), governança (Audit) e performance/custo (Telemetry com spans OpenTelemetry exportáveis para Grafana/Loki).</p>
+        <div class="pillar-tags">
+          <span class="pillar-tag">opentelemetry</span>
+          <span class="pillar-tag">grafana</span>
+          <span class="pillar-tag">jsonl</span>
+          <span class="pillar-tag">sse-stream</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Live Simulator -->
+  <section id="simulador" class="container">
+    <div class="simulator-section">
+      <div class="sim-header">
+        <div>
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: #fff;">Simulador de Orquestração em Tempo Real</h2>
+          <p style="color: var(--text-muted); font-size: 0.875rem;">Observe a topologia de agentes, o fluxo de eventos nas 4 camadas e a trilha de hash SHA-256 encadeada.</p>
+        </div>
+        <div class="sim-controls">
+          <button id="btnRunSim" class="btn btn-primary btn-sm">▶️ Simular Tarefa Multi-Agente</button>
+          <button id="btnTamper" class="btn btn-outline btn-sm" style="border-color:#f43f5e; color:#fda4af;">⚠️ Forçar Adulteração</button>
+          <button id="btnVerify" class="btn btn-outline btn-sm" style="border-color:#10b981; color:#6ee7b7;">🛡️ Verificar Auditoria</button>
+          <button id="btnReset" class="btn btn-outline btn-sm">Reset</button>
+        </div>
+      </div>
+
+      <!-- Simulator Board: Left (Graph + SVG) | Right (Terminal Logs) -->
+      <div class="sim-board">
+        <div class="graph-canvas">
+          <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:0.8rem; font-weight:600; color:#cbd5e1;">TOPOLOGIA DE AGENTES & FLUXO</span>
+            <div style="font-size:0.75rem; color:#94a3b8; display:flex; gap:1rem;">
+              <span>Tokens: <strong id="valTokens" style="color:#38bdf8;">0</strong></span>
+              <span>Custo: <strong id="valCost" style="color:#34d399;">$0.00</strong></span>
+            </div>
+          </div>
+
+          <div class="graph-svg-container">
+            <svg class="flow-svg" viewBox="0 0 500 360">
+              <defs>
+                <linearGradient id="gradAstra" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#6366f1" />
+                  <stop offset="100%" stop-color="#4f46e5" />
+                </linearGradient>
+                <linearGradient id="gradCodex" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#0ea5e9" />
+                  <stop offset="100%" stop-color="#0284c7" />
+                </linearGradient>
+                <linearGradient id="gradClaude" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#a855f7" />
+                  <stop offset="100%" stop-color="#7e22ce" />
+                </linearGradient>
+                <linearGradient id="gradAgy" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#10b981" />
+                  <stop offset="100%" stop-color="#059669" />
+                </linearGradient>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="4" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+
+              <!-- Conexões SVG -->
+              <path id="edge-astra-codex" d="M 250 85 L 110 200" stroke="#334155" stroke-width="2" stroke-dasharray="4" fill="none" />
+              <path id="edge-astra-agy" d="M 250 85 L 250 200" stroke="#334155" stroke-width="2" stroke-dasharray="4" fill="none" />
+              <path id="edge-astra-claude" d="M 250 85 L 390 200" stroke="#334155" stroke-width="2" stroke-dasharray="4" fill="none" />
+
+              <!-- Nó Astra (Supervisor) -->
+              <g id="node-astra" class="agent-node" transform="translate(180, 25)">
+                <rect width="140" height="60" rx="10" fill="url(#gradAstra)" stroke="#818cf8" stroke-width="1.5" />
+                <text x="70" y="26" text-anchor="middle" fill="#fff" font-weight="700" font-size="12">ASTRA (Supervisor)</text>
+                <text id="status-astra" x="70" y="44" text-anchor="middle" fill="#c7d2fe" font-size="10">IDLE</text>
+              </g>
+
+              <!-- Nó Codex (Code/Sandbox) -->
+              <g id="node-codex" class="agent-node" transform="translate(40, 200)">
+                <rect width="130" height="65" rx="10" fill="url(#gradCodex)" stroke="#38bdf8" stroke-width="1.5" />
+                <text x="65" y="24" text-anchor="middle" fill="#fff" font-weight="700" font-size="12">Codex CLI</text>
+                <text id="status-codex" x="65" y="40" text-anchor="middle" fill="#bae6fd" font-size="10">IDLE</text>
+                <text id="cost-codex" x="65" y="54" text-anchor="middle" fill="#e0f2fe" font-size="9">$0.00</text>
+              </g>
+
+              <!-- Nó Agy Antigravity (Research / Plan) -->
+              <g id="node-agy" class="agent-node" transform="translate(185, 200)">
+                <rect width="130" height="65" rx="10" fill="url(#gradAgy)" stroke="#34d399" stroke-width="1.5" />
+                <text x="65" y="24" text-anchor="middle" fill="#fff" font-weight="700" font-size="12">Agy Antigravity</text>
+                <text id="status-agy" x="65" y="40" text-anchor="middle" fill="#a7f3d0" font-size="10">IDLE</text>
+                <text id="cost-agy" x="65" y="54" text-anchor="middle" fill="#ecfdf5" font-size="9">$0.00</text>
+              </g>
+
+              <!-- Nó Claude Code (Reviewer) -->
+              <g id="node-claude" class="agent-node" transform="translate(330, 200)">
+                <rect width="130" height="65" rx="10" fill="url(#gradClaude)" stroke="#c084fc" stroke-width="1.5" />
+                <text x="65" y="24" text-anchor="middle" fill="#fff" font-weight="700" font-size="12">Claude Code</text>
+                <text id="status-claude" x="65" y="40" text-anchor="middle" fill="#f3e8ff" font-size="10">IDLE</text>
+                <text id="cost-claude" x="65" y="54" text-anchor="middle" fill="#faf5ff" font-size="9">$0.00</text>
+              </g>
+
+              <!-- Conexão para Sandbox -->
+              <path d="M 105 265 L 105 300" stroke="#334155" stroke-width="2" fill="none" />
+              <g transform="translate(45, 300)">
+                <rect width="120" height="35" rx="6" fill="#0f172a" stroke="#06b6d4" stroke-width="1" />
+                <text x="60" y="22" text-anchor="middle" fill="#38bdf8" font-size="10">🛡️ Sandbox (bwrap)</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Terminal Logs -->
+        <div class="terminal-box">
+          <div class="terminal-header">
+            <div class="term-dots">
+              <span class="term-dot dot-red"></span>
+              <span class="term-dot dot-yellow"></span>
+              <span class="term-dot dot-green"></span>
+            </div>
+            <span>event_bus::tokio_broadcast • run_74f9c</span>
+            <span id="logCounter">0 eventos</span>
+          </div>
+          <div id="termBody" class="terminal-body">
+            <div class="log-line">
+              <span class="log-time">[00:00:00]</span>
+              <span class="log-badge-runtime">RUNTIME</span>
+              <span>Barramento inicializado. Aguardando disparo de orquestração...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trilha de Hashes Encadeada (Audit Chain) -->
+      <div style="margin-top: 1.5rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+          <span style="font-size:0.8rem; font-weight:600; color:#cbd5e1;">TRILHA DE AUDITORIA CRIPTOGRÁFICA (SHA-256 APPEND-ONLY HASH CHAIN)</span>
+          <span id="chainStatus" style="font-size:0.75rem; color:#34d399; font-weight:600;">✓ CADEIA ÍNTEGRA</span>
+        </div>
+        <div id="chainBlocks" class="chain-container">
+          <div class="chain-block">
+            <div class="chain-block-title">#0 Genesis</div>
+            <div>prev: 00000000</div>
+            <div class="chain-hash">hash: e3b0c442...</div>
+          </div>
+          <span class="chain-arrow">→</span>
+          <div class="chain-block">
+            <div class="chain-block-title">#1 AgentStarted (Astra)</div>
+            <div>prev: e3b0c442</div>
+            <div class="chain-hash">hash: 9a81f3b0...</div>
+          </div>
+          <span class="chain-arrow">→</span>
+          <div class="chain-block">
+            <div class="chain-block-title">#2 SandboxCreated</div>
+            <div>prev: 9a81f3b0</div>
+            <div class="chain-hash">hash: 4c62d01a...</div>
+          </div>
+          <span class="chain-arrow">→</span>
+          <div class="chain-block">
+            <div class="chain-block-title">#3 ToolCalled (cargo test)</div>
+            <div>prev: 4c62d01a</div>
+            <div class="chain-hash">hash: 7f81bc22...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Gates & Tasks Section -->
+  <section id="gates" class="container">
+    <h2 class="section-title">Plano de Implementação: Gates e Tasks</h2>
+    <p class="section-subtitle">Acompanhe detalhadamente cada portão de qualidade (Quality Gate), critérios de entrada e Definition of Done (DoD).</p>
+
+    <div class="gates-container">
+      <div class="gates-tabs" id="gatesTabs">
+        <button class="gate-tab-btn active" onclick="switchGate(0)">Gate 0: Core & Domínio</button>
+        <button class="gate-tab-btn" onclick="switchGate(1)">Gate 1: SQLite & Audit</button>
+        <button class="gate-tab-btn" onclick="switchGate(2)">Gate 2: Sandbox</button>
+        <button class="gate-tab-btn" onclick="switchGate(3)">Gate 3: Observabilidade</button>
+        <button class="gate-tab-btn" onclick="switchGate(4)">Gate 4: Graph Engineering</button>
+        <button class="gate-tab-btn" onclick="switchGate(5)">Gate 5: CLI Engine</button>
+        <button class="gate-tab-btn" onclick="switchGate(6)">Gate 6: Web Streaming</button>
+        <button class="gate-tab-btn" onclick="switchGate(7)">Gate 7: Hardening E2E</button>
+      </div>
+
+      <div class="gate-detail-panel" id="gatePanel">
+        <!-- Renderizado dinamicamente via JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- CLI Interactive Showcase -->
+  <section id="cli" class="container">
+    <div class="cli-section">
+      <h2 class="section-title" style="text-align: left;">Interface de Linha de Comando (`meza`)</h2>
+      <p style="color: var(--text-muted); margin-bottom: 2rem;">Controle total do ciclo de vida, acompanhamento interativo via TUI e automação de pipelines.</p>
+
+      <div class="cli-grid">
+        <div>
+          <div class="cli-cmd-item active" onclick="showCliOutput('doctor')">
+            <div class="cmd-line">orbity doctor (Preflight Health Check)</div>
+            <div class="cmd-explanation">Verifica na inicialização: Sandbox bwrap + 5 CLIs (codex, claude, agy, hermes, pi).</div>
+          </div>
+
+          <div class="cli-cmd-item" onclick="showCliOutput('run')">
+            <div class="cmd-line">orbity team run forester "Refatorar banco" --budget-usd 2.00</div>
+            <div class="cmd-explanation">Executa tarefa com a equipe forester orquestrando as 5 CLIs com limites FinOps.</div>
+          </div>
+
+          <div class="cli-cmd-item" onclick="showCliOutput('audit')">
+            <div class="cmd-line">orbity audit verify run_74f9c</div>
+            <div class="cmd-explanation">Valida matematicamente toda a cadeia SHA-256 de auditoria no SQLite contra fraudes.</div>
+          </div>
+
+          <div class="cli-cmd-item" onclick="showCliOutput('finops')">
+            <div class="cmd-line">orbity finops summary --since 2026-09-01</div>
+            <div class="cmd-explanation">Gera relatório consolidado de consumo de tokens (input, output, cache, reasoning) por ferramenta.</div>
+          </div>
+
+          <div class="cli-cmd-item" onclick="showCliOutput('logs')">
+            <div class="cmd-line">orbity logs run_74f9c --layer audit --json</div>
+            <div class="cmd-explanation">Filtra logs estruturados por camada para integração direta com SIEM ou pipelines Unix.</div>
+          </div>
+        </div>
+
+        <div class="terminal-interactive" id="cliInteractiveOutput">
+          <span style="color:#64748b;"># Executando preflight health check na inicialização...</span><br>
+          <span style="color:#38bdf8;">$ orbity doctor</span><br><br>
+          <span style="color:#818cf8; font-weight:700;">⚡ Orbity Agentic Platform - Pre-flight Health Check</span><br>
+          <span style="color:#475569;">─────────────────────────────────────────────────────────────────────────────</span><br>
+          <span style="color:#10b981;">[✓] Sandbox Runtime:</span> Bubblewrap (/usr/bin/bwrap) 0.8.0<br>
+          <span style="color:#10b981;">[✓] Storage Engine:</span> SQLite 3.45.1 (WAL mode + SHA-256 Audit Store)<br><br>
+          <span style="color:#cbd5e1; font-weight:600;">Suíte de Agentes CLI Detectados:</span><br>
+          &nbsp;&nbsp;<span style="color:#10b981;">[✓] codex</span>&nbsp;&nbsp;&nbsp;v0.154.0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-> /home/geanderson/.local/bin/codex<br>
+          &nbsp;&nbsp;<span style="color:#10b981;">[✓] claude</span>&nbsp;&nbsp;v2.1.239&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-> /home/geanderson/.local/bin/claude<br>
+          &nbsp;&nbsp;<span style="color:#10b981;">[✓] agy</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v1.2.11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-> /home/geanderson/.local/bin/agy<br>
+          &nbsp;&nbsp;<span style="color:#10b981;">[✓] hermes</span>&nbsp;&nbsp;v0.21.0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-> /home/geanderson/.local/bin/hermes<br>
+          &nbsp;&nbsp;<span style="color:#10b981;">[✓] pi</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v0.78.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-> /home/geanderson/.hermes/node/bin/pi<br><br>
+          <span style="color:#10b981; font-weight:700;">✓ 5 de 5 CLIs operacionais. Ambiente pronto para orquestração multi-agente!</span>
+          <span style="color:#10b981;">[Astra::Planner]</span> Decompondo solicitação em 3 subtarefas:<br>
+          &nbsp;&nbsp;├─ [Task 1] Codex: Gerar migrations SQLx (Sandbox: isolado)<br>
+          &nbsp;&nbsp;├─ [Task 2] Codex: Executar 'cargo test' (Sandbox: bwrap tmpfs)<br>
+          &nbsp;&nbsp;└─ [Task 3] Claude: Revisar diff e impacto em performance<br><br>
+          <span style="color:#f59e0b;">[FinOps]</span> Budget reservado: $1.00 | Consumo estimado: $0.28<br>
+          <span style="color:#a855f7;">[Audit]</span> Genesis block estabelecido (hash: e3b0c442...)
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 Layers Comparison Table -->
+  <section id="observabilidade" class="container">
+    <h2 class="section-title">Observabilidade Empresarial em 4 Camadas</h2>
+    <p class="section-subtitle">Arquitetura de desacoplamento rigoroso entre logs técnicos, operacionais, auditoria e finanças.</p>
+
+    <div class="layers-table-container">
+      <table class="layers-table">
+        <thead>
+          <tr>
+            <th>Camada</th>
+            <th>O que registra</th>
+            <th>Garantias & Destinos</th>
+            <th>Exemplo de Payload</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <span class="badge-layer" style="background:rgba(56, 189, 248, 0.15); color:#38bdf8;">Runtime Logs</span>
+            </td>
+            <td>Lifecycle do agente e processos: start, stop, timeout, retry, crash.</td>
+            <td>Stdout / Arquivo local com rotação. Rastreamento técnico imediato.</td>
+            <td><code>{"event":"agent.started","agent":"astra","run_id":"run_123"}</code></td>
+          </tr>
+          <tr>
+            <td>
+              <span class="badge-layer" style="background:rgba(168, 85, 247, 0.15); color:#c084fc;">Execution Logs</span>
+            </td>
+            <td>Comandos executados no sandbox, arquivos alterados, chamadas de tools.</td>
+            <td>JSONL local + SQLite. Contém exit codes, stdout e durações milimétricas.</td>
+            <td><code>{"command":"cargo test","exit_code":0,"duration_ms":1420}</code></td>
+          </tr>
+          <tr>
+            <td>
+              <span class="badge-layer" style="background:rgba(34, 197, 94, 0.15); color:#4ade80;">Audit Logs</span>
+            </td>
+            <td>Trilha imutável de segurança, permissões e acesso a segredos.</td>
+            <td>SQLite append-only com encadeamento de hash SHA-256 e segredos mascarados.</td>
+            <td><code>{"event":"secret.accessed","secret_id":"token","value_logged":false}</code></td>
+          </tr>
+          <tr>
+            <td>
+              <span class="badge-layer" style="background:rgba(245, 158, 11, 0.15); color:#fbbf24;">Telemetry Logs</span>
+            </td>
+            <td>Performance e FinOps: tokens (input, output, cache), custos e spans distribuídos.</td>
+            <td>OpenTelemetry exporter para Grafana/Loki/Tempo + SQLite Ledger.</td>
+            <td><code>{"total_tokens":21390,"estimated_cost_usd":0.14,"cache_read":9200}</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="logo" style="margin-bottom: 1rem;">
+            <div class="logo-badge">⚡</div>
+            <span>Meza Agentic Orchestrator</span>
+          </div>
+          <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 380px;">
+            Plataforma de orquestração de agentes de IA orientada a missão crítica, implementada em Rust com segurança de sandbox, governança SQLite append-only e FinOps em tempo real.
+          </p>
+        </div>
+
+        <div class="footer-col">
+          <h4>Navegação</h4>
+          <ul>
+            <li><a href="#arquitetura">Arquitetura</a></li>
+            <li><a href="#simulador">Simulador em Tempo Real</a></li>
+            <li><a href="#gates">Plano de Gates & Tasks</a></li>
+            <li><a href="#cli">Comandos da CLI</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Recursos & Docs</h4>
+          <ul>
+            <li><a href="https://github.com/geanderson/meza-agentic-orchestrator" target="_blank">Repositório GitHub</a></li>
+            <li><a href="https://github.com/geanderson/meza-agentic-orchestrator/blob/main/JOURNEY_MAP_AND_AUDIT.md" target="_blank">Mapa da Jornada Multi-Agente</a></li>
+            <li><a href="https://github.com/geanderson/meza-agentic-orchestrator/blob/main/CONTRACTS_AND_LIFECYCLE.md" target="_blank">Contratos & Ciclo de Vida</a></li>
+            <li><a href="https://github.com/geanderson/meza-agentic-orchestrator/blob/main/IMPLEMENTATION_PLAN.md" target="_blank">Plano de Implementação (MD)</a></li>
+            <li><a href="https://github.com/geanderson/meza-agentic-orchestrator/blob/main/overview.md" target="_blank">Documento Overview</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>© 2026 Meza Agentic Orchestrator. Licença MIT / Apache 2.0.</div>
+        <div>Desenvolvido com 🦀 Rust & Visão Empresarial.</div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script>
+    // Dados dos Gates e Tarefas
+    const gatesData = [
+      {
+        id: 0,
+        title: "Gate 0: Fundação do Workspace, Tipos & Domínio de Eventos",
+        status: "Projetado",
+        summary: "Configuração do workspace Cargo multi-crate, modelagem rigorosa de tipos de eventos e mascarador de segredos.",
+        tasks: [
+          { id: "TASK-001", name: "Estruturação do Cargo Workspace Multi-Crate", desc: "Separação nos crates: orbity-core, orbity-storage, orbity-sandbox, orbity-agent, orbity-telemetry, orbity-server e orbity-cli.", dod: "cargo check --workspace compila sem warnings." },
+          { id: "TASK-002", name: "Modelagem Canônica de Eventos Estruturados", desc: "Criação do enum RuntimeEvent cobrindo ciclo de vida, comandos, sandbox e FinOps.", dod: "Serialização e deserialização JSON sem perdas com serde." },
+          { id: "TASK-003", name: "Modelagem de FinOps e Tokenomics", desc: "Structs TokenUsage (input, output, cache, reasoning) e BudgetPolicy.", dod: "Métodos de agregação com testes de overflow." },
+          { id: "TASK-004", name: "Sanitização e Redação de Segredos", desc: "SecretMasker impedindo vazamento de credenciais nos logs.", dod: "Validação de regex e ofuscação com hashes/IDs." },
+          { id: "TASK-005", name: "Contratos de Agentes, Orquestradores e YAMLs", desc: "Schemas AgentRecord, OrchestratorConfig e parser para teams/forester.yaml e agents/agente01.yaml.", dod: "Testes unitários de parsing e validação de DAGs." }
+        ]
+      },
+      {
+        id: 1,
+        title: "Gate 1: Persistência SQLite & Audit Store Criptográfico",
+        status: "Projetado",
+        summary: "Armazenamento relacional assíncrono em SQLite WAL e trilha de auditoria append-only baseada em hash encadeado SHA-256.",
+        tasks: [
+          { id: "TASK-101", name: "Configuração do SQLite WAL e Migrações", desc: "Criação das tabelas teams, agents, agent_workers, runs, tasks, sandboxes e audit_events.", dod: "Migrações executadas com integridade referencial." },
+          { id: "TASK-102", name: "Motor de Audit Append-Only com Hashes Encadeados", desc: "Cada nó de log incorpora o hash SHA-256 do nó anterior.", dod: "Inserção atômica com validação de sequência estrita." },
+          { id: "TASK-103", name: "Verificador de Integridade Histórica", desc: "Rotina de varredura que detecta adulteração de 1 bit na base.", dod: "Retorna erro AuditVerification::Tampered em dados corrompidos." },
+          { id: "TASK-104", name: "Repositórios de Acesso a Dados (DAOs)", desc: "CRUDs assíncronos e consultas otimizadas via SQLx.", dod: "Suporte a transações atômicas concorrentes." }
+        ]
+      },
+      {
+        id: 2,
+        title: "Gate 2: Mecanismo de Sandbox & Isolamento de Processos",
+        status: "Projetado",
+        summary: "Ambiente de execução isolado para ferramentas e agentes, prevenindo escape e acessos não autorizados.",
+        tasks: [
+          { id: "TASK-201", name: "Abstração e Trait de Sandbox Provider", desc: "Definição do trait assíncrono Sandbox em orbity-sandbox.", dod: "Mocks prontos para testes unitários." },
+          { id: "TASK-202", name: "Implementação Nativa Bubblewrap / Namespaces", desc: "Root somente leitura, isolamento de PID, tmpfs efêmero e rede isolada.", dod: "Bloqueio comprovado de acesso fora da pasta designada." },
+          { id: "TASK-203", name: "Controle de Recursos e Timeouts Estritos", desc: "Finalização forçada (SIGKILL) de loops infinitos com cgroups e timer.", dod: "Timeout com retorno de evento CommandTimeout." },
+          { id: "TASK-204", name: "Emissão de Eventos de Ciclo do Sandbox", desc: "Geração de SandboxCreated, SandboxDestroyed e CommandExecuted.", dod: "Metadados completos de execução gravados." }
+        ]
+      },
+      {
+        id: 3,
+        title: "Gate 3: Barramento de Eventos & Observabilidade em 4 Camadas",
+        status: "Projetado",
+        summary: "Distribuição de eventos em 4 camadas independentes via Tokio MPSC e exportação OpenTelemetry.",
+        tasks: [
+          { id: "TASK-301", name: "Barramento Assíncrono (Event Collector)", desc: "Distribuição concorrente para múltiplos sinks (Stdout, JSONL, SQLite, OTEL).", dod: "Vazão superior a 5.000 eventos/s sem retenção de memória." },
+          { id: "TASK-302", name: "Camada 1: Runtime Logs", desc: "Captura de início, parada, reinício e falhas de agentes.", dod: "Emissão contínua de eventos de ciclo de vida." },
+          { id: "TASK-303", name: "Camada 2: Execution Logs", desc: "Registro detalhado de comandos, saídas e arquivos modificados.", dod: "Metadados de arquivos com hash antes/depois." },
+          { id: "TASK-304", name: "Camada 3: Audit Logs Criptográficos", desc: "Gravação síncrona na tabela audit_events com SHA-256.", dod: "Inclusão de políticas de acesso a segredos." },
+          { id: "TASK-305", name: "Camada 4: Spans OpenTelemetry", desc: "Spans hierárquicos tracing-subscriber exportáveis para Grafana/Loki.", dod: "Compatibilidade confirmada com OpenTelemetry Collector." }
+        ]
+      },
+      {
+        id: 4,
+        title: "Gate 4: Graph Engineering (orbity-graph), Astra & Multi-Agent Network",
+        status: "Projetado",
+        summary: "Computação dirigida por grafos com Nodes & Edges, ordenação de Kahn, barreiras Fan-in/Fan-out, loops de feedback controlados e checkpoints criptográficos.",
+        tasks: [
+          { id: "TASK-401", name: "Modelagem de Graph Engineering em Rust (orbity-graph)", desc: "Estruturas GraphNode, GraphEdge, NodeKind, EdgeKind e GraphDefinition.", dod: "Compilação e validação estrutural do grafo." },
+          { id: "TASK-402", name: "Algoritmos Topológicos (Kahn, Tarjan/DFS)", desc: "Ordenação topológica, validação de alcançabilidade e detecção de deadlocks/ciclos acidentais.", dod: "Testes com grafos de diamante, pipelines e rejeição de ciclos infinitos." },
+          { id: "TASK-403", name: "Motor de Execução Assíncrono (GraphExecutor)", desc: "Fan-out concorrente via tokio::spawn e Fan-in com barreira de sincronização join.", dod: "3 nós paralelos reduzidos para 1 agregador sem race conditions." },
+          { id: "TASK-404", name: "Roteamento Condicional e Feedback Loops", desc: "Predicados lógicos dinâmicos e ciclos de correção com teto estrito de iterações.", dod: "Simulação de teste com falha inicial, 2 retries e circuit breaker." },
+          { id: "TASK-405", name: "Checkpoints de Grafo no SQLite com Hashes", desc: "Persistência do GraphState a cada aresta com hash SHA-256 encadeado e resume.", dod: "Recuperação de execução interrompida sem perda de contexto." },
+          { id: "TASK-406", name: "Adaptadores da Suíte de 5 CLIs", desc: "Runners para Codex CLI, Claude Code, Agy Antigravity, Hermes Agent e Pi Assistant.", dod: "Invocação isolada e não-interativa em sandbox bwrap." },
+          { id: "TASK-407", name: "Normalização de Tokens das 5 Ferramentas", desc: "Parsing de métricas de tokens (input, output, cache, reasoning) das 5 CLIs.", dod: "Testes unitários cobrindo todas as 5 CLIs." },
+          { id: "TASK-408", name: "Supervisor Astra (Graph Planner & Blackboard)", desc: "Decomposição de linguagem natural em nós/arestas e memória compartilhada.", dod: "Síntese autônoma de topologia a partir de objetivo de usuário." },
+          { id: "TASK-409", name: "FinOps por Nó/Aresta e Nó Human-in-the-Loop (HITL)", desc: "Tripwires orçamentários por nó e nó HumanGate com pausa/retomada via orbity resume.", dod: "Pausa preventiva e retomada sem corrupção de estado." },
+          { id: "TASK-410", name: "Parser Declarativo de Grafos em YAML (teams/*.yaml)", desc: "CRUD de agentes e deserialização de blocos graph_topology (nodes e edges).", dod: "Carregamento e instanciação de forester.yaml com grafo tipado." }
+        ]
+      },
+      {
+        id: 5,
+        title: "Gate 5: Interface CLI de Orquestração",
+        status: "Projetado",
+        summary: "Linha de comando rica com subcomandos de governança, TUI interativa e gestão de equipes.",
+        tasks: [
+          { id: "TASK-501", name: "Estrutura de Subcomandos com clap v4", desc: "Comandos: run, status, logs, audit verify, finops summary, sandbox clean.", dod: "Manual interativo com validação de argumentos." },
+          { id: "TASK-502", name: "Modo Terminal Streaming & TUI (ratatui)", desc: "Visualização interativa do grafo de nós e logs no terminal.", dod: "Interrupção limpa com Ctrl+C e cancelamento ordenado." },
+          { id: "TASK-503", name: "Modo Headless / JSON Pipeline", desc: "Suporte a orbity run --output json para scripts de CI/CD.", dod: "Stdout estritamente formatado em JSON sem ruído." },
+          { id: "TASK-504", name: "Subcomandos de Agentes e Equipes Declarativas", desc: "Comandos orbity agent (create, list, update, delete) e orbity team (load, list, run).", dod: "Validação completa com forester.yaml." },
+          { id: "TASK-505", name: "Preflight Health Check na Inicialização da CLI", desc: "Detecção e checagem de integridade das 5 CLIs (codex, claude, agy, hermes, pi) e sandbox bwrap.", dod: "Comando orbity doctor e verificação na 1ª execução com relatório formatado." }
+        ]
+      },
+      {
+        id: 6,
+        title: "Gate 6: Streaming em Tempo Real & Camada de Visualização",
+        status: "Projetado",
+        summary: "Servidor Axum embutido fornecendo WebSocket/SSE para alimentar dashboards visuais com cards e arestas SVG.",
+        tasks: [
+          { id: "TASK-601", name: "Servidor Axum e Endpoints SSE/WS", desc: "Servidor leve embutido no binário meza para transmissão de eventos.", dod: "Conexões WebSocket simultâneas sem queda." },
+          { id: "TASK-602", name: "Estruturação do Grafo de Topologia", desc: "Payload sintetizando nós, arestas e métricas em tempo real.", dod: "Atualização instantânea na transição de estados de tarefas." },
+          { id: "TASK-603", name: "Dashboard Web Leve (SVG + Cards)", desc: "Visualizador estilo distributed tracing, Gantt timeline e widgets FinOps.", dod: "Página embutida sem necessidade de compilação externa pesada." }
+        ]
+      },
+      {
+        id: 7,
+        title: "Gate 7: Testes E2E, Validação de Segurança & Hardening",
+        status: "Projetado",
+        summary: "Bateria de testes de integridade criptográfica, testes de escape de sandbox e validação sob carga.",
+        tasks: [
+          { id: "TASK-701", name: "Teste de Injeção de Fraude na Auditoria", desc: "Modificação forçada de 1 byte na tabela SQLite seguida de meza audit verify.", dod: "Detecção em 100% dos casos com flag de adulteração." },
+          { id: "TASK-702", name: "Teste de Confinamento da Sandbox", desc: "Tentativas controladas de leitura de ~/.ssh e escrita no host.", dod: "Bloqueio no nível de sistema operacional registrado como PolicyDenied." },
+          { id: "TASK-703", name: "Teste de Tripwire Orçamentário", desc: "Simulação de consumo atingindo teto com encerramento gracioso.", dod: "Orquestração bloqueada antes de gerar excedente financeiro." },
+          { id: "TASK-704", name: "Teste de Carga Multi-Agente Concorrente", desc: "4 supervisors Astra executando workers simultaneamente.", dod: "Ausência de deadlocks ou corrupção no SQLite WAL." },
+          { id: "TASK-705", name: "Documentação Operacional e Manuais", desc: "Manuais de uso, receitas de implantação e especificações.", dod: "Documentação completa aprovada." }
+        ]
+      }
+    ];
+
+    function switchGate(gateId) {
+      // Atualizar botões
+      const buttons = document.querySelectorAll('.gate-tab-btn');
+      buttons.forEach((btn, index) => {
+        btn.classList.toggle('active', index === gateId);
+      });
+
+      // Renderizar painel
+      const g = gatesData[gateId];
+      const panel = document.getElementById('gatePanel');
+      panel.innerHTML = `
+        <div class="gate-detail-header">
+          <div>
+            <span style="font-family:'Fira Code'; font-size:0.8rem; color:#818cf8; font-weight:600;">FASE DE QUALIDADE</span>
+            <h3 class="gate-title-large">${g.title}</h3>
+            <p style="color:var(--text-muted); font-size:0.95rem; margin-top:0.25rem;">${g.summary}</p>
+          </div>
+          <span class="gate-status-pill">${g.status}</span>
+        </div>
+
+        <div class="gate-tasks-list">
+          ${g.tasks.map(t => `
+            <div class="task-item">
+              <div class="task-top">
+                <span class="task-id-badge">${t.id}</span>
+                <span class="task-name">${t.name}</span>
+              </div>
+              <p class="task-desc">${t.desc}</p>
+              <div class="task-dod"><strong>Definition of Done:</strong> ${t.dod}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // Inicializar Gate 0
+    switchGate(0);
+
+    // CLI Interactive Mock
+    const cliOutputs = {
+      doctor: `<span style="color:#64748b;"># Executando preflight health check na inicialização...</span><br>
+<span style="color:#38bdf8;">$ orbity doctor</span><br><br>
+<span style="color:#818cf8; font-weight:700;">⚡ Orbity Agentic Platform - Pre-flight Health Check</span><br>
+<span style="color:#475569;">─────────────────────────────────────────────────────────────────────────────</span><br>
+<span style="color:#10b981;">[✓] Sandbox Runtime:</span> Bubblewrap (/usr/bin/bwrap) 0.8.0<br>
+<span style="color:#10b981;">[✓] Storage Engine:</span> SQLite 3.45.1 (WAL mode + SHA-256 Audit Store)<br><br>
+<span style="color:#cbd5e1; font-weight:600;">Suíte de Agentes CLI Detectados:</span><br>
+&nbsp;&nbsp;<span style="color:#10b981;">[✓] codex</span>&nbsp;&nbsp;&nbsp;v0.154.0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-> /home/geanderson/.local/bin/codex<br>
+&nbsp;&nbsp;<span style="color:#10b981;">[✓] claude</span>&nbsp;&nbsp;v2.1.239&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-> /home/geanderson/.local/bin/claude<br>
+&nbsp;&nbsp;<span style="color:#10b981;">[✓] agy</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v1.2.11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-> /home/geanderson/.local/bin/agy<br>
+&nbsp;&nbsp;<span style="color:#10b981;">[✓] hermes</span>&nbsp;&nbsp;v0.21.0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-> /home/geanderson/.local/bin/hermes<br>
+&nbsp;&nbsp;<span style="color:#10b981;">[✓] pi</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v0.78.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-> /home/geanderson/.hermes/node/bin/pi<br><br>
+<span style="color:#10b981; font-weight:700;">✓ 5 de 5 CLIs operacionais. Ambiente pronto para orquestração multi-agente!</span>`,
+
+      run: `<span style="color:#64748b;"># Executando comando com equipe forester...</span><br>
+<span style="color:#38bdf8;">$ orbity team run forester "Refatorar camada de banco" --budget-usd 2.00</span><br><br>
+<span style="color:#10b981;">[Astra::Planner]</span> Decompondo solicitação para equipe 'forester':<br>
+&nbsp;&nbsp;├─ [Step 1] Agy: Pesquisa de contexto e padrões em orbity-storage (agy -p)<br>
+&nbsp;&nbsp;├─ [Step 2] Codex: Gerar migrations SQLx (Sandbox: bwrap tmpfs)<br>
+&nbsp;&nbsp;├─ [Step 3] Pi: Ajustes cirúrgicos nos tipos de dados (pi -p --mode json)<br>
+&nbsp;&nbsp;├─ [Step 4] Codex: Executar 'cargo test' na sandbox (exit_code: 0)<br>
+&nbsp;&nbsp;├─ [Step 5] Claude: Revisar diff e impacto em segurança<br>
+&nbsp;&nbsp;└─ [Step 6] Astra: Síntese e consolidação FinOps<br><br>
+<span style="color:#f59e0b;">[FinOps]</span> Budget reservado: $2.00 | Consumo real: $0.34<br>
+<span style="color:#a855f7;">[Audit]</span> Genesis block estabelecido (hash: e3b0c442...)`,
+
+      audit: `<span style="color:#64748b;"># Verificando trilha criptográfica...</span><br>
+<span style="color:#38bdf8;">$ orbity audit verify run_74f9c</span><br><br>
+<span style="color:#10b981;">[AuditVerifier]</span> Carregando 18 eventos da tabela 'audit_events'...<br>
+&nbsp;&nbsp;✓ #0 Genesis Hash: e3b0c442... [OK]<br>
+&nbsp;&nbsp;✓ #1 AgentStarted (astra): 9a81f3b0... [OK]<br>
+&nbsp;&nbsp;✓ #2 SandboxCreated (sbx_42): 4c62d01a... [OK]<br>
+&nbsp;&nbsp;✓ #3 CommandExecuted (cargo test): 7f81bc22... [OK]<br>
+&nbsp;&nbsp;✓ #4 TokenUsageRecorded: 3b19ff88... [OK]<br><br>
+<span style="color:#10b981; font-weight:700;">✓ SUCESSO: Trilha de auditoria 100% íntegra. Nenhuma adulteração detectada.</span> (Exit code: 0)`,
+
+      finops: `<span style="color:#64748b;"># Consolidando consumo de tokens e custos por ferramenta...</span><br>
+<span style="color:#38bdf8;">$ orbity finops summary --since 2026-09-01</span><br><br>
+FERRAMENTA   INPUT TOKENS   OUTPUT TOKENS   CACHE TOKENS   CUSTO USD<br>
+──────────────────────────────────────────────────────────────────<br>
+Astra        12,400         1,850           4,200          $0.07<br>
+Agy          28,500         4,200           12,000         $0.14<br>
+Codex        38,900         7,200           14,500         $0.22<br>
+Claude       44,800         4,100           18,000         $0.31<br>
+Hermes       19,500         2,300           8,100          $0.09<br>
+Pi           15,200         1,900           6,400          $0.06<br>
+──────────────────────────────────────────────────────────────────<br>
+<strong style="color:#38bdf8;">TOTAL        159,300        21,550          63,200         $0.89</strong> (5 execuções)`,
+
+      logs: `<span style="color:#64748b;"># Streaming de logs estruturados (Audit Layer)...</span><br>
+<span style="color:#38bdf8;">$ orbity logs run_74f9c --layer audit --json</span><br><br>
+<span style="color:#e2e8f0;">{"timestamp":"2026-09-25T13:02:10Z","run_id":"run_74f9c","sequence":1,"event":"agent.started","agent":"astra","hash":"9a81f3b0"}</span><br>
+<span style="color:#e2e8f0;">{"timestamp":"2026-09-25T13:02:11Z","run_id":"run_74f9c","sequence":2,"event":"sandbox.created","sandbox_id":"sbx_42","hash":"4c62d01a"}</span><br>
+<span style="color:#e2e8f0;">{"timestamp":"2026-09-25T13:02:12Z","run_id":"run_74f9c","sequence":3,"event":"policy.allowed","policy":"fs.read_only","hash":"7f81bc22"}</span>`
+    };
+
+    function showCliOutput(type) {
+      document.querySelectorAll('.cli-cmd-item').forEach(el => el.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+      document.getElementById('cliInteractiveOutput').innerHTML = cliOutputs[type] || '';
+    }
+
+    // Simulador em Tempo Real
+    let simInterval = null;
+    let step = 0;
+    let tokens = 0;
+    let cost = 0.0;
+    let eventCount = 1;
+
+    const termBody = document.getElementById('termBody');
+    const valTokens = document.getElementById('valTokens');
+    const valCost = document.getElementById('valCost');
+    const logCounter = document.getElementById('logCounter');
+
+    function appendLog(time, badgeClass, badgeText, message) {
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML = `
+        <span class="log-time">[${time}]</span>
+        <span class="${badgeClass}">${badgeText}</span>
+        <span>${message}</span>
+      `;
+      termBody.appendChild(line);
+      termBody.scrollTop = termBody.scrollHeight;
+      eventCount++;
+      logCounter.innerText = `${eventCount} eventos`;
+    }
+
+    function setAgentState(agent, state, costText) {
+      const el = document.getElementById(`status-${agent}`);
+      if (el) el.innerText = state;
+      const c = document.getElementById(`cost-${agent}`);
+      if (c && costText) c.innerText = costText;
+    }
+
+    function setEdgeActive(edgeId, active) {
+      const edge = document.getElementById(edgeId);
+      if (edge) {
+        edge.setAttribute('stroke', active ? '#38bdf8' : '#334155');
+        edge.setAttribute('stroke-width', active ? '3' : '2');
+      }
+    }
+
+    document.getElementById('btnRunSim').addEventListener('click', () => {
+      if (simInterval) clearInterval(simInterval);
+      step = 0;
+      tokens = 0;
+      cost = 0.0;
+      termBody.innerHTML = '';
+      eventCount = 0;
+
+      appendLog('00:00:01', 'log-badge-runtime', 'RUNTIME', 'Supervisor Astra inicializado. Criando DAG de orquestração...');
+      setAgentState('astra', 'PLANNING');
+
+      simInterval = setInterval(() => {
+        step++;
+        if (step === 1) {
+          appendLog('00:00:02', 'log-badge-audit', 'AUDIT', 'Genesis block criado. SHA-256: e3b0c442...');
+          appendLog('00:00:02', 'log-badge-exec', 'EXEC', 'Astra delegou pesquisa profunda para Agy Antigravity (agy -p).');
+          setAgentState('astra', 'DELEGATING');
+          setAgentState('agy', 'RESEARCHING', '$0.05');
+          setEdgeActive('edge-astra-agy', true);
+          tokens += 9200;
+          cost += 0.05;
+        } else if (step === 2) {
+          setAgentState('agy', 'DONE', '$0.07');
+          setEdgeActive('edge-astra-agy', false);
+          appendLog('00:00:03', 'log-badge-runtime', 'SANDBOX', 'Sandbox bwrap criado (ID: sbx_981). Root montado ro-bind.');
+          appendLog('00:00:04', 'log-badge-exec', 'EXEC', "Codex CLI executou 'cargo test' no sandbox (exit_code: 0, 1140ms).");
+          tokens += 14200;
+          cost += 0.12;
+          setAgentState('codex', 'DONE', '$0.18');
+          setEdgeActive('edge-astra-codex', false);
+          setEdgeActive('edge-astra-claude', true);
+          setAgentState('claude', 'REVIEWING', '$0.08');
+        } else if (step === 3) {
+          appendLog('00:00:05', 'log-badge-finops', 'FINOPS', 'Consumo atualizado: 26,400 tokens ($0.23 gastas de $2.00 budget).');
+          appendLog('00:00:06', 'log-badge-exec', 'EXEC', 'Claude Code concluiu auditoria de segurança. Invariantes de memória confirmados.');
+          setAgentState('claude', 'DONE', '$0.14');
+          setEdgeActive('edge-astra-claude', false);
+          tokens += 12800;
+          cost += 0.11;
+        } else if (step === 4) {
+          appendLog('00:00:07', 'log-badge-audit', 'AUDIT', 'Gravando bloco #5 na tabela SQLite. Hash encadeado: 89fa210b...');
+          appendLog('00:00:08', 'log-badge-runtime', 'RUNTIME', 'Astra sintetizou a entrega das 3 CLIs (Agy, Codex, Claude). Sucesso total!');
+          setAgentState('astra', 'DONE');
+          tokens += 4300;
+          cost += 0.04;
+          clearInterval(simInterval);
+        }
+
+        valTokens.innerText = tokens.toLocaleString();
+        valCost.innerText = `$${cost.toFixed(2)}`;
+      }, 1400);
+    });
+
+    document.getElementById('btnTamper').addEventListener('click', () => {
+      const chain = document.getElementById('chainBlocks');
+      const blocks = chain.querySelectorAll('.chain-block');
+      if (blocks.length > 2) {
+        blocks[2].classList.add('tampered');
+        const hashEl = blocks[2].querySelector('.chain-hash');
+        if (hashEl) hashEl.innerText = "hash: CORROMPIDO!";
+      }
+      document.getElementById('chainStatus').innerText = "❌ ADULTERAÇÃO DETECTADA NA TABELA 'audit_events'";
+      document.getElementById('chainStatus').style.color = "#f43f5e";
+      appendLog('00:00:15', 'log-badge-alert', 'SECURITY_ALERT', 'ALERTA: Modificação manual detectada no evento #2. O hash esperado não confere!');
+    });
+
+    document.getElementById('btnVerify').addEventListener('click', () => {
+      const isTampered = document.querySelectorAll('.chain-block.tampered').length > 0;
+      if (isTampered) {
+        alert("Falha na Auditoria: O evento #2 teve seu payload adulterado. Encadeamento quebrado em SHA-256!");
+      } else {
+        alert("Auditoria Validada: Todos os 18 blocos de log conferem perfeitamente de volta ao Genesis block.");
+      }
+    });
+
+    document.getElementById('btnReset').addEventListener('click', () => {
+      if (simInterval) clearInterval(simInterval);
+      step = 0;
+      tokens = 0;
+      cost = 0;
+      valTokens.innerText = "0";
+      valCost.innerText = "$0.00";
+      setAgentState('astra', 'IDLE');
+      setAgentState('codex', 'IDLE', '$0.00');
+      setAgentState('agy', 'IDLE', '$0.00');
+      setAgentState('claude', 'IDLE', '$0.00');
+      setEdgeActive('edge-astra-codex', false);
+      setEdgeActive('edge-astra-agy', false);
+      setEdgeActive('edge-astra-claude', false);
+      document.querySelectorAll('.chain-block').forEach(b => b.classList.remove('tampered'));
+      document.getElementById('chainStatus').innerText = "✓ CADEIA ÍNTEGRA";
+      document.getElementById('chainStatus').style.color = "#34d399";
+      termBody.innerHTML = `
+        <div class="log-line">
+          <span class="log-time">[00:00:00]</span>
+          <span class="log-badge-runtime">RUNTIME</span>
+          <span>Barramento reinicializado. Pronto para nova orquestração.</span>
+        </div>
+      `;
+      logCounter.innerText = "1 evento";
+    });
+  </script>
+</body>
+</html>

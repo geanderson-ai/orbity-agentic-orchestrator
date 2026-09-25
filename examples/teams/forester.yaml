@@ -1,0 +1,259 @@
+# ==============================================================================
+# Equipe: forester
+# Nome inferido a partir do arquivo: forester.yaml
+# Descrição: Equipe de engenharia orquestrada usando Codex CLI, Claude Code e Agy Antigravity
+# ==============================================================================
+version: "1.0"
+team:
+  name: "forester"
+  description: "Equipe de engenharia de software e segurança com Codex CLI, Claude Code e Agy Antigravity"
+  tags:
+    - "refactoring"
+    - "security"
+    - "rust"
+    - "cli-triad"
+
+  # Orçamento e Guardrails FinOps da equipe
+  finops:
+    max_budget_usd: 2.00
+    max_total_tokens: 300000
+    expensive_model_approval_threshold_usd: 0.80
+    alert_at_budget_percentage: 75
+
+  # Configurações padrão de Sandbox para todo o time
+  sandbox_defaults:
+    provider: "bwrap"
+    filesystem:
+      root_mode: "ro-bind"
+      workspace_mode: "tmpfs"
+    network: "isolated" # ou "egress_allowlist"
+    timeout_seconds: 90
+    memory_limit_mb: 4096
+
+  # ============================================================================
+  # O Orquestrador Central (Líder da Equipe)
+  # Toda equipe possui obrigatoriamente um agente orquestrador
+  # ============================================================================
+  orchestrator:
+    id: "forester-lead"
+    name: "Astra Forester Supervisor"
+    role: "Lead Architect & Security Officer"
+    runner: "agy" # Executa via Antigravity CLI com planning mode
+    cli_options:
+      mode: "plan"
+      effort: "high"
+      output_format: "json"
+    
+    prompt:
+      system: |
+        Você é o líder da equipe Forester. Sua função é receber tarefas complexas de engenharia,
+        decompor em subtarefas precisas no DAG, delegar para a tríade de operários locais:
+        - Codex CLI (implementação de código e execução de testes em sandbox)
+        - Claude Code (revisão de segurança, conformidade e invariantes)
+        - Agy Antigravity (pesquisa profunda, planejamento e síntese de entregas)
+        Supervisione a integridade criptográfica no SQLite e emita relatório FinOps com métricas de tokens.
+
+    plan:
+      strategy: "PlanAndExecuteDAG"
+      max_iterations: 10
+      require_synthesis: true
+      on_worker_failure: "HaltAndReport"
+      default_pipeline:
+        - step_id: "deep_research"
+          name: "Pesquisa e Análise de Contexto"
+          delegate_to: "agy-worker"
+          action: "agy.analyze_codebase"
+
+        - step_id: "code_implementation"
+          name: "Implementação Rust e Suíte de Testes"
+          delegate_to: "codex-worker"
+          action: "codex.exec"
+          sandbox_action: "cargo test --all"
+
+        - step_id: "code_review"
+          name: "Revisão por Pares e Segurança"
+          delegate_to: "claude-code-worker"
+          action: "claude.review"
+
+        - step_id: "final_synthesis"
+          name: "Consolidação e Relatório FinOps"
+          action: "orchestrator.synthesize"
+
+  # ============================================================================
+  # Time de Agentes em Volta do Orquestrador (Tríade de CLIs Nativas)
+  # ============================================================================
+  workers:
+    # 1. Codex CLI (OpenAI Codex CLI)
+    - id: "codex-worker"
+      name: "Codex CLI Worker"
+      role: "Especialista em Implementação de Código e Testes Unitários"
+      runner: "codex"
+      cli_command: "codex"
+      cli_subcommand: "exec"
+      allowed_tools:
+        - "sandbox.run_command"
+        - "sandbox.read_file"
+        - "sandbox.write_file"
+      prompt:
+        system: |
+          Você é o construtor de código da equipe Forester via Codex CLI.
+          Escreva código Rust seguro, idiomático, com tratamento estrito de erros e testes unitários.
+
+    # 2. Claude Code (Anthropic Claude CLI)
+    - id: "claude-code-worker"
+      name: "Claude Code Sentinel"
+      role: "Auditor de Arquitetura, Segurança e Invariantes de Memória"
+      runner: "claude"
+      cli_command: "claude"
+      cli_args:
+        - "--print"
+        - "--output-format"
+        - "json"
+        - "--dangerously-skip-permissions"
+      allowed_tools:
+        - "sandbox.read_file"
+        - "ast.diff_analyzer"
+      prompt:
+        system: |
+          Você é o revisor crítico da equipe Forester via Claude Code.
+          Analise diffs, garanta que não haja vazamentos de segredos e audite contratos de concorrência.
+
+    # 3. Agy Antigravity (Google DeepMind CLI)
+    - id: "agy-worker"
+      name: "Agy Antigravity Scout"
+      role: "Especialista em Raciocínio Profundo, Pesquisa e Planejamento"
+      runner: "agy"
+      cli_command: "agy"
+      cli_args:
+        - "--print"
+        - "--output-format"
+        - "json"
+        - "--effort"
+        - "medium"
+        - "--dangerously-skip-permissions"
+      allowed_tools:
+        - "web.search"
+        - "docs.fetch"
+        - "mcp.inspect"
+      prompt:
+        system: |
+          Você é o batedor de inteligência e pesquisa profunda da equipe Forester via Agy CLI.
+          Localize padrões arquiteturais, referências técnicas e formule estratégias de resolução.
+
+    # 4. Hermes Agent (NousResearch Hermes CLI)
+    - id: "hermes-researcher"
+      name: "Hermes Scout & Toolmaster"
+      role: "Especialista em Execução de Ferramentas, Busca e Automação"
+      runner: "hermes"
+      cli_command: "hermes"
+      cli_args:
+        - "run"
+        - "--usage-file"
+        - "/tmp/hermes_usage.json"
+      allowed_tools:
+        - "web.search"
+        - "tool.execute"
+      prompt:
+        system: |
+          Você é o batedor de ferramentas da equipe Forester via Hermes Agent.
+          Utilize chamadas precisas de ferramentas e reporte métricas de tokens.
+
+    # 5. Pi Assistant (Pi AI Coding Assistant)
+    - id: "pi-coder"
+      name: "Pi Fast Coder"
+      role: "Especialista em Transformações Ágeis de Código e Refatoração"
+      runner: "pi"
+      cli_command: "pi"
+      cli_args:
+        - "--print"
+        - "--mode"
+        - "json"
+        - "--no-session"
+      allowed_tools:
+        - "sandbox.read_file"
+        - "sandbox.write_file"
+      prompt:
+        system: |
+          Você é o assistente ágil de código da equipe Forester via Pi CLI.
+          Execute modificações cirúrgicas de código sem poluir estado persistente.
+
+  # ============================================================================
+  # Topologia de Grafo do Time (Graph Engineering: Nodes & Edges)
+  # ============================================================================
+  graph_topology:
+    entrypoint_node: "forester-lead"
+    terminal_nodes: ["forester-lead"]
+
+    # Definição dos Nós da Topologia
+    nodes:
+      - id: "forester-lead"
+        kind: "supervisor"
+        worker_ref: "forester-lead"
+
+      - id: "scout-phase"
+        kind: "agent"
+        worker_ref: "hermes-researcher"
+
+      - id: "dev-builder"
+        kind: "agent"
+        worker_ref: "codex-builder"
+
+      - id: "security-audit"
+        kind: "agent"
+        worker_ref: "claude-reviewer"
+
+      - id: "test-verifier"
+        kind: "tool"
+        command: "cargo test --workspace"
+        timeout_seconds: 60
+
+      - id: "quick-fixer"
+        kind: "agent"
+        worker_ref: "pi-coder"
+
+      - id: "release-approval"
+        kind: "human_gate"
+        prompt: "Aprovar deploy e merge do código testado em sandbox?"
+        timeout_seconds: 86400
+
+    # Definição das Arestas de Execução (Edges)
+    edges:
+      # 1. Planejamento inicial para pesquisa e codificação em paralelo (Fan-out)
+      - from: "forester-lead"
+        to: ["scout-phase", "dev-builder"]
+        type: "parallel_fan_out"
+
+      # 2. Barreira de sincronização: Revisão só inicia quando ambos concluem (Fan-in)
+      - from: ["scout-phase", "dev-builder"]
+        to: "security-audit"
+        type: "barrier_fan_in"
+
+      # 3. Revisão concluída dispara suite de testes em sandbox
+      - from: "security-audit"
+        to: "test-verifier"
+        type: "direct"
+
+      # 4. Transição Condicional: Sucesso nos testes encaminha para aprovação humana
+      - from: "test-verifier"
+        to: "release-approval"
+        type: "conditional"
+        condition: "outcome.exit_code == 0"
+
+      # 5. Feedback Loop: Falha nos testes aciona Pi Coder para correção imediata (máx 3 retries)
+      - from: "test-verifier"
+        to: "quick-fixer"
+        type: "conditional"
+        condition: "outcome.exit_code != 0 && loop_iterations < 3"
+        inject_context: ["sandbox.stderr", "test_report"]
+
+      - from: "quick-fixer"
+        to: "test-verifier"
+        type: "feedback_loop"
+        max_iterations: 3
+
+      # 6. Aprovação humana aceita retorna ao Astra supervisor para síntese e arquivamento
+      - from: "release-approval"
+        to: "forester-lead"
+        type: "conditional"
+        condition: "approval.status == 'approved'"
+
