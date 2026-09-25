@@ -72,16 +72,16 @@ O projeto segue a metodologia de **Quality Gates** estruturada em 8 fases:
 - **[Gate 1: Persistência SQLite & Audit Store Criptográfico](IMPLEMENTATION_PLAN.md#gate-1-persistência-sqlite--audit-store-criptográfico)** `[CONCLUÍDO ✅]`
 - **[Gate 2: Mecanismo de Sandbox & Isolamento de Processos](IMPLEMENTATION_PLAN.md#gate-2-mecanismo-de-sandbox--isolamento-de-processos)** `[CONCLUÍDO ✅]`
 - **[Gate 3: Barramento Unificado de Eventos & Observabilidade em 4 Camadas](IMPLEMENTATION_PLAN.md#gate-3-barramento-unificado-de-eventos--observabilidade-em-4-camadas)** `[CONCLUÍDO ✅]`
-- **[Gate 4: Graph Engineering & Orquestração Multi-Agente Tokio (Sem Astra)](IMPLEMENTATION_PLAN.md#gate-4-graph-engineering-orbity-graph--orquestração-multi-agente-em-tokio-sem-astra)** `[PLANEJADO ⏳]`
-- **[Gate 5: Aplicação Servidora Reativa com Tokio Topcoat](IMPLEMENTATION_PLAN.md#gate-5-aplicação-servidora-reativa-com-tokio-topcoat)** `[PLANEJADO ⏳]`
-- **[Gate 6: Interface CLI de Orquestração & Modo Terminal TUI](IMPLEMENTATION_PLAN.md#gate-6-interface-cli-de-orquestração--modo-terminal-tui)** `[PLANEJADO ⏳]`
-- **[Gate 7: Testes E2E, Validação de Segurança & Hardening](IMPLEMENTATION_PLAN.md#gate-7-testes-e2e-validação-de-segurança--hardening)** `[PLANEJADO ⏳]`
+- **[Gate 4: Graph Engineering & Orquestração Multi-Agente Tokio (Sem Astra)](IMPLEMENTATION_PLAN.md#gate-4-graph-engineering-orbity-graph--orquestração-multi-agente-em-tokio-sem-astra)** `[CONCLUÍDO ✅]`
+- **[Gate 5: Aplicação Servidora Reativa com Tokio Topcoat](IMPLEMENTATION_PLAN.md#gate-5-aplicação-servidora-reativa-com-tokio-topcoat)** `[CONCLUÍDO ✅]`
+- **[Gate 6: Interface CLI de Orquestração & Modo Terminal TUI](IMPLEMENTATION_PLAN.md#gate-6-interface-cli-de-orquestração--modo-terminal-tui)** `[CONCLUÍDO ✅]`
+- **[Gate 7: Testes E2E, Validação de Segurança & Hardening](IMPLEMENTATION_PLAN.md#gate-7-testes-e2e-validação-de-segurança--hardening)** `[CONCLUÍDO ✅]`
 
 ---
 
-## 🛡️ Evidências de Implementação dos Gates 0, 1, 2 e 3
+## 🛡️ Evidências de Implementação dos Gates 0 ao 7
 
-O **Gate 0**, o **Gate 1**, o **Gate 2** e o **Gate 3** foram implementados em Rust nativo e validados com 44 testes unitários e de integração, incluindo cenário real multi-agente, injeção de adulteração de auditoria, confinamento de sandbox com Bubblewrap, pipeline simultâneo de 4 camadas de observabilidade e teste de carga com vazão de >75.000 ev/s:
+Todos os 8 Quality Gates (0 ao 7) foram implementados em Rust nativo e validados com 52 testes unitários e de integração, incluindo cenário real multi-agente, injeção de adulteração de auditoria, confinamento de sandbox com Bubblewrap, pipeline simultâneo de 4 camadas de observabilidade, motor de grafos Tokio DAG sem supervisor Astra, servidor reativo Tokio Topcoat e preflight health check da CLI:
 
 ### Tabela de Rastreabilidade de Commits
 
@@ -115,9 +115,14 @@ O **Gate 0**, o **Gate 1**, o **Gate 2** e o **Gate 3** foram implementados em R
 | `f308ae1` | `docs(gate-3)` | **DOCS** | Atualização da documentação geral (`IMPLEMENTATION_PLAN.md`, `README.md`, `JOURNEY_MAP_AND_AUDIT.md`) com conclusão do Gate 3. |
 | `1e18a97` | `docs(gate-5/6)` | **DOCS** | Atualização do Gate 5 para aplicação servidora reativa Tokio Topcoat (`topcoat` v0.9+) e reorganização da CLI para o Gate 6. |
 | `6d2cc49` | `feat(contracts)` | **TASK-005/TASK-409** | Políticas declarativas de aprovação e rejeição no YAML (`ApprovalPolicy`, `expensive_model_action`, `auto_approve`, `auto_reject`) eliminando validações manuais desnecessárias. |
+| `ca81afd` | `refactor` | **REFACTOR** | Revisão de arquitetura dos Gates 4 e 5 para Tokio Topcoat e remoção completa do supervisor Astra. |
+| `7c15fea` | `feat(gate-4)` | **TASK-401 a 410** | Motor de grafos em Tokio Topcoat (`GraphEngine`, `GraphExecutor`), ordenação topológica de Kahn, fan-out/fan-in, feedback loops com teto de iterações, injeção de contexto Blackboard, checkpoints criptográficos SQLite, 5 adaptadores de CLIs (`codex`, `claude`, `agy`, `hermes`, `pi`), tripwires FinOps e orquestrador topológico sem supervisor Astra. |
+| `0afb45c` | `feat(gate-5)` | **TASK-501 a 505** | Servidor de aplicação full-stack Tokio Topcoat (`orbity-server`), contexto da aplicação `Cx`, views reativas (`view!`), sinais de cliente (`signal`), componentes shard (`#[shard]`), streaming SSR com macros `live!` e `emit!`, WebSockets server-push (`ServerPushManager`) e console HITL de governança e FinOps. |
+| `8d35460` | `feat(gate-6)` | **TASK-601 a 606** | Engine da CLI `orbity` com derivação de comandos `clap` v4 (`run`, `resume`, `status`, `logs`, `audit verify`, `finops`, `serve`, `doctor`, `agent`, `team`), preflight health check das 5 CLIs e reconciliação automática declarativa de pastas YAML com cálculo de hash SHA-256 e SQLite WAL. |
+| `10e4df4` | `feat(gate-7)` | **TASK-701 a 705** | Testes de integração E2E e hardening: detecção de adulteração em trilha de auditoria, confinamento estrito de sandbox e bloqueio de path traversal, tripwire de orçamento FinOps e teste de stress concorrente com 4 instâncias paralelas do motor de grafos. |
 
 ### Resultados dos Testes de Concorrência, Confinamento e Observabilidade
-- **Suíte de Testes:** 44 testes executados e aprovados via `cargo test --workspace` (100% sucesso).
+- **Suíte de Testes:** 52 testes executados e aprovados via `cargo test --workspace` (100% sucesso).
 - **Linter & Compilação:** 0 warnings em `cargo clippy --workspace --all-targets -- -D warnings`.
 - **Vazão do Barramento (Load Test):** 🚀 **75.473 eventos/segundo** (excede o requisito mínimo de 5.000 ev/s em mais de 15x).
 - **Cenário Multi-Agente Concorrente (`crates/orbity-storage/tests/real_multi_agent_scenario.rs`):**
@@ -138,6 +143,7 @@ O **Gate 0**, o **Gate 1**, o **Gate 2** e o **Gate 3** foram implementados em R
   - **Camada 3 (Audit):** 10 eventos encadeados no SQLite com validação criptográfica SHA-256.
   - **Camada 4 (Telemetry):** Spans hierárquicos (run -> supervisor -> worker) e métricas consolidadas exportadas em formato OTLP JSON.
   - **Arquivo Local (.jsonl):** 10 linhas registradas em disco sem corrupção.
+
 
 ---
 

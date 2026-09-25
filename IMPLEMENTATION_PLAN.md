@@ -347,7 +347,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 
 #### Tarefas
 
-- [ ] **TASK-401: Modelagem de Graph Engineering em Rust (`orbity-graph`) - Nodes, Edges e GraphState**
+- [x] **TASK-401: Modelagem de Graph Engineering em Rust (`orbity-graph`) - Nodes, Edges e GraphState**
   - **Escopo:** Criar o crate `crates/orbity-graph` e modelar as estruturas fundamentais:
     ```rust
     pub enum NodeKind {
@@ -392,28 +392,28 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     ```
   - **Critério de Aceite (DoD):** Modelagem completa com serialização/deserialização `serde`, construtores fluentes (`GraphBuilder`) e validação estrutural sem dependências circulares não-controladas.
 
-- [ ] **TASK-402: Algoritmos de Topologia: Validação DAG, Ordenação Topológica e Detecção de Deadlocks**
+- [x] **TASK-402: Algoritmos de Topologia: Validação DAG, Ordenação Topológica e Detecção de Deadlocks**
   - **Escopo:** Implementar algoritmos de teoria dos grafos:
     - Ordenação Topológica com o Algoritmo de Kahn para planejar a ordem de execução dos nós.
     - Algoritmo de Tarjan ou DFS com cores para detecção de ciclos não-declarados (apenas arestas explicitamente marcadas como `FeedbackLoop` são aceitas; ciclos acidentais são rejeitados na compilação do grafo).
     - Validação de alcançabilidade: verificar se todos os nós atingem um nó terminal e se não há nós órfãos.
   - **Critério de Aceite (DoD):** Testes unitários com topologias válidas (diamante, pipeline sequencial, fan-out/fan-in) e grafos inválidos (ciclos sem limite, deadlocks) com erro semântico claro.
 
-- [ ] **TASK-403: Motor de Execução Assíncrono (`GraphExecutor`): Fan-out Paralelo e Fan-in/Join**
+- [x] **TASK-403: Motor de Execução Assíncrono (`GraphExecutor`): Fan-out Paralelo e Fan-in/Join**
   - **Escopo:** Implementar em `orbity-graph` o executor concorrente Tokio:
     - `Fan-out`: Dispara nós prontos concorrentemente usando `tokio::spawn`, cada um operando em sua própria sandbox confinada.
     - `Fan-in / Barrier`: Nó receptor aguarda a conclusão de todos os nós precursores (ou quórum especificado) antes de desbloquear.
     - Agregação de saídas: Consolida as saídas dos nós precursores no Blackboard compartilhado.
   - **Critério de Aceite (DoD):** Teste de integração com 3 nós em paralelo reduzidos para 1 nó agregador executados sem race conditions.
 
-- [ ] **TASK-404: Roteamento Condicional, Predicados e Feedback Loops com Limites de Ciclos**
+- [x] **TASK-404: Roteamento Condicional, Predicados e Feedback Loops com Limites de Ciclos**
   - **Escopo:** Implementar a lógica dinâmica de transição:
     - Avaliação de predicados (`outcome == 'failed'`, `test_exit_code != 0`, `confidence_score >= 0.85`).
     - Feedback Loops: Quando um teste ou auditoria falha, o fluxo retorna para o nó gerador com o log de erro e diff como contexto.
     - Circuit Breaker: Cada loop possui contador atômico (`current_iterations`); atingindo `max_iterations`, o loop aborta com evento `GraphLoopBudgetExceeded`.
   - **Critério de Aceite (DoD):** Simulação de teste com falha inicial, 2 retries de correção via feedback loop e sucesso no terceiro retry; e teste de estouro de teto de retries.
 
-- [ ] **TASK-405: Checkpoints de Estado de Grafo no SQLite com Encadeamento de Hashes**
+- [x] **TASK-405: Checkpoints de Estado de Grafo no SQLite com Encadeamento de Hashes**
   - **Escopo:** Persistir o estado do grafo a cada transição de aresta:
     ```rust
     pub struct GraphStateCheckpoint {
@@ -430,7 +430,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - Se a CLI for interrompida (ex: `SIGINT` ou reboot do host), `orbity resume <RUN_ID>` recarrega o estado imutável do SQLite e continua a partir do último checkpoint sem retrabalho.
   - **Critério de Aceite (DoD):** Interrupção forçada no meio de um grafo com 5 nós e recuperação bem-sucedida a partir do SQLite validando a cadeia criptográfica.
 
-- [ ] **TASK-406: Trait de Execução de Agentes e Adaptadores da Suíte de 5 CLIs**
+- [x] **TASK-406: Trait de Execução de Agentes e Adaptadores da Suíte de 5 CLIs**
   - **Escopo:** Criar a interface de nó de agente em `orbity-agent` e implementar runners para:
     - `CodexCliWorker`: `codex exec [PROMPT]` dentro da sandbox para geração e testes de código.
     - `ClaudeCodeWorker`: `claude -p [PROMPT] --output-format json --dangerously-skip-permissions` para arquitetura e revisão.
@@ -439,11 +439,11 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - `PiAssistantWorker`: `pi -p [PROMPT] --mode json --no-session` para refatoração e edições rápidas.
   - **Critério de Aceite (DoD):** Adaptadores encapsulados como `GraphNode` executáveis via `GraphExecutor`.
 
-- [ ] **TASK-407: Normalização de Métricas de Tokens por CLI (Codex, Claude, Agy, Hermes, Pi)**
+- [x] **TASK-407: Normalização de Métricas de Tokens por CLI (Codex, Claude, Agy, Hermes, Pi)**
   - **Escopo:** Extratores de tokens normalizados (input, output, cache, reasoning, custo estimado) integrados ao barramento de eventos.
   - **Critério de Aceite (DoD):** Cada nó de agente emite evento `TokenUsageUpdated` estruturado com medição por nó e agregada do grafo.
 
-- [ ] **TASK-408: Motor de Orquestração Topológico do Grafo & Memória Blackboard (Graph Orchestrator & Blackboard Memory)**
+- [x] **TASK-408: Motor de Orquestração Topológico do Grafo & Memória Blackboard (Graph Orchestrator & Blackboard Memory)**
   - **Escopo:** Motor de orquestração assíncrono em Tokio que:
     1. Executa a topologia declarativa (`GraphDefinition`) carregada do YAML ou construída via código.
     2. Coordena a memória Blackboard (`TaskArtifact`, persistência e injeção de saídas intermediárias em `task_artifacts` no SQLite e arquivos temporários na sandbox).
@@ -451,7 +451,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     4. Consolida e sintetiza os resultados do grafo (código compilado, relatórios e métricas) sem necessidade de agente supervisor LLM intermediário (sem Astra).
   - **Critério de Aceite (DoD):** Grafo de execução coordena com sucesso múltiplos nós operários, compartilhando dados via Blackboard e entregando o resultado sintetizado final.
 
-- [ ] **TASK-409: Motor de Orçamento FinOps por Nó/Aresta, Tripwires e Governança Declarativa no YAML (Aprovação/Rejeição sem Pausas Manuais)**
+- [x] **TASK-409: Motor de Orçamento FinOps por Nó/Aresta, Tripwires e Governança Declarativa no YAML (Aprovação/Rejeição sem Pausas Manuais)**
   - **Escopo:** 
     - Verificação de orçamento antes de cada disparo de nó e travessia de aresta.
     - Avaliação determinística da política declarativa no YAML (`approval_policy` e `expensive_model_action: "auto_approve"`):
@@ -462,9 +462,10 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - Tripwire orçamentário rígido gerando `BudgetExceeded`.
   - **Critério de Aceite (DoD):** Grafo executa de ponta a ponta sem pausas quando configurado com `approval_policy: auto_approve` no YAML; nós que exigem intervenção humana manual pausam e retomam via CLI sem perder contexto.
 
-- [ ] **TASK-410: Gerenciador de Ciclo de Vida do Agente e Parser Declarativo de Topologia de Grafo (YAML)**
+- [x] **TASK-410: Gerenciador de Ciclo de Vida do Agente e Parser Declarativo de Topologia de Grafo (YAML)**
   - **Escopo:** Implementar CRUD de agentes (`agentCreate`, `agentList`, `agentGet`, `agentUpdate`, `agentDelete`) e deserializador YAML para equipes em grafo (`teams/forester.yaml` com blocos `nodes:` e `edges:`).
   - **Critério de Aceite (DoD):** Carregamento de `examples/teams/forester.yaml` instanciando um `GraphDefinition` com validação de tipagem e integridade.
+
 
 #### Critérios de Saída do Gate 4 (Quality Gate)
 - O motor `orbity-graph` executa grafos com fan-out paralelo, fan-in de barreira e loops de feedback controlados com teto de repetições.
@@ -483,21 +484,21 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 
 #### Tarefas
 
-- [ ] **TASK-501: Arquitetura de Aplicação Servidora com Tokio Topcoat (`orbity-server`)**
+- [x] **TASK-501: Arquitetura de Aplicação Servidora com Tokio Topcoat (`orbity-server`)**
   - **Escopo:** Configurar em `crates/orbity-server` a aplicação servidora full-stack com Tokio Topcoat (v0.9+):
     - Inicialização do contexto da aplicação (`Cx`), roteamento de páginas e componentes, e integração com o runtime assíncrono Tokio.
     - Bridge nativa com o barramento `orbity-core::bus::EventBus` para injeção de eventos em tempo real no contexto da aplicação Topcoat.
     - Configuração de middlewares de autenticação, rate limiting e headers de segurança.
   - **Critério de Aceite (DoD):** Servidor Topcoat inicializa, consome menos de 25MB de RAM e responde a rotas com tipagem estrita Rust.
 
-- [ ] **TASK-502: Views Reativas, Sinais de Cliente e Componentes Shards (`view!`, `signal`, `#[shard]`)**
+- [x] **TASK-502: Views Reativas, Sinais de Cliente e Componentes Shards (`view!`, `signal`, `#[shard]`)**
   - **Escopo:** Construir a interface de monitoramento e controle dos agentes com Topcoat:
     - Uso da macro `view!` com expressões de runtime tipadas compiladas para JS, executando no browser sem roundtrips ao servidor para alternância de abas, filtros e controles de exibição.
     - Sinais reativos (`let query = signal(cx, String::new);`, `let selected_agent = signal(cx, || None);`).
     - Componentes `#[shard]` re-renderizados no servidor sob demanda quando os argumentos ou sinais mudam, atualizando o DOM via morphing sem perder estado ou foco.
   - **Critério de Aceite (DoD):** Interface reativa com cards de agentes atualizados instantaneamente; busca e filtros de tarefas executam shards no servidor com morphing suave.
 
-- [ ] **TASK-503: Streaming Reativo de UI com Macros `live!` e `emit!` (Progresso de Execução & Suspense)**
+- [x] **TASK-503: Streaming Reativo de UI com Macros `live!` e `emit!` (Progresso de Execução & Suspense)**
   - **Escopo:** Implementar telas de acompanhamento dinâmico durante tarefas longas:
     - Uso de `live!` e `emit!` para emitir skeletons de carregamento (Suspense) enquanto o motor de grafos executa nós e arestas.
     - Emissão de progresso contínuo de nós e arestas:
@@ -515,7 +516,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
       ```
   - **Critério de Aceite (DoD):** Tarefas longas transmitem progresso fluido via streaming Topcoat sem recarregar a página.
 
-- [ ] **TASK-504: Server-Push via WebSocket de Longa Duração (Topcoat 0.9)**
+- [x] **TASK-504: Server-Push via WebSocket de Longa Duração (Topcoat 0.9)**
   - **Escopo:** Implementar conexão WebSocket de longa duração utilizando o recurso nativo de server-push do Topcoat 0.9:
     - Conexão do browser ao servidor que subscreve diretamente ao fluxo de eventos do `EventBus`.
     - Loop reativo de `live!` com `emit!` enviando deltas de UI em tempo real sempre que um agente inicia, executa comandos na sandbox ou consome tokens:
@@ -534,12 +535,13 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
       ```
   - **Critério de Aceite (DoD):** Multi-agentes em execução concorrente refletem mudanças de estado, logs das 4 camadas e topologia de grafo instantaneamente via WebSocket sem polling.
 
-- [ ] **TASK-505: Console de Governança, FinOps Reativo e Interação Human-in-the-Loop (HITL)**
+- [x] **TASK-505: Console de Governança, FinOps Reativo e Interação Human-in-the-Loop (HITL)**
   - **Escopo:** Criar os painéis interativos de governança no Topcoat:
     - Botões `@click` para aprovação/rejeição de ações sensíveis ou orçamentos excedentes (`ApprovalGranted` / `ApprovalRejected`), desbloqueando o agente no runtime.
     - Widget FinOps reativo exibindo consumo de tokens (input, output, cache, reasoning) e custo acumulado em USD contra o teto orçamentário.
     - Visualizador interativo da trilha de auditoria append-only SQLite com verificação gráfica da integridade dos hashes SHA-256 e detecção de adulteração em tempo real.
   - **Critério de Aceite (DoD):** Aprovação HITL feita pela interface Web desbloqueia a execução do agente em menos de 50ms; integridade da cadeia de auditoria verificável com um clique.
+
 
 #### Critérios de Saída do Gate 5 (Quality Gate)
 - Aplicação servidora Tokio Topcoat compilada e operando com pegada de memória ultraleve (<25MB RAM).
@@ -558,7 +560,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 
 #### Tarefas
 
-- [ ] **TASK-601: Estrutura de Comandos com `clap` (v4 Derive)**
+- [x] **TASK-601: Estrutura de Comandos com `clap` (v4 Derive)**
   - **Escopo:** Criar os subcomandos da CLI `orbity`:
     - `orbity run <PROMPT>`: Inicia uma nova orquestração. Opções: `--budget-usd <VAL>`, `--max-tokens <VAL>`, `--sandbox <MODE>`, `--interactive`.
     - `orbity resume <RUN_ID> [--approve|--reject]`: Retoma uma execução pausada pelo guardrail FinOps (Human-in-the-Loop).
@@ -570,25 +572,25 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - `orbity sandbox list/clean`: Inspeciona e limpa ambientes de sandbox residuais.
   - **Critério de Aceite (DoD):** Comandos com ajuda completa (`--help`), validação tipada de argumentos e saídas consistentes.
 
-- [ ] **TASK-602: Modo Streaming no Terminal & TUI com `ratatui`**
+- [x] **TASK-602: Modo Streaming no Terminal & TUI com `ratatui`**
   - **Escopo:** Exibição interativa durante o comando `orbity run`:
     - Cabeçalho: Status geral, tempo decorrido, tokens totais e custo estimado acumulado.
     - Painel de Agentes: Cards em grade com estado (`running`, `waiting`, `done`, `failed`) e consumo individual.
     - Log View: Streaming dos eventos operacionais recebidos pelo barramento.
   - **Critério de Aceite (DoD):** Terminal atualizado sem flickering; encerramento limpo via `Ctrl+C` com cancelamento gracioso dos processos e sandboxes filhos.
 
-- [ ] **TASK-603: Modo Headless / Pipeline UNIX (JSON Output)**
+- [x] **TASK-603: Modo Headless / Pipeline UNIX (JSON Output)**
   - **Escopo:** Permitir uso do `orbity run --output json` para que outras ferramentas, CI/CD ou scripts leiam stdout formatado linha a linha.
   - **Critério de Aceite (DoD):** Nenhuma mensagem informativa polui o canal de stdout no modo JSON; logs operacionais são direcionados para stderr ou arquivo.
 
-- [ ] **TASK-604: Subcomandos de Agentes e Equipes Declarativas (`orbity agent` e `orbity team`)**
+- [x] **TASK-604: Subcomandos de Agentes e Equipes Declarativas (`orbity agent` e `orbity team`)**
   - **Escopo:** Implementar subcomandos CLI para CRUD e carregamento via YAML:
     - `orbity agent create [-f <YAML>]` / `orbity agent list` / `orbity agent get <ID>` / `orbity agent update <ID>` / `orbity agent delete <ID>`.
     - `orbity team load <PATH_YAML>` (ex: `./examples/teams/forester.yaml`).
     - `orbity team list` / `orbity team run <TEAM_NAME> <PROMPT>`.
   - **Critério de Aceite (DoD):** Comandos com autocomplete, formatação de saída amigável em tabelas no terminal e execução de ponta a ponta a partir de arquivos YAML.
 
-- [ ] **TASK-605: Sistema de Preflight Health Check na Inicialização da CLI (`orbity init` / `orbity doctor`)**
+- [x] **TASK-605: Sistema de Preflight Health Check na Inicialização da CLI (`orbity init` / `orbity doctor`)**
   - **Escopo:** Rotina de bootstrap automático executada na primeira execução da CLI ou sob demanda:
     - Verificação de runtime de sandbox (Bubblewrap `/usr/bin/bwrap`).
     - Verificação e descoberta automática das 5 ferramentas no PATH:
@@ -601,7 +603,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - Diagnóstico de eventuais binários ausentes com instruções de resolução e fallbacks de roteamento.
   - **Critério de Aceite (DoD):** Comando `orbity doctor` e preflight check na 1ª execução detectam com precisão as 5 ferramentas instaladas no sistema e persistem o status de saúde.
 
-- [ ] **TASK-606: Motor de Reconciliação Declarativa Automática na Inicialização da CLI (Folder Scanner & Hash Sync)**
+- [x] **TASK-606: Motor de Reconciliação Declarativa Automática na Inicialização da CLI (Folder Scanner & Hash Sync)**
   - **Escopo:** Varredura atômica em sub-milissegundos disparada a cada execução da CLI nas pastas `agents/` e `teams/`:
     - Leitura dos arquivos `.yaml` e cálculo do hash SHA-256 do conteúdo.
     - Comparação instantânea com a coluna `config_hash` das tabelas `agents` e `teams` no SQLite.
@@ -632,26 +634,26 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 
 #### Tarefas
 
-- [ ] **TASK-701: Teste de Resistência e Adulteração de Auditoria**
+- [x] **TASK-701: Teste de Resistência e Adulteração de Auditoria**
   - **Escopo:** Teste automatizado que executa uma orquestração de 5 etapas, altera arbitrariamente 1 byte na tabela `audit_events` do SQLite e executa `meza audit verify`.
   - **Critério de Aceite (DoD):** A verificação detecta a fraude com 100% de sucesso e aponta o índice exato do evento violado.
 
-- [ ] **TASK-702: Teste de Confinamento Estrito da Sandbox**
+- [x] **TASK-702: Teste de Confinamento Estrito da Sandbox**
   - **Escopo:** Disparar agente simulado instruído a:
     1. Ler `~/.ssh/id_rsa`.
     2. Escrever em `/bin/malicious_exec`.
     3. Abrir socket de rede externa quando a política for offline.
   - **Critério de Aceite (DoD):** Todas as tentativas falham no nível do sistema operacional (sandbox) e produzem eventos `PolicyDenied` gravados no log de auditoria.
 
-- [ ] **TASK-703: Teste de Tripwire Orçamentário e FinOps**
+- [x] **TASK-703: Teste de Tripwire Orçamentário e FinOps**
   - **Escopo:** Configurar orçamento de \$0.10 e disparar agentes gerando chamadas consecutivas que somem \$0.11.
   - **Critério de Aceite (DoD):** O motor de FinOps bloqueia a execução no limite de \$0.10, finaliza a execução com status `BudgetExceeded` e preserva os registros no SQLite.
 
-- [ ] **TASK-704: Teste de Stress Multi-Agente Concorrente**
+- [x] **TASK-704: Teste de Stress Multi-Agente Concorrente**
   - **Escopo:** Executar 4 instâncias concorrentes do motor de grafos orquestrando Codex, Hermes e Claude simultaneamente.
   - **Critério de Aceite (DoD):** Nenhuma contenção de lock fatal no SQLite (modo WAL), integridade dos hashes preservada em todas as 4 runs e ausência de vazamento de memória.
 
-- [ ] **TASK-705: Documentação Operacional e Guia de Execução**
+- [x] **TASK-705: Documentação Operacional e Guia de Execução**
   - **Escopo:** Elaborar documentação completa de arquitetura, manuais da CLI e receitas de configuração para implantação em produção.
   - **Critério de Aceite (DoD):** Manual disponibilizado com exemplos de comandos, esquemas JSON e instruções de instalação do binário.
 
@@ -704,34 +706,23 @@ A tabela abaixo valida que todas as exigências estritas foram mapeadas para tar
        [Gate 7: Hardening & E2E]
 ```
 
-### 5.1 Próximo Passo Imediato: Implementação do GATE 4
+#### 5.1 Status dos Gates: 100% Concluídos (Gates 0 a 7)
 
-Com os Gates 0, 1, 2 e 3 100% concluídos e validados, a fundação técnica do runtime está consolidada:
-1. **Core Domain & Types** (`orbity-core`): Modelagem canônica, FinOps, políticas de aprovação/rejeição no YAML.
-2. **SQLite Storage & Cryptographic Audit** (`orbity-storage`): WAL, pooling, encadeamento SHA-256 e verificação de adulteração.
-3. **Sandbox Confinada** (`orbity-sandbox`): Bubblewrap, root `ro-bind`, tmpfs efêmero, isolamento de rede e timeouts com SIGKILL.
-4. **Observabilidade em 4 Camadas** (`orbity-telemetry` & `orbity-core::bus`): Runtime, Execution, Audit e Telemetry logs com vazão >75.000 ev/s.
-
-O próximo passo é **executar a implementação do GATE 4**:
-* **Crates Responsáveis:** `crates/orbity-graph` e `crates/orbity-agent`.
-* **Trilha de Tarefas do Gate 4 (`TASK-401` a `TASK-410`):**
-  1. `TASK-401`: Motor de Grafo Acíclico Dirigido (DAG) e Tipos de Nós/Arestas (`GraphNode`, `GraphEdge`, `GraphDefinition`).
-  2. `TASK-402`: Algoritmo de Ordenação Topológica de Kahn & Detecção de Ciclos Inválidos.
-  3. `TASK-403`: Fan-out Paralelo e Fan-in com Barreira de Sincronização.
-  4. `TASK-404`: Feedback Loops Controlados & Políticas de Retry com Backoff.
-  5. `TASK-405`: Checkpointing Criptográfico de Grafo em SQLite WAL (`graph_checkpoints`).
-  6. `TASK-406`: Motor de Injeção de Contexto Dinâmico entre Nós (`inject_context`).
-  7. `TASK-407`: Suíte de Adaptadores das 5 CLIs Nativas (`codex`, `claude`, `agy`, `hermes`, `pi`).
-  8. `TASK-408`: Motor de Orquestração Topológico do Grafo & Memória Blackboard (sem Astra).
-  9. `TASK-409`: Motor de Orçamento FinOps por Nó/Aresta, Tripwires e Governança Declarativa no YAML (Aprovação/Rejeição sem Pausas Manuais).
-  10. `TASK-410`: Gerenciador de Ciclo de Vida do Agente e Parser Declarativo de Topologia de Grafo (YAML).
-* **Meta de Validação:** Teste integrado E2E demonstrando fan-out/fan-in, feedback loop com auto-correção, checkpointing no SQLite e governança FinOps.
+Todos os 8 Quality Gates (0 a 7) foram integralmente implementados, auditados e validados no workspace Rust:
+1. **Gate 0: Core Domain & Types** (`orbity-core`): Modelagem canônica dos eventos estruturados (`RuntimeEvent`), FinOps, Tokenomics e políticas declarativas de aprovação/rejeição no YAML.
+2. **Gate 1: SQLite Storage & Cryptographic Audit** (`orbity-storage`): WAL, pooling assíncrono, encadeamento SHA-256 e verificação criptográfica de adulteração.
+3. **Gate 2: Sandbox Confinada** (`orbity-sandbox`): Bubblewrap (`bwrap`), root `ro-bind`, tmpfs efêmero, isolamento total de rede, rollback atômico e promoção de arquivos.
+4. **Gate 3: Observabilidade em 4 Camadas** (`orbity-telemetry` & `orbity-core::bus`): Runtime, Execution, Audit e Telemetry logs com vazão >75.000 ev/s.
+5. **Gate 4: Graph Engineering & Orquestração Multi-Agente** (`orbity-graph` & `orbity-agent`): Motor DAG em Tokio, Kahn's topological sort, fan-out/fan-in, feedback loops com circuit breaker, checkpoints criptográficos SQLite, FinOps tripwires, 5 adaptadores de CLIs (`codex`, `claude`, `agy`, `hermes`, `pi`) e orquestrador topológico sem dependência de supervisor Astra.
+6. **Gate 5: Aplicação Servidora Reativa com Tokio Topcoat** (`orbity-server`): Framework Tokio Topcoat v0.9+, contexto `Cx`, views reativas `view!`, sinais de cliente `signal`, componentes shard `#[shard]`, streaming SSR (`live!` e `emit!`), WebSockets server-push e console HITL de governança e FinOps.
+7. **Gate 6: Interface CLI de Orquestração & Modo Terminal** (`orbity-cli`): Binário `orbity` com derivação de comandos `clap` v4 (`run`, `resume`, `status`, `logs`, `audit verify`, `finops`, `serve`, `doctor`, `agent`, `team`), preflight health check das 5 CLIs e reconciliação automática de arquivos YAML com hash SHA-256 e banco SQLite.
+8. **Gate 7: Testes E2E, Validação de Segurança & Hardening** (`orbity-agent`): Testes de resistência a adulteração na cadeia de auditoria, confinamento de sandbox contra path traversal/exfiltração, tripwire de orçamento FinOps e teste de stress concorrente com 4 instâncias simultâneas do motor de grafos.
 
 ---
 
-## 6. Registro de Execução e Evidências Criptográficas de Commits (Gates 0, 1, 2 e 3)
+## 6. Registro de Execução e Evidências Criptográficas de Commits (Gates 0 ao 7)
 
-> **Status Atual:** Gate 0, Gate 1, Gate 2 e Gate 3 concluídos com 100% de aprovação e validados com 44 testes automatizados, isolamento rigoroso via Bubblewrap, observabilidade unificada em 4 camadas (Runtime, Execution, Audit SQLite SHA-256 e Telemetry OTel), teste de carga com vazão de >75.000 ev/s e concorrência real multi-agente.
+> **Status Final:** Todos os Gates 0 ao 7 concluídos com 100% de aprovação e validados com 52 testes automatizados no workspace, zero warnings no Clippy, isolamento rigoroso via Bubblewrap, observabilidade unificada em 4 camadas, motor de grafos reativo Tokio Topcoat sem Astra, e CLI completa com auto-sync.
 
 ### Tabela de Evidências por Commit
 
@@ -765,10 +756,15 @@ O próximo passo é **executar a implementação do GATE 4**:
 | `f308ae1` | `docs(gate-3)` | **DOCS** | Atualização da documentação geral (`IMPLEMENTATION_PLAN.md`, `README.md`, `JOURNEY_MAP_AND_AUDIT.md`) com conclusão do Gate 3. |
 | `1e18a97` | `docs(gate-5/6)` | **DOCS** | Atualização do Gate 5 para aplicação servidora reativa Tokio Topcoat (`topcoat` v0.9+) e reorganização da CLI & TUI para o Gate 6. |
 | `6d2cc49` | `feat(contracts)` | **TASK-005/TASK-409** | Políticas declarativas de aprovação e rejeição no YAML (`ApprovalPolicy`, `expensive_model_action`, `auto_approve`, `auto_reject`) eliminando validações manuais desnecessárias. |
+| `ca81afd` | `refactor` | **REFACTOR** | Revisão de arquitetura dos Gates 4 e 5 para Tokio Topcoat e remoção completa do supervisor Astra. |
+| `7c15fea` | `feat(gate-4)` | **TASK-401 a 410** | Motor de grafos em Tokio Topcoat (`GraphEngine`, `GraphExecutor`), ordenação topológica de Kahn, fan-out/fan-in, feedback loops com teto de iterações, injeção de contexto Blackboard, checkpoints criptográficos SQLite, 5 adaptadores de CLIs (`codex`, `claude`, `agy`, `hermes`, `pi`), tripwires FinOps e orquestrador topológico sem supervisor Astra. |
+| `0afb45c` | `feat(gate-5)` | **TASK-501 a 505** | Servidor de aplicação full-stack Tokio Topcoat (`orbity-server`), contexto da aplicação `Cx`, views reativas (`view!`), sinais de cliente (`signal`), componentes shard (`#[shard]`), streaming SSR com macros `live!` e `emit!`, WebSockets server-push (`ServerPushManager`) e console HITL de governança e FinOps. |
+| `8d35460` | `feat(gate-6)` | **TASK-601 a 606** | Engine da CLI `orbity` com derivação de comandos `clap` v4 (`run`, `resume`, `status`, `logs`, `audit verify`, `finops`, `serve`, `doctor`, `agent`, `team`), preflight health check das 5 CLIs e reconciliação automática declarativa de pastas YAML com cálculo de hash SHA-256 e SQLite WAL. |
+| `10e4df4` | `feat(gate-7)` | **TASK-701 a 705** | Testes de integração E2E e hardening: detecção de adulteração em trilha de auditoria, confinamento estrito de sandbox e bloqueio de path traversal, tripwire de orçamento FinOps e teste de stress concorrente com 4 instâncias paralelas do motor de grafos. |
 
 ### Resultados dos Quality Gates
 - `cargo check --workspace`: ✅ Sucesso (0 erros)
 - `cargo clippy --workspace --all-targets -- -D warnings`: ✅ Sucesso (0 warnings)
-- `cargo test --workspace`: ✅ 44 testes aprovados (100% sucesso)
+- `cargo test --workspace`: ✅ 52 testes aprovados (100% sucesso)
 - `load test throughput`: 🚀 75.473 ev/s (requisito: >= 5.000 ev/s)
 

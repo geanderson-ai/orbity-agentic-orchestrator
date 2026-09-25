@@ -113,9 +113,9 @@ A varredura comprova que **todo o ciclo de vida e a jornada de orquestração mu
 
 ---
 
-## 5. Evidências de Implementação e Execução dos Gates 0, 1, 2 e 3
+## 5. Evidências de Implementação e Execução dos Gates 0 ao 7
 
-O Gate 0 (Fundação, Tipos & Domínio de Eventos), o Gate 1 (Persistência SQLite & Audit Store Criptográfico), o Gate 2 (Mecanismo de Sandbox & Isolamento de Processos) e o Gate 3 (Barramento Unificado de Eventos & Observabilidade em 4 Camadas) foram completamente implementados e validados no repositório Git com os seguintes commits:
+Todos os 8 Quality Gates (0 ao 7) foram completamente implementados, auditados e validados no repositório Git com os seguintes commits:
 
 | Commit | Escopo | Descrição da Entrega |
 |---|---|---|
@@ -147,10 +147,15 @@ O Gate 0 (Fundação, Tipos & Domínio de Eventos), o Gate 1 (Persistência SQLi
 | `f308ae1` | `docs(gate-3)` | Atualização da documentação geral (`IMPLEMENTATION_PLAN.md`, `README.md`, `JOURNEY_MAP_AND_AUDIT.md`) com conclusão do Gate 3. |
 | `1e18a97` | `docs(gate-5/6)`| Atualização do Gate 5 para aplicação servidora reativa Tokio Topcoat (`topcoat` v0.9+) e reorganização da CLI para o Gate 6. |
 | `6d2cc49` | `feat(contracts)`| Políticas declarativas de aprovação e rejeição no YAML (`ApprovalPolicy`, `auto_approve`, `auto_reject`) eliminando validações manuais. |
+| `ca81afd` | `refactor` | Revisão de arquitetura dos Gates 4 e 5 para Tokio Topcoat e remoção completa do supervisor Astra. |
+| `7c15fea` | `feat(gate-4)` | `TASK-401 a 410` - Motor DAG em Tokio Topcoat, ordenação topológica de Kahn, fan-out/fan-in, feedback loops, Blackboard, checkpoints SQLite, 5 adaptadores de CLIs, tripwires FinOps e orquestrador topológico sem Astra. |
+| `0afb45c` | `feat(gate-5)` | `TASK-501 a 505` - Servidor Tokio Topcoat (`orbity-server`), views reativas (`view!`), sinais (`signal`), shards (`#[shard]`), streaming SSR (`live!`/`emit!`), WebSockets server-push e console HITL de governança e FinOps. |
+| `8d35460` | `feat(gate-6)` | `TASK-601 a 606` - CLI `orbity` com derivação de comandos `clap` v4, preflight health check das 5 CLIs e reconciliação automática declarativa de pastas YAML com cálculo de hash SHA-256 e SQLite WAL. |
+| `10e4df4` | `feat(gate-7)` | `TASK-701 a 705` - Testes de integração E2E e hardening: detecção de adulteração em trilha de auditoria, confinamento estrito de sandbox e bloqueio de path traversal, tripwire de orçamento FinOps e teste de stress concorrente com 4 instâncias do motor de grafos. |
 
-### Resultados Consolidados dos Quality Gates (Gates 0, 1, 2 e 3)
+### Resultados Consolidados dos Quality Gates (Gates 0 ao 7)
 - **`cargo check --workspace`:** ✅ Sucesso (0 erros)
 - **`cargo clippy --workspace --all-targets -- -D warnings`:** ✅ Sucesso (0 warnings)
-- **`cargo test --workspace`:** ✅ 44 testes aprovados (100% de sucesso)
+- **`cargo test --workspace`:** ✅ 52 testes aprovados (100% de sucesso)
 - **Vazão do Barramento (Load Test):** 🚀 75.473 eventos/segundo (requisito: >= 5.000 ev/s)
 
