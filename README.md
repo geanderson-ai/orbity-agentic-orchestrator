@@ -68,16 +68,46 @@ O projeto já inclui a página interativa e o workflow automatizado do GitHub Ac
 
 O projeto segue a metodologia de **Quality Gates** estruturada em 8 fases:
 
-- **[Gate 0: Fundação do Workspace, Tipos & Domínio de Eventos](IMPLEMENTATION_PLAN.md#gate-0-fundação-do-workspace-tipos--domínio-de-eventos)**
-- **[Gate 1: Persistência SQLite & Audit Store Criptográfico](IMPLEMENTATION_PLAN.md#gate-1-persistência-sqlite--audit-store-criptográfico)**
-- **[Gate 2: Mecanismo de Sandbox & Isolamento de Processos](IMPLEMENTATION_PLAN.md#gate-2-mecanismo-de-sandbox--isolamento-de-processos)**
-- **[Gate 3: Barramento Unificado de Eventos & Observabilidade em 4 Camadas](IMPLEMENTATION_PLAN.md#gate-3-barramento-unificado-de-eventos--observabilidade-em-4-camadas)**
-- **[Gate 4: Engine de FinOps, Orçamento & Supervisão com Astra](IMPLEMENTATION_PLAN.md#gate-4-engine-de-finops-orçamento--supervisão-com-astra)**
-- **[Gate 5: Interface CLI de Orquestração](IMPLEMENTATION_PLAN.md#gate-5-interface-cli-de-orquestração)**
-- **[Gate 6: Streaming em Tempo Real & Camada de Visualização](IMPLEMENTATION_PLAN.md#gate-6-streaming-em-tempo-real--camada-de-visualização)**
-- **[Gate 7: Testes E2E, Validação de Segurança & Hardening](IMPLEMENTATION_PLAN.md#gate-7-testes-e2e-validação-de-segurança--hardening)**
+- **[Gate 0: Fundação do Workspace, Tipos & Domínio de Eventos](IMPLEMENTATION_PLAN.md#gate-0-fundação-do-workspace-tipos--domínio-de-eventos)** `[CONCLUÍDO ✅]`
+- **[Gate 1: Persistência SQLite & Audit Store Criptográfico](IMPLEMENTATION_PLAN.md#gate-1-persistência-sqlite--audit-store-criptográfico)** `[CONCLUÍDO ✅]`
+- **[Gate 2: Mecanismo de Sandbox & Isolamento de Processos](IMPLEMENTATION_PLAN.md#gate-2-mecanismo-de-sandbox--isolamento-de-processos)** `[PLANEJADO ⏳]`
+- **[Gate 3: Barramento Unificado de Eventos & Observabilidade em 4 Camadas](IMPLEMENTATION_PLAN.md#gate-3-barramento-unificado-de-eventos--observabilidade-em-4-camadas)** `[PLANEJADO ⏳]`
+- **[Gate 4: Engine de FinOps, Orçamento & Supervisão com Astra](IMPLEMENTATION_PLAN.md#gate-4-engine-de-finops-orçamento--supervisão-com-astra)** `[PLANEJADO ⏳]`
+- **[Gate 5: Interface CLI de Orquestração](IMPLEMENTATION_PLAN.md#gate-5-interface-cli-de-orquestração)** `[PLANEJADO ⏳]`
+- **[Gate 6: Streaming em Tempo Real & Camada de Visualização](IMPLEMENTATION_PLAN.md#gate-6-streaming-em-tempo-real--camada-de-visualização)** `[PLANEJADO ⏳]`
+- **[Gate 7: Testes E2E, Validação de Segurança & Hardening](IMPLEMENTATION_PLAN.md#gate-7-testes-e2e-validação-de-segurança--hardening)** `[PLANEJADO ⏳]`
 
-Consulte o documento completo com todas as 32 tarefas detalhadas em [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
+---
+
+## 🛡️ Evidências de Implementação dos Gates 0 e 1
+
+O **Gate 0** e o **Gate 1** foram implementados em Rust nativo e validados com 21 testes unitários e de integração, incluindo cenário real multi-agente e injeção de adulteração de auditoria:
+
+### Tabela de Rastreabilidade de Commits
+
+| Commit SHA | Tipo / Escopo | Task | Descrição da Implementação |
+|---|---|---|---|
+| `e5a2c47` | `feat(gate-0)` | **TASK-001** | Estruturação do Cargo Workspace Multi-Crate com 8 crates desacopladas. |
+| `7f9489b` | `feat(gate-0)` | **TASK-002** | Modelagem canônica do enum `RuntimeEvent` (Lifecycle, Execution, Security, Sandbox, FinOps). |
+| `c6c565b` | `feat(gate-0)` | **TASK-003** | Modelagem de domínio FinOps (`TokenUsage`, `BudgetPolicy`, tripwires e Human-in-the-Loop). |
+| `8b48df6` | `feat(gate-0)` | **TASK-004** | Mecanismo de sanitização `SecretMasker` e metadados de credenciais (`SecretMetadata`). |
+| `fa45573` | `feat(gate-0)` | **TASK-005** | Parsers YAML declarativos para equipes (`teams/forester.yaml`) e agentes (`agents/agente01.yaml`). |
+| `3c0ba62` | `feat(gate-1)` | **TASK-101** | Setup SQLite com modo WAL, pragmas de performance e migrations automatizadas com 8 tabelas e índices. |
+| `7a7d177` | `feat(gate-1)` | **TASK-102** | Motor de auditoria append-only `AuditStore` com encadeamento de hash SHA-256 e bloco Genesis. |
+| `ca9b8bd` | `feat(gate-1)` | **TASK-103** | Verificador de integridade histórica `AuditVerifier` com validação de cadeia contínua e imutabilidade. |
+| `24aa629` | `feat(gate-1)` | **TASK-104** | DAOs assíncronos: `RunDao`, `TaskDao`, `TokenLedgerDao`, `TeamDao` e `AgentDao`. |
+| `66398b7` | `fix(storage)` | **FIX** | Loop atômico de retry com backoff contra contenção concorrente de múltiplos agentes em `append_event`. |
+| `a39c094` | `test(gate-1)` | **E2E TEST** | Teste em cenário real multi-agente (Astra + Codex + Claude + Hermes + Pi) com verificação e detecção de tampering. |
+| `33d7898` | `docs` | **PLAN** | Atualização do `IMPLEMENTATION_PLAN.md` marcando todas as tarefas de Gate 0 e Gate 1 concluídas. |
+
+### Resultados dos Testes em Cenário Real Multi-Agente
+- **Suíte de Testes:** 21 testes executados e aprovados via `cargo test --workspace`.
+- **Linter & Compilação:** 0 warnings em `cargo clippy --workspace --all-targets -- -D warnings`.
+- **Cenário Multi-Agente Real Concorrente (`crates/orbity-storage/tests/real_multi_agent_scenario.rs`):**
+  - **Supervisor Astra:** Coordenação e agregação contábil FinOps.
+  - **4 Agentes Concorrentes (Tokio):** `Codex Dev`, `Claude Sentinel`, `Hermes Researcher` e `Pi Assistant`.
+  - **12 Eventos Criptográficos:** Encadeados com sucesso no SQLite WAL; hash final SHA-256 verificado.
+  - **Injeção de Violação:** Alteração deliberada de 1 byte na tabela SQLite detectada com 100% de precisão pelo `AuditVerifier` acusando `AuditVerificationResult::Tampered` no índice exato da violação.
 
 ---
 

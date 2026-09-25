@@ -110,3 +110,25 @@ A varredura comprova que **todo o ciclo de vida e a jornada de orquestração mu
 2. **Zero Pontos Cegos de Governança:** O encadeamento de hashes SHA-256 no SQLite abrange desde o bloco Genesis na criação até o bloco final de síntese.
 3. **Zero Pontos Cegos Financeiros:** FinOps atua preventivamente com tripwires antes de chamadas de alto custo e oferece suporte a Human-in-the-Loop (HITL) no estado `Paused`.
 4. **Alinhamento com Ferramentas Reais:** A suíte de 5 CLIs (`codex`, `claude`, `agy`, `hermes`, `pi`) já foi testada, verificada e mapeada para seus respectivos papéis de excelência técnica.
+
+---
+
+## 5. Evidências de Implementação e Execução dos Gates 0 e 1
+
+O Gate 0 (Fundação, Tipos & Domínio de Eventos) e o Gate 1 (Persistência SQLite & Audit Store Criptográfico) foram completamente implementados e validados no repositório Git com os seguintes commits:
+
+| Commit | Escopo | Descrição da Entrega |
+|---|---|---|
+| `e5a2c47` | `feat(gate-0)` | `TASK-001` - Cargo workspace multi-crate com 8 crates desacopladas. |
+| `7f9489b` | `feat(gate-0)` | `TASK-002` - Modelagem de eventos estruturados `RuntimeEvent` e `EventEnvelope`. |
+| `c6c565b` | `feat(gate-0)` | `TASK-003` - Domínio de FinOps e Tokenomics (`TokenUsage`, `BudgetPolicy`). |
+| `8b48df6` | `feat(gate-0)` | `TASK-004` - Sanitização de credenciais `SecretMasker` e fingerprints SHA-256 `SecretMetadata`. |
+| `fa45573` | `feat(gate-0)` | `TASK-005` - Contratos declarativos e parsers YAML de agentes e times. |
+| `3c0ba62` | `feat(gate-1)` | `TASK-101` - Setup SQLite com modo WAL, pragmas e migrations DDL automáticas. |
+| `7a7d177` | `feat(gate-1)` | `TASK-102` - Motor de auditoria append-only `AuditStore` com encadeamento SHA-256. |
+| `ca9b8bd` | `feat(gate-1)` | `TASK-103` - Verificador de integridade histórica de auditoria `AuditVerifier`. |
+| `24aa629` | `feat(gate-1)` | `TASK-104` - Repositórios assíncronos (DAOs) para runs, tasks, token ledger, times e agentes. |
+| `66398b7` | `fix(storage)` | **FIX** - Loop de retry atômico com backoff proporcional para contenção de escrita concorrente multi-agente. |
+| `a39c094` | `test(gate-1)` | **E2E TEST** - Teste real concorrente multi-agente (`real_multi_agent_scenario.rs`) com Astra, Codex, Claude, Hermes e Pi, validando 12 blocos criptográficos e detecção de tampering na sequência 3. |
+| `33d7898` | `docs` | Atualização do `IMPLEMENTATION_PLAN.md` com status de conclusão dos Gates 0 e 1. |
+

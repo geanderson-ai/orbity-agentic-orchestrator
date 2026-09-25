@@ -628,4 +628,31 @@ A tabela abaixo valida que todas as exigências estritas foram mapeadas para tar
        [Gate 7: Hardening & E2E]
 ```
 
-> **Aviso:** Conforme solicitado, nenhuma execução ou código produtivo foi iniciado. O plano acima está pronto para guiar a implementação faseada a partir da aprovação.
+---
+
+## 6. Registro de Execução e Evidências Criptográficas de Commits (Gates 0 e 1)
+
+> **Status Atual:** Gate 0 e Gate 1 concluídos com 100% de aprovação e validados com testes unitários, de concorrência e integração multi-agente real.
+
+### Tabela de Evidências por Commit
+
+| Commit | Gate / Escopo | Task | Descrição da Entrega Técnica |
+|---|---|---|---|
+| `e5a2c47` | `feat(gate-0)` | **TASK-001** | Estruturação do Cargo Workspace Multi-Crate com 8 crates desacopladas (`orbity-core`, `orbity-storage`, `orbity-sandbox`, `orbity-graph`, `orbity-agent`, `orbity-telemetry`, `orbity-server`, `orbity-cli`). |
+| `7f9489b` | `feat(gate-0)` | **TASK-002** | Modelagem canônica dos eventos estruturados no enum `RuntimeEvent` e `EventEnvelope`. |
+| `c6c565b` | `feat(gate-0)` | **TASK-003** | Modelagem de FinOps e Tokenomics (`TokenUsage`, `BudgetPolicy`, métodos de acumulação e verificação de teto). |
+| `8b48df6` | `feat(gate-0)` | **TASK-004** | Sanitização e redação de segredos com `SecretMasker` e metadados de credenciais (`SecretMetadata`). |
+| `fa45573` | `feat(gate-0)` | **TASK-005** | Modelagem de contratos declarativos e parsers YAML de agentes e equipes (`forester.yaml`, `agente01.yaml`). |
+| `3c0ba62` | `feat(gate-1)` | **TASK-101** | Configuração do pool SQLite com WAL pragmas (`WAL`, `NORMAL`, `foreign_keys`, `busy_timeout=5000`) e migrações DDL. |
+| `7a7d177` | `feat(gate-1)` | **TASK-102** | Motor de auditoria append-only `AuditStore` com encadeamento criptográfico SHA-256 e bloco Genesis. |
+| `ca9b8bd` | `feat(gate-1)` | **TASK-103** | Verificador de integridade histórica de auditoria `AuditVerifier` com validação de blocos sequenciais e detecção de fraude. |
+| `24aa629` | `feat(gate-1)` | **TASK-104** | Repositórios de acesso a dados (DAOs): `RunDao`, `TaskDao`, `TokenLedgerDao`, `TeamDao` e `AgentDao`. |
+| `66398b7` | `fix(storage)` | **FIX** | Correção de contenção em concorrência multi-agente via loop atômico de retry com backoff em `AuditStore::append_event`. |
+| `a39c094` | `test(gate-1)` | **E2E TEST** | Teste em cenário real multi-agente concorrente (`real_multi_agent_scenario.rs`) com Astra, Codex, Claude, Hermes e Pi, validando 12 blocos criptográficos no SQLite e detecção de tampering na sequência 3. |
+| `33d7898` | `docs` | **DOCS** | Atualização do `IMPLEMENTATION_PLAN.md` com marcação de tarefas concluídas nos Gates 0 e 1. |
+
+### Resultados dos Quality Gates
+- `cargo check --workspace`: ✅ Sucesso (0 erros)
+- `cargo clippy --workspace --all-targets -- -D warnings`: ✅ Sucesso (0 warnings)
+- `cargo test --workspace`: ✅ 21 testes aprovados (100% sucesso)
+
