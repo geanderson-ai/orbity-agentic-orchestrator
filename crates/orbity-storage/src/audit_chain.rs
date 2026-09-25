@@ -63,69 +63,103 @@ impl AuditStore {
         let payload_json = serde_json::to_string(event)?;
         let event_type = event.event_type_name().to_string();
 
-        let mut tx = self.pool.inner().begin().await?;
+        let mut attempts = 0;
+        const MAX_ATTEMPTS: usize = 50;
 
-        // Query the latest sequence number and hash for this run
-        let last_row = sqlx::query(
-            "SELECT sequence_num, current_hash FROM audit_events WHERE run_id = ? ORDER BY sequence_num DESC LIMIT 1"
-        )
-        .bind(run_id)
-        .fetch_optional(&mut *tx)
-        .await?;
+        loop {
+            attempts += 1;
+            let mut tx = self.pool.inner().begin().await?;
 
-        let (sequence_num, previous_hash) = match last_row {
-            Some(row) => {
-                let seq: i64 = row.get(0);
-                let hash: String = row.get(1);
-                (seq + 1, hash)
+            // Query the latest sequence number and hash for this run
+            let last_row = sqlx::query(
+                "SELECT sequence_num, current_hash FROM audit_events WHERE run_id = ? ORDER BY sequence_num DESC LIMIT 1"
+            )
+            .bind(run_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+
+            let (sequence_num, previous_hash) = match last_row {
+                Some(row) => {
+                    let seq: i64 = row.get(0);
+                    let hash: String = row.get(1);
+                    (seq + 1, hash)
+                }
+                None => (0, GENESIS_HASH.to_string()),
+            };
+
+            let record_id = Uuid::new_v4().to_string();
+            let recorded_at = Utc::now();
+            let recorded_at_str = recorded_at.to_rfc3339();
+
+            let current_hash = compute_audit_hash(
+                &previous_hash,
+                sequence_num,
+                &event_type,
+                &payload_json,
+                &recorded_at_str,
+            );
+
+            let insert_res = sqlx::query(
+                r#"
+                INSERT INTO audit_events (
+                    id, run_id, task_id, sequence_num, event_type, payload_json, previous_hash, current_hash, recorded_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                "#,
+            )
+            .bind(&record_id)
+            .bind(run_id)
+            .bind(task_id)
+            .bind(sequence_num)
+            .bind(&event_type)
+            .bind(&payload_json)
+            .bind(&previous_hash)
+            .bind(&current_hash)
+            .bind(&recorded_at_str)
+            .execute(&mut *tx)
+            .await;
+
+            match insert_res {
+                Ok(_) => {
+                    if let Err(e) = tx.commit().await {
+                        if attempts < MAX_ATTEMPTS {
+                            tokio::time::sleep(tokio::time::Duration::from_millis(attempts as u64 * 3)).await;
+                            continue;
+                        }
+                        return Err(StorageError::DatabaseError(e));
+                    }
+                    return Ok(AuditRecord {
+                        id: record_id,
+                        run_id: run_id.to_string(),
+                        task_id: task_id.map(|s| s.to_string()),
+                        sequence_num,
+                        event_type,
+                        payload_json,
+                        previous_hash,
+                        current_hash,
+                        recorded_at,
+                    });
+                }
+                Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() || db_err.message().contains("UNIQUE") => {
+                    let _ = tx.rollback().await;
+                    if attempts < MAX_ATTEMPTS {
+                        tokio::time::sleep(tokio::time::Duration::from_millis(attempts as u64 * 3)).await;
+                        continue;
+                    }
+                    return Err(StorageError::Conflict(format!(
+                        "Concurrent audit sequence conflict after {} attempts: {}",
+                        attempts, db_err
+                    )));
+                }
+                Err(e) => {
+                    let _ = tx.rollback().await;
+                    if attempts < MAX_ATTEMPTS {
+                        tokio::time::sleep(tokio::time::Duration::from_millis(attempts as u64 * 3)).await;
+                        continue;
+                    }
+                    return Err(StorageError::DatabaseError(e));
+                }
             }
-            None => (0, GENESIS_HASH.to_string()),
-        };
-
-        let record_id = Uuid::new_v4().to_string();
-        let recorded_at = Utc::now();
-        let recorded_at_str = recorded_at.to_rfc3339();
-
-        let current_hash = compute_audit_hash(
-            &previous_hash,
-            sequence_num,
-            &event_type,
-            &payload_json,
-            &recorded_at_str,
-        );
-
-        sqlx::query(
-            r#"
-            INSERT INTO audit_events (
-                id, run_id, task_id, sequence_num, event_type, payload_json, previous_hash, current_hash, recorded_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            "#,
-        )
-        .bind(&record_id)
-        .bind(run_id)
-        .bind(task_id)
-        .bind(sequence_num)
-        .bind(&event_type)
-        .bind(&payload_json)
-        .bind(&previous_hash)
-        .bind(&current_hash)
-        .bind(&recorded_at_str)
-        .execute(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
-
-        Ok(AuditRecord {
-            id: record_id,
-            run_id: run_id.to_string(),
-            task_id: task_id.map(|s| s.to_string()),
-            sequence_num,
-            event_type,
-            payload_json,
-            previous_hash,
-            current_hash,
-            recorded_at,
-        })
+        }
     }
 
     /// Explicitly appends a pre-constructed AuditRecord validating hash integrity and chain order.
