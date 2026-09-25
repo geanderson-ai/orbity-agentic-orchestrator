@@ -102,10 +102,8 @@ impl SecretMasker {
             RuntimeEvent::AgentFailed { error, .. } => {
                 *error = self.mask_str(error);
             }
-            RuntimeEvent::AgentFinished { summary, .. } => {
-                if let Some(s) = summary {
-                    *s = self.mask_str(s);
-                }
+            RuntimeEvent::AgentFinished { summary: Some(s), .. } => {
+                *s = self.mask_str(s);
             }
             RuntimeEvent::CommandExecuted {
                 command,
