@@ -2,6 +2,7 @@
 
 pub mod audit_chain;
 pub mod audit_verifier;
+pub mod dao;
 pub mod error;
 pub mod migrations;
 pub mod pool;
