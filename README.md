@@ -70,7 +70,7 @@ O projeto segue a metodologia de **Quality Gates** estruturada em 8 fases:
 
 - **[Gate 0: Fundação do Workspace, Tipos & Domínio de Eventos](IMPLEMENTATION_PLAN.md#gate-0-fundação-do-workspace-tipos--domínio-de-eventos)** `[CONCLUÍDO ✅]`
 - **[Gate 1: Persistência SQLite & Audit Store Criptográfico](IMPLEMENTATION_PLAN.md#gate-1-persistência-sqlite--audit-store-criptográfico)** `[CONCLUÍDO ✅]`
-- **[Gate 2: Mecanismo de Sandbox & Isolamento de Processos](IMPLEMENTATION_PLAN.md#gate-2-mecanismo-de-sandbox--isolamento-de-processos)** `[PLANEJADO ⏳]`
+- **[Gate 2: Mecanismo de Sandbox & Isolamento de Processos](IMPLEMENTATION_PLAN.md#gate-2-mecanismo-de-sandbox--isolamento-de-processos)** `[CONCLUÍDO ✅]`
 - **[Gate 3: Barramento Unificado de Eventos & Observabilidade em 4 Camadas](IMPLEMENTATION_PLAN.md#gate-3-barramento-unificado-de-eventos--observabilidade-em-4-camadas)** `[PLANEJADO ⏳]`
 - **[Gate 4: Engine de FinOps, Orçamento & Supervisão com Astra](IMPLEMENTATION_PLAN.md#gate-4-engine-de-finops-orçamento--supervisão-com-astra)** `[PLANEJADO ⏳]`
 - **[Gate 5: Interface CLI de Orquestração](IMPLEMENTATION_PLAN.md#gate-5-interface-cli-de-orquestração)** `[PLANEJADO ⏳]`
@@ -79,9 +79,9 @@ O projeto segue a metodologia de **Quality Gates** estruturada em 8 fases:
 
 ---
 
-## 🛡️ Evidências de Implementação dos Gates 0 e 1
+## 🛡️ Evidências de Implementação dos Gates 0, 1 e 2
 
-O **Gate 0** e o **Gate 1** foram implementados em Rust nativo e validados com 21 testes unitários e de integração, incluindo cenário real multi-agente e injeção de adulteração de auditoria:
+O **Gate 0**, o **Gate 1** e o **Gate 2** foram implementados em Rust nativo e validados com 31 testes unitários e de integração, incluindo cenário real multi-agente, injeção de adulteração de auditoria e confinamento de sandbox com Bubblewrap:
 
 ### Tabela de Rastreabilidade de Commits
 
@@ -99,15 +99,27 @@ O **Gate 0** e o **Gate 1** foram implementados em Rust nativo e validados com 2
 | `66398b7` | `fix(storage)` | **FIX** | Loop atômico de retry com backoff contra contenção concorrente de múltiplos agentes em `append_event`. |
 | `a39c094` | `test(gate-1)` | **E2E TEST** | Teste em cenário real multi-agente (Astra + Codex + Claude + Hermes + Pi) com verificação e detecção de tampering. |
 | `33d7898` | `docs` | **PLAN** | Atualização do `IMPLEMENTATION_PLAN.md` marcando todas as tarefas de Gate 0 e Gate 1 concluídas. |
+| `bf61386` | `docs` | **SPECS** | Especificação técnica de políticas de rede e ciclo de vida de filesystem no Gate 2. |
+| `d3073da` | `feat(gate-2)` | **TASK-201** | Abstrações de Sandbox: traits `Sandbox`, modos de rede (`Isolated`, `EgressAllowlist`, `HostMediated`), ciclo de vida de workspace efêmero vs permanente, e `MockSandbox`. |
+| `a0fac9b` | `feat(gate-2)` | **TASK-202** | Implementação nativa Linux com Bubblewrap (`BwrapSandbox`): root somente leitura (`--ro-bind / /`), tmpfs seguro em `/tmp/workspace`, `--unshare-net`, defesa de traversal, snapshot, rollback e promoção de arquivos. |
+| `cb9f139` | `feat(gate-2)` | **TASK-203** | Controle estrito de recursos e timeouts de execução com terminação forçada `SIGKILL` e limpeza garantida da árvore de processos. |
+| `44b2bfd` | `feat(gate-2)` | **TASK-204** | Emissão de eventos estruturados de ciclo de vida e políticas (`InstrumentedSandbox` / `SandboxEventEmitter`) com `PolicyDenied`, `CommandExecuted`, `FileWritten` e `FileRead`. |
+| `2524878` | `test(gate-2)` | **E2E TEST** | Teste integrado de confinamento, isolamento de rede, timeouts com SIGKILL, rollback atômico, promoção seletiva e trilha de auditoria SQLite encadeada. |
 
-### Resultados dos Testes em Cenário Real Multi-Agente
-- **Suíte de Testes:** 21 testes executados e aprovados via `cargo test --workspace`.
+### Resultados dos Testes de Concorrência, Confinamento e Auditoria
+- **Suíte de Testes:** 31 testes executados e aprovados via `cargo test --workspace` (100% sucesso).
 - **Linter & Compilação:** 0 warnings em `cargo clippy --workspace --all-targets -- -D warnings`.
-- **Cenário Multi-Agente Real Concorrente (`crates/orbity-storage/tests/real_multi_agent_scenario.rs`):**
+- **Cenário Multi-Agente Concorrente (`crates/orbity-storage/tests/real_multi_agent_scenario.rs`):**
   - **Supervisor Astra:** Coordenação e agregação contábil FinOps.
   - **4 Agentes Concorrentes (Tokio):** `Codex Dev`, `Claude Sentinel`, `Hermes Researcher` e `Pi Assistant`.
   - **12 Eventos Criptográficos:** Encadeados com sucesso no SQLite WAL; hash final SHA-256 verificado.
-  - **Injeção de Violação:** Alteração deliberada de 1 byte na tabela SQLite detectada com 100% de precisão pelo `AuditVerifier` acusando `AuditVerificationResult::Tampered` no índice exato da violação.
+  - **Injeção de Violação:** Alteração deliberada de 1 byte no SQLite detectada com 100% de precisão pelo `AuditVerifier` acusando `AuditVerificationResult::Tampered` no índice exato da violação.
+- **Cenário de Confinamento e Sandbox (`crates/orbity-sandbox/tests/sandbox_isolation_and_rollback.rs`):**
+  - **Proteção do Host Root:** Bloqueio comprovado de escrita fora do workspace temporário (`/etc`, `/bin`, `/var`).
+  - **Isolamento de Rede:** Bloqueio total de tráfego de rede no modo `Isolated` (`--unshare-net`).
+  - **Prevenção de Path Traversal:** Rejeição de caminhos com `../` ou rotas de escape para diretórios protegidos.
+  - **Timeouts Rígidos com SIGKILL:** Comandos em loop infinito terminados forçadamente sem vazamento de processos.
+  - **Rollback Atômico vs Promoção:** Descarte instantâneo de alterações não aprovadas; sincronização limpa com cálculo de hash SHA-256 no diretório permanente mediante aprovação.
 
 ---
 

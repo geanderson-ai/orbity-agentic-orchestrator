@@ -232,7 +232,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 
 #### Tarefas
 
-- [ ] **TASK-201: Abstração e Trait de Sandbox Provider com Políticas de Rede e Filesystem**
+- [x] **TASK-201: Abstração e Trait de Sandbox Provider com Políticas de Rede e Filesystem**
   - **Escopo:** Definir a interface em `orbity-sandbox`:
     ```rust
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -263,7 +263,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     ```
   - **Critério de Aceite (DoD):** Trait compilada suportando modos de rede (`Isolated`, `EgressAllowlist`, `HostMediated`), ciclo de vida efêmero com descarte seguro (`rollback`/`cleanup`) e sincronização de arquivos aprovados (`promote_changes`).
 
-- [ ] **TASK-202: Implementação da Sandbox Nativa (Linux bwrap / Namespace Isolation)**
+- [x] **TASK-202: Implementação da Sandbox Nativa (Linux bwrap / Namespace Isolation)**
   - **Escopo:** Implementar o provedor de sandbox usando Bubblewrap (`bwrap`) ou Linux namespaces nativos:
     - Root filesystem montado em modo somente leitura (`ro-bind`).
     - Diretório de trabalho isolado montado em leitura/escrita temporário (`tmpfs` ou pasta efêmera `/tmp/orbity-sandbox-{id}`).
@@ -272,11 +272,11 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - Variáveis de ambiente filtradas (limpeza de `AWS_*`, `GITHUB_*`, `OPENAI_*` sensíveis do host).
   - **Critério de Aceite (DoD):** Execução de comando bloqueando acesso a arquivos fora do diretório autorizado (ex: `/etc/passwd` ou `~/.ssh`) e bloqueio total de sockets de rede no modo `Isolated`.
 
-- [ ] **TASK-203: Controle de Recursos e Timeouts Estritos**
+- [x] **TASK-203: Controle de Recursos e Timeouts Estritos**
   - **Escopo:** Limites de execução por comando (ex: timeout padrão de 30s, cgroup para teto de memória e CPU).
   - **Critério de Aceite (DoD):** Comandos com loop infinito (ex: `yes` ou `while true; do :; done`) são terminados com sinal `SIGKILL` no timeout e retornam evento `CommandTimeout`.
 
-- [ ] **TASK-204: Emissão de Eventos de Ciclo de Vida do Sandbox**
+- [x] **TASK-204: Emissão de Eventos de Ciclo de Vida do Sandbox**
   - **Escopo:** Integrar a execução do sandbox com a geração de eventos: `SandboxCreated`, `SandboxDestroyed`, `CommandExecuted` (com exit code, stdout resumido, stderr e duração em milissegundos) e `PolicyDenied` em caso de tentativa de violação de rede ou filesystem.
   - **Critério de Aceite (DoD):** Cada ação no sandbox produz seu respectivo evento estruturado e preenche os metadados requeridos pelo `overview.md`.
 
@@ -659,9 +659,9 @@ A tabela abaixo valida que todas as exigências estritas foram mapeadas para tar
 
 ---
 
-## 6. Registro de Execução e Evidências Criptográficas de Commits (Gates 0 e 1)
+## 6. Registro de Execução e Evidências Criptográficas de Commits (Gates 0, 1 e 2)
 
-> **Status Atual:** Gate 0 e Gate 1 concluídos com 100% de aprovação e validados com testes unitários, de concorrência e integração multi-agente real.
+> **Status Atual:** Gate 0, Gate 1 e Gate 2 concluídos com 100% de aprovação e validados com testes unitários, isolamento rigoroso via Bubblewrap, rollback atômico, promoção controlada de arquivos, concorrência e integração multi-agente real com SQLite WAL.
 
 ### Tabela de Evidências por Commit
 
@@ -679,9 +679,15 @@ A tabela abaixo valida que todas as exigências estritas foram mapeadas para tar
 | `66398b7` | `fix(storage)` | **FIX** | Correção de contenção em concorrência multi-agente via loop atômico de retry com backoff em `AuditStore::append_event`. |
 | `a39c094` | `test(gate-1)` | **E2E TEST** | Teste em cenário real multi-agente concorrente (`real_multi_agent_scenario.rs`) com Astra, Codex, Claude, Hermes e Pi, validando 12 blocos criptográficos no SQLite e detecção de tampering na sequência 3. |
 | `33d7898` | `docs` | **DOCS** | Atualização do `IMPLEMENTATION_PLAN.md` com marcação de tarefas concluídas nos Gates 0 e 1. |
+| `bf61386` | `docs` | **SPECS** | Especificação técnica de políticas de rede e ciclo de vida efêmero vs permanente de filesystem no Gate 2. |
+| `d3073da` | `feat(gate-2)` | **TASK-201** | Abstrações do sandbox provider: traits `Sandbox`, políticas de rede (`NetworkMode`), ciclo de vida de filesystem (`WorkspaceMode`), `ExecutionResult`, `FileChangeSummary` e `MockSandbox`. |
+| `a0fac9b` | `feat(gate-2)` | **TASK-202** | Provedor nativo Linux Bubblewrap (`BwrapSandbox`): root somente leitura (`--ro-bind / /`), tmpfs seguro em `/tmp/workspace`, isolamento total de rede (`--unshare-net`), isolamento de namespaces PID/IPC/UTS, prevenção contra path traversal (`resolve_path`), snapshot, rollback e promoção de arquivos alterados (`promote_changes`). |
+| `cb9f139` | `feat(gate-2)` | **TASK-203** | Controle de recursos e limites de execução com timeouts estritos (`tokio::time::timeout`), terminação com sinal `SIGKILL` e limpeza garantida da árvore de processos. |
+| `44b2bfd` | `feat(gate-2)` | **TASK-204** | Emissão de eventos estruturados de ciclo de vida e políticas (`InstrumentedSandbox` / `SandboxEventEmitter`), gerando eventos canônicos `SandboxCreated`, `SandboxDestroyed`, `CommandExecuted`, `PolicyDenied`, `FileWritten` e `FileRead`. |
+| `2524878` | `test(gate-2)` | **E2E TEST** | Teste de integração do Gate 2 (`sandbox_isolation_and_rollback.rs`): validação de confinamento de root host, bloqueio de path traversal, isolamento de rede offline, timeouts com `SIGKILL`, descarte seguro com rollback, promoção de arquivos para o host e registro de auditoria encadeada com SHA-256 no SQLite. |
 
 ### Resultados dos Quality Gates
 - `cargo check --workspace`: ✅ Sucesso (0 erros)
 - `cargo clippy --workspace --all-targets -- -D warnings`: ✅ Sucesso (0 warnings)
-- `cargo test --workspace`: ✅ 21 testes aprovados (100% sucesso)
+- `cargo test --workspace`: ✅ 31 testes aprovados (100% sucesso)
 

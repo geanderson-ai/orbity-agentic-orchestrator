@@ -113,9 +113,9 @@ A varredura comprova que **todo o ciclo de vida e a jornada de orquestração mu
 
 ---
 
-## 5. Evidências de Implementação e Execução dos Gates 0 e 1
+## 5. Evidências de Implementação e Execução dos Gates 0, 1 e 2
 
-O Gate 0 (Fundação, Tipos & Domínio de Eventos) e o Gate 1 (Persistência SQLite & Audit Store Criptográfico) foram completamente implementados e validados no repositório Git com os seguintes commits:
+O Gate 0 (Fundação, Tipos & Domínio de Eventos), o Gate 1 (Persistência SQLite & Audit Store Criptográfico) e o Gate 2 (Mecanismo de Sandbox & Isolamento de Processos) foram completamente implementados e validados no repositório Git com os seguintes commits:
 
 | Commit | Escopo | Descrição da Entrega |
 |---|---|---|
@@ -131,4 +131,15 @@ O Gate 0 (Fundação, Tipos & Domínio de Eventos) e o Gate 1 (Persistência SQL
 | `66398b7` | `fix(storage)` | **FIX** - Loop de retry atômico com backoff proporcional para contenção de escrita concorrente multi-agente. |
 | `a39c094` | `test(gate-1)` | **E2E TEST** - Teste real concorrente multi-agente (`real_multi_agent_scenario.rs`) com Astra, Codex, Claude, Hermes e Pi, validando 12 blocos criptográficos e detecção de tampering na sequência 3. |
 | `33d7898` | `docs` | Atualização do `IMPLEMENTATION_PLAN.md` com status de conclusão dos Gates 0 e 1. |
+| `bf61386` | `docs` | Especificação de isolamento de rede e ciclo de vida efêmero vs permanente no filesystem da Sandbox. |
+| `d3073da` | `feat(gate-2)` | `TASK-201` - Abstrações do sandbox provider: traits `Sandbox`, políticas de rede (`NetworkMode`), ciclo de vida de workspace efêmero (`WorkspaceMode`), `ExecutionResult`, `FileChangeSummary` e `MockSandbox`. |
+| `a0fac9b` | `feat(gate-2)` | `TASK-202` - Provedor nativo Bubblewrap (`BwrapSandbox`): root somente leitura (`--ro-bind / /`), tmpfs seguro em `/tmp/workspace`, `--unshare-net`, defesa de traversal, snapshot, rollback e promoção de arquivos. |
+| `cb9f139` | `feat(gate-2)` | `TASK-203` - Controle de recursos e limites de execução com timeouts estritos (`tokio::time::timeout`), terminação com sinal `SIGKILL` e limpeza garantida da árvore de processos. |
+| `44b2bfd` | `feat(gate-2)` | `TASK-204` - Emissão de eventos estruturados de ciclo de vida e políticas (`InstrumentedSandbox` / `SandboxEventEmitter`), gerando eventos canônicos `SandboxCreated`, `SandboxDestroyed`, `CommandExecuted`, `PolicyDenied`, `FileWritten` e `FileRead`. |
+| `2524878` | `test(gate-2)` | **E2E TEST** - Teste integrado do Gate 2 (`sandbox_isolation_and_rollback.rs`): validação de confinamento de root host, bloqueio de path traversal, isolamento de rede offline, timeouts com `SIGKILL`, descarte seguro com rollback, promoção de arquivos para o host e registro de auditoria encadeada com SHA-256 no SQLite. |
+
+### Resultados Consolidados dos Quality Gates (Gates 0, 1 e 2)
+- **`cargo check --workspace`:** ✅ Sucesso (0 erros)
+- **`cargo clippy --workspace --all-targets -- -D warnings`:** ✅ Sucesso (0 warnings)
+- **`cargo test --workspace`:** ✅ 31 testes aprovados (100% de sucesso)
 
