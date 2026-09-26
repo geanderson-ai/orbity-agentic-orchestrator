@@ -25,9 +25,9 @@ impl ModelTier {
     /// Parses a string into a semantic model tier.
     pub fn from_str_loose(s: &str) -> Option<Self> {
         match s.trim().to_lowercase().as_str() {
-            "fast" | "light" | "quick" | "mini" => Some(Self::Fast),
-            "balanced" | "standard" | "mid" => Some(Self::Balanced),
-            "reasoning" | "deep" | "heavy" | "thinking" => Some(Self::Reasoning),
+            "fast" | "light" | "quick" | "mini" | "low" => Some(Self::Fast),
+            "balanced" | "standard" | "mid" | "medium" => Some(Self::Balanced),
+            "reasoning" | "deep" | "heavy" | "thinking" | "high" | "max" => Some(Self::Reasoning),
             "latest" | "default" => Some(Self::Latest),
             _ => None,
         }

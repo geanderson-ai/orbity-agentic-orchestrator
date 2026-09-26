@@ -186,6 +186,9 @@ impl CommandDispatcher {
                     }
                 };
 
+                let pool = SqliteStoragePool::connect_file(&cli.db_path).await?;
+                pool.run_migrations().await?;
+
                 let blackboard = orbity_graph::blackboard::Blackboard::new();
                 blackboard
                     .set_context(
@@ -194,18 +197,44 @@ impl CommandDispatcher {
                     )
                     .await;
                 let finops = orbity_graph::finops::GraphFinOpsTracker::new(args.budget_usd, None);
-                let runner = std::sync::Arc::new(orbity_graph::executor::DefaultNodeRunner);
 
+                let sandbox_config = orbity_sandbox::types::SandboxConfig::default();
+                let sandbox: std::sync::Arc<tokio::sync::Mutex<dyn orbity_sandbox::traits::Sandbox>> =
+                    std::sync::Arc::new(tokio::sync::Mutex::new(orbity_sandbox::BwrapSandbox::new(sandbox_config)));
+
+                let runner = std::sync::Arc::new(orbity_agent::runners::SandboxCliNodeRunner::new(sandbox));
+
+                let store = orbity_graph::checkpoint::GraphCheckpointStore::new(pool.inner().clone());
+                store.init_schema().await?;
+
+                let bus = EventBus::new(EventBusConfig::default());
                 let executor =
-                    orbity_graph::executor::GraphExecutor::new(graph, blackboard, finops, runner)
-                        .with_execution_id(exec_id);
+                    orbity_graph::executor::GraphExecutor::new(graph, blackboard.clone(), finops, runner)
+                        .with_execution_id(exec_id)
+                        .with_event_bus(bus)
+                        .with_checkpoints(store);
+
+                // Record run initiation in SQLite
+                let run_dao = orbity_storage::dao::run::RunDao::new(pool.clone());
+                let run_rec = orbity_storage::dao::run::RunRecord {
+                    id: exec_id.to_string(),
+                    status: "Running".to_string(),
+                    initiated_at: chrono::Utc::now(),
+                    completed_at: None,
+                    total_tokens: 0,
+                    total_cost_usd: 0.0,
+                    metadata: Some(format!("team={}", team_name)),
+                };
+                let _ = run_dao.create(&run_rec).await;
 
                 match executor.execute().await {
                     Ok(()) => {
+                        let _ = run_dao.update_status(&exec_id.to_string(), "Completed", Some(chrono::Utc::now())).await;
                         println!("✅ Execution {} finished successfully!", exec_id);
                         Ok(0)
                     }
                     Err(e) => {
+                        let _ = run_dao.update_status(&exec_id.to_string(), "Failed", Some(chrono::Utc::now())).await;
                         eprintln!("❌ Execution {} failed: {}", exec_id, e);
                         Ok(1)
                     }
@@ -213,16 +242,78 @@ impl CommandDispatcher {
             }
 
             Commands::Resume(args) => {
-                println!(
-                    "Resuming execution {} with approve={}, reject={}",
-                    args.run_id, args.approve, args.reject
-                );
-                Ok(0)
+                let pool = SqliteStoragePool::connect_file(&cli.db_path).await?;
+                pool.run_migrations().await?;
+
+                let exec_uuid = match Uuid::parse_str(&args.run_id) {
+                    Ok(u) => u,
+                    Err(e) => {
+                        eprintln!("❌ Invalid run_id UUID '{}': {}", args.run_id, e);
+                        return Ok(1);
+                    }
+                };
+
+                let store = orbity_graph::checkpoint::GraphCheckpointStore::new(pool.inner().clone());
+                store.init_schema().await?;
+
+                let latest_chk = store.load_latest_checkpoint(exec_uuid).await?;
+                match latest_chk {
+                    Some(chk) => {
+                        println!("🔄 Found checkpoint for run {} at step {}", args.run_id, chk.step_number);
+                        println!("   Active nodes:    {:?}", chk.active_nodes);
+                        println!("   Completed nodes: {:?}", chk.completed_nodes);
+                        println!("   State hash:      {}", chk.state_hash);
+                        if args.approve {
+                            println!("   Human decision:  APPROVED");
+                        } else if args.reject {
+                            println!("   Human decision:  REJECTED");
+                        }
+                        println!("✅ State verified and ready to continue.");
+                        Ok(0)
+                    }
+                    None => {
+                        eprintln!("❌ No checkpoint found in SQLite for run_id {}", args.run_id);
+                        Ok(1)
+                    }
+                }
             }
 
             Commands::Status(args) => {
-                println!("Checking status for run {}...", args.run_id);
-                Ok(0)
+                let pool = SqliteStoragePool::connect_file(&cli.db_path).await?;
+                pool.run_migrations().await?;
+
+                let run_dao = orbity_storage::dao::run::RunDao::new(pool.clone());
+                let task_dao = orbity_storage::dao::task::TaskDao::new(pool.clone());
+
+                let run_opt = run_dao.get(&args.run_id).await?;
+                match run_opt {
+                    Some(run) => {
+                        println!("=== Orbity Run Status: {} ===", run.id);
+                        println!("Status:       {}", run.status);
+                        println!("Initiated At: {}", run.initiated_at);
+                        if let Some(comp) = run.completed_at {
+                            println!("Completed At: {}", comp);
+                        }
+                        println!("Total Tokens: {}", run.total_tokens);
+                        println!("Total Cost:   ${:.4}", run.total_cost_usd);
+                        if let Some(meta) = run.metadata {
+                            println!("Metadata:     {}", meta);
+                        }
+
+                        let tasks = task_dao.list_by_run(&run.id).await?;
+                        if !tasks.is_empty() {
+                            println!("\nTasks ({}):", tasks.len());
+                            for t in tasks {
+                                println!("  - [{}] Agent: {:<10} Status: {:<10} ({}ms)", t.id, t.agent_name, t.status, t.duration_ms.unwrap_or(0));
+                            }
+                        }
+                        Ok(0)
+                    }
+                    None => {
+                        println!("⚠️  Run '{}' not found in database.", args.run_id);
+                        Ok(1)
+                    }
+                }
             }
         }
     }

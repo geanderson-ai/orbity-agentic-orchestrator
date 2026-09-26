@@ -154,6 +154,25 @@ impl GraphExecutor {
         self
     }
 
+    pub fn with_initial_state(
+        self,
+        step: u32,
+        _active_nodes: Vec<NodeId>,
+        completed: Vec<NodeId>,
+    ) -> Self {
+        self.step_counter.store(step, Ordering::SeqCst);
+        {
+            let mut w = self.completed_nodes.blocking_write();
+            for c in completed {
+                w.insert(c);
+            }
+        }
+        Self {
+            completed_nodes: self.completed_nodes,
+            ..self
+        }
+    }
+
     pub fn execution_id(&self) -> Uuid {
         self.execution_id
     }
@@ -167,7 +186,25 @@ impl GraphExecutor {
         // Validate graph topology (excluding permitted feedback loop edges)
         let _plan = TopologyValidator::validate_and_plan(&self.graph)?;
 
-        let mut ready_nodes = vec![self.graph.start_node.clone()];
+        let mut ready_nodes = {
+            let comp = self.completed_nodes.read().await;
+            if comp.is_empty() {
+                vec![self.graph.start_node.clone()]
+            } else {
+                // If resuming, start node has already run; derive ready nodes from non-completed
+                let mut candidates = Vec::new();
+                for edge in &self.graph.edges {
+                    if comp.contains(&edge.from) && !comp.contains(&edge.to) {
+                        candidates.push(edge.to.clone());
+                    }
+                }
+                if candidates.is_empty() {
+                    vec![self.graph.start_node.clone()]
+                } else {
+                    candidates
+                }
+            }
+        };
 
         while !ready_nodes.is_empty() {
             let current_batch = std::mem::take(&mut ready_nodes);
