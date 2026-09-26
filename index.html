@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meza Agentic Orchestrator | Runtime e Orquestrador de Agentes em Rust</title>
+  <title>Orbity Multi Agentic Harness | Runtime e Orquestrador de Agentes em Rust</title>
   <meta name="description" content="Orquestrador corporativo de agentes de IA em Rust com isolamento Sandbox, governança em SQLite append-only com encadeamento de hash, observabilidade em 4 camadas e FinOps em tempo real.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1222,7 +1222,6 @@
       <ul class="nav-links">
         <li><a href="#arquitetura">Arquitetura</a></li>
         <li><a href="#simulador">Simulador Vivo</a></li>
-        <li><a href="#gates">Gates & Tasks</a></li>
         <li><a href="#cli">CLI & TUI</a></li>
         <li><a href="#observabilidade">4 Camadas</a></li>
       </ul>
@@ -1259,8 +1258,8 @@
           <span>Executar Demonstração Interativa</span>
           <span>→</span>
         </a>
-        <a href="#gates" class="btn btn-outline">
-          <span>Explorar Matriz de Gates (0 a 7)</span>
+        <a href="#cli" class="btn btn-outline">
+          <span>Explorar CLI & TUI</span>
         </a>
       </div>
 
@@ -1525,29 +1524,6 @@
     </div>
   </section>
 
-  <!-- Interactive Gates & Tasks Section -->
-  <section id="gates" class="container">
-    <h2 class="section-title">Plano de Implementação: Gates e Tasks</h2>
-    <p class="section-subtitle">Acompanhe detalhadamente cada portão de qualidade (Quality Gate), critérios de entrada e Definition of Done (DoD).</p>
-
-    <div class="gates-container">
-      <div class="gates-tabs" id="gatesTabs">
-        <button class="gate-tab-btn active" onclick="switchGate(0)">Gate 0: Core & Domínio</button>
-        <button class="gate-tab-btn" onclick="switchGate(1)">Gate 1: SQLite & Audit</button>
-        <button class="gate-tab-btn" onclick="switchGate(2)">Gate 2: Sandbox</button>
-        <button class="gate-tab-btn" onclick="switchGate(3)">Gate 3: Observabilidade</button>
-        <button class="gate-tab-btn" onclick="switchGate(4)">Gate 4: Graph Engineering</button>
-        <button class="gate-tab-btn" onclick="switchGate(5)">Gate 5: Tokio Topcoat Server</button>
-        <button class="gate-tab-btn" onclick="switchGate(6)">Gate 6: CLI Engine & TUI</button>
-        <button class="gate-tab-btn" onclick="switchGate(7)">Gate 7: Hardening E2E</button>
-      </div>
-
-      <div class="gate-detail-panel" id="gatePanel">
-        <!-- Renderizado dinamicamente via JS -->
-      </div>
-    </div>
-  </section>
-
   <!-- CLI Interactive Showcase -->
   <section id="cli" class="container">
     <div class="cli-section">
@@ -1667,7 +1643,7 @@
         <div class="footer-col">
           <div class="logo" style="margin-bottom: 1rem;">
             <div class="logo-badge">⚡</div>
-            <span>Meza Agentic Orchestrator</span>
+            <span>Orbity Multi Agentic Harness</span>
           </div>
           <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 380px;">
             Plataforma de orquestração de agentes de IA orientada a missão crítica, implementada em Rust com segurança de sandbox, governança SQLite append-only e FinOps em tempo real.
@@ -1679,7 +1655,6 @@
           <ul>
             <li><a href="#arquitetura">Arquitetura</a></li>
             <li><a href="#simulador">Simulador em Tempo Real</a></li>
-            <li><a href="#gates">Plano de Gates & Tasks</a></li>
             <li><a href="#cli">Comandos da CLI</a></li>
           </ul>
         </div>
@@ -1698,7 +1673,7 @@
       </div>
 
       <div class="footer-bottom">
-        <div>© 2026 Meza Agentic Orchestrator. Licença MIT / Apache 2.0.</div>
+        <div>© 2026 Orbity Multi Agentic Harness. Licença MIT.</div>
         <div>Desenvolvido com 🦀 Rust & Visão Empresarial.</div>
       </div>
     </div>
@@ -1819,6 +1794,9 @@
     ];
 
     function switchGate(gateId) {
+      const panel = document.getElementById('gatePanel');
+      if (!panel) return;
+
       // Atualizar botões
       const buttons = document.querySelectorAll('.gate-tab-btn');
       buttons.forEach((btn, index) => {
@@ -1827,7 +1805,7 @@
 
       // Renderizar painel
       const g = gatesData[gateId];
-      const panel = document.getElementById('gatePanel');
+      if (!g) return;
       panel.innerHTML = `
         <div class="gate-detail-header">
           <div>
@@ -1852,9 +1830,6 @@
         </div>
       `;
     }
-
-    // Inicializar Gate 0
-    switchGate(0);
 
     // CLI Interactive Mock
     const cliOutputs = {
