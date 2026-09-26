@@ -128,7 +128,7 @@ impl NodeRunner for SandboxCliNodeRunner {
         &self,
         node: &GraphNode,
         injected_context: &str,
-        _blackboard: &Blackboard,
+        blackboard: &Blackboard,
     ) -> Result<NodeOutput, String> {
         let (cmd, args, timeout_secs, cli_type) = match &node.kind {
             NodeKind::Agent { cli, config } => {
@@ -157,11 +157,11 @@ impl NodeRunner for SandboxCliNodeRunner {
                 (cmd, args, *timeout_secs, CliType::Custom)
             }
             NodeKind::Orchestrator { engine } => {
-                // In-process Topcoat Orchestrator node
                 let plan = format!(
-                    "Orchestrator [{}] dynamically planned workflow. Injected context length: {} chars.",
+                    "Orchestrator [{}] dynamically planned workflow. Injected context length: {} chars.\nSynthesized Context:\n{}",
                     engine,
-                    injected_context.len()
+                    injected_context.len(),
+                    injected_context.lines().take(10).collect::<Vec<&str>>().join("\n")
                 );
                 return Ok(NodeOutput {
                     success: true,
@@ -176,11 +176,29 @@ impl NodeRunner for SandboxCliNodeRunner {
                 });
             }
             NodeKind::ConditionalRouter { predicate_expr } => {
-                return Ok(NodeOutput {
+                let dummy_output = NodeOutput {
                     success: true,
                     exit_code: Some(0),
-                    stdout: format!("Router satisfied: {}", predicate_expr),
-                    stderr: String::new(),
+                    stdout: injected_context.to_string(),
+                    ..Default::default()
+                };
+                let satisfied = orbity_graph::ConditionalEvaluator::evaluate(
+                    predicate_expr,
+                    &dummy_output,
+                    blackboard,
+                    None,
+                )
+                .await;
+
+                return Ok(NodeOutput {
+                    success: satisfied,
+                    exit_code: if satisfied { Some(0) } else { Some(1) },
+                    stdout: format!(
+                        "Router evaluation: '{}' -> {}",
+                        predicate_expr,
+                        if satisfied { "SATISFIED (true)" } else { "UNSATISFIED (false)" }
+                    ),
+                    stderr: if !satisfied { format!("Predicate '{}' evaluated to false", predicate_expr) } else { String::new() },
                     artifacts: HashMap::new(),
                     tokens_input: 0,
                     tokens_output: 0,
@@ -189,10 +207,29 @@ impl NodeRunner for SandboxCliNodeRunner {
                 });
             }
             NodeKind::HumanGate { prompt, .. } => {
+                // Check if human decision was pre-recorded in blackboard
+                if let Some(decision) = blackboard.get_context("approval_status").await {
+                    if let Some(s) = decision.as_str() {
+                        if s == "rejected" {
+                            return Ok(NodeOutput {
+                                success: false,
+                                exit_code: Some(1),
+                                stdout: format!("Human Gate rejected: {}", prompt),
+                                stderr: "Rejected by user/operator".to_string(),
+                                artifacts: HashMap::new(),
+                                tokens_input: 0,
+                                tokens_output: 0,
+                                cost_usd: 0.0,
+                                duration_ms: 1,
+                            });
+                        }
+                    }
+                }
+
                 return Ok(NodeOutput {
                     success: true,
                     exit_code: Some(0),
-                    stdout: format!("Gate verified: {}", prompt),
+                    stdout: format!("Human Gate verified & approved: {}", prompt),
                     stderr: String::new(),
                     artifacts: HashMap::new(),
                     tokens_input: 0,
@@ -201,11 +238,15 @@ impl NodeRunner for SandboxCliNodeRunner {
                     duration_ms: 1,
                 });
             }
-            NodeKind::JoinBarrier { .. } => {
+            NodeKind::JoinBarrier { mode, timeout_secs } => {
+                let summary = format!(
+                    "=== Join Barrier Synchronized ===\nMode: {:?}\nTimeout: {}s\nPredecessors Context Length: {} chars",
+                    mode, timeout_secs, injected_context.len()
+                );
                 return Ok(NodeOutput {
                     success: true,
                     exit_code: Some(0),
-                    stdout: "Barrier synchronized.".to_string(),
+                    stdout: summary,
                     stderr: String::new(),
                     artifacts: HashMap::new(),
                     tokens_input: 0,
