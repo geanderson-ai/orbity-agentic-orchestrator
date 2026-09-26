@@ -11,7 +11,6 @@ use orbity_sandbox::traits::Sandbox;
 use sqlx::SqlitePool;
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
 #[derive(Debug, Error)]
@@ -24,7 +23,7 @@ pub enum OrchestratorError {
 
 /// Orchestrator for deterministic multi-agent workflows running on Tokio.
 pub struct MultiAgentOrchestrator {
-    sandbox: Arc<Mutex<dyn Sandbox>>,
+    sandbox: Arc<dyn Sandbox>,
     pool: Option<SqlitePool>,
     event_bus: Option<EventBus>,
     approval_policy: Option<ApprovalPolicy>,
@@ -32,7 +31,7 @@ pub struct MultiAgentOrchestrator {
 }
 
 impl MultiAgentOrchestrator {
-    pub fn new(sandbox: Arc<Mutex<dyn Sandbox>>) -> Self {
+    pub fn new(sandbox: Arc<dyn Sandbox>) -> Self {
         Self {
             sandbox,
             pool: None,

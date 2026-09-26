@@ -231,8 +231,8 @@ impl CommandDispatcher {
                 bwrap_box.initialize().await
                     .map_err(|e| format!("Sandbox initialization failed: {}", e))?;
 
-                let sandbox: std::sync::Arc<tokio::sync::Mutex<dyn orbity_sandbox::traits::Sandbox>> =
-                    std::sync::Arc::new(tokio::sync::Mutex::new(bwrap_box));
+                let sandbox: std::sync::Arc<dyn orbity_sandbox::traits::Sandbox> =
+                    std::sync::Arc::new(bwrap_box);
 
                 let runner = std::sync::Arc::new(orbity_agent::runners::SandboxCliNodeRunner::new(sandbox.clone()));
 
@@ -265,8 +265,7 @@ impl CommandDispatcher {
 
                         // Promote file modifications from isolated sandbox to host workspace
                         if let Ok(cwd) = std::env::current_dir() {
-                            let sb = sandbox.lock().await;
-                            if let Ok(promoted) = sb.promote_changes(&cwd).await {
+                            if let Ok(promoted) = sandbox.promote_changes(&cwd).await {
                                 if !promoted.is_empty() {
                                     println!("\n📦 Workspace files updated ({} change(s)):", promoted.len());
                                     for change in promoted {

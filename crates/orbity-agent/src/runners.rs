@@ -5,15 +5,14 @@ use orbity_sandbox::traits::Sandbox;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Mutex;
 
 /// Sandbox-backed runner executing the 5 native CLI tools inside isolated bubblewrap containers.
 pub struct SandboxCliNodeRunner {
-    sandbox: Arc<Mutex<dyn Sandbox>>,
+    sandbox: Arc<dyn Sandbox>,
 }
 
 impl SandboxCliNodeRunner {
-    pub fn new(sandbox: Arc<Mutex<dyn Sandbox>>) -> Self {
+    pub fn new(sandbox: Arc<dyn Sandbox>) -> Self {
         Self { sandbox }
     }
 
@@ -222,8 +221,8 @@ impl NodeRunner for SandboxCliNodeRunner {
 
         println!("  ↳ Executing node [{}] using '{}'...", node.id.0, cmd);
 
-        let sb = self.sandbox.lock().await;
-        let exec_res = sb
+        let exec_res = self
+            .sandbox
             .run_command(&cmd, &args, &env, timeout)
             .await
             .map_err(|e| format!("Sandbox execution error: {}", e))?;

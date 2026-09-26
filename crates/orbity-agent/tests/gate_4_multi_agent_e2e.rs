@@ -84,7 +84,7 @@ async fn test_gate_4_multi_agent_workflow_e2e() {
         },
     );
 
-    let sandbox = Arc::new(Mutex::new(mock_sb));
+    let sandbox = Arc::new(mock_sb);
 
     // 3. Define declarative YAML workflow connecting Codex, Claude, Agy, Hermes, and Pi
     let yaml = r#"
