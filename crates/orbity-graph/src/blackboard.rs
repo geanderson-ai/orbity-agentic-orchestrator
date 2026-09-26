@@ -14,6 +14,16 @@ pub struct TaskArtifact {
     pub producer_node: String,
 }
 
+/// A structured handoff envelope passed between nodes during pipeline transitions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HandoffEnvelope {
+    pub from_node: String,
+    pub summary: String,
+    pub artifacts: Vec<String>,
+    pub exit_code: i32,
+    pub timestamp_ms: u64,
+}
+
 /// Shared in-memory Blackboard for inter-node state passing, results aggregation and context injection.
 #[derive(Debug, Clone, Default)]
 pub struct Blackboard {
@@ -26,6 +36,7 @@ pub struct BlackboardState {
     pub node_outputs: HashMap<String, String>,
     pub node_data: HashMap<String, serde_json::Value>,
     pub artifacts: HashMap<String, TaskArtifact>,
+    pub handoffs: HashMap<String, HandoffEnvelope>,
     pub loop_iteration_counts: HashMap<String, u32>,
 }
 
@@ -70,6 +81,18 @@ impl Blackboard {
     pub async fn get_node_data(&self, node_id: &str) -> Option<serde_json::Value> {
         let state = self.data.read().await;
         state.node_data.get(node_id).cloned()
+    }
+
+    /// Records a structured handoff envelope from a node.
+    pub async fn record_handoff(&self, envelope: HandoffEnvelope) {
+        let mut state = self.data.write().await;
+        state.handoffs.insert(envelope.from_node.clone(), envelope);
+    }
+
+    /// Retrieves a structured handoff envelope for a node.
+    pub async fn get_handoff(&self, node_id: &str) -> Option<HandoffEnvelope> {
+        let state = self.data.read().await;
+        state.handoffs.get(node_id).cloned()
     }
 
     /// Adds an artifact produced during execution.
@@ -122,31 +145,99 @@ impl Blackboard {
         Ok(())
     }
 
-    /// Formats the accumulated context from upstream predecessors and global user prompt.
+    /// Formats the accumulated context from upstream predecessors and global user prompt,
+    /// enforcing strict token and character budget caps to prevent context window blowout.
     pub async fn inject_context(&self, predecessor_ids: &[crate::types::NodeId]) -> String {
+        const MAX_NODE_OUTPUT_CHARS: usize = 24_000;
+        const MAX_TOTAL_CONTEXT_CHARS: usize = 64_000;
+
         let state = self.data.read().await;
         let mut context_builder = String::new();
 
         if let Some(val) = state.global_context.get("user_prompt") {
             if let Some(user_prompt) = val.as_str() {
                 if !user_prompt.trim().is_empty() {
+                    let truncated_prompt = truncate_middle(user_prompt.trim(), MAX_NODE_OUTPUT_CHARS);
                     context_builder.push_str(&format!(
                         "--- User Task / Request ---\n{}\n\n",
-                        user_prompt.trim()
+                        truncated_prompt
                     ));
                 }
             }
         }
 
         for pred in predecessor_ids {
-            if let Some(out) = state.node_outputs.get(&pred.0) {
+            // Check if structured handoff exists
+            if let Some(handoff) = state.handoffs.get(&pred.0) {
                 context_builder.push_str(&format!(
-                    "--- Output from Node [{}] ---\n{}\n\n",
-                    pred.0, out
+                    "--- Handoff from [{}] (Exit Code: {}) ---\nSummary: {}\nArtifacts: {:?}\n\n",
+                    handoff.from_node, handoff.exit_code, handoff.summary, handoff.artifacts
                 ));
+            }
+
+            if let Some(out) = state.node_outputs.get(&pred.0) {
+                let trimmed = out.trim();
+                if !trimmed.is_empty() {
+                    let truncated = truncate_middle(trimmed, MAX_NODE_OUTPUT_CHARS);
+                    context_builder.push_str(&format!(
+                        "--- Output from Node [{}] ---\n{}\n\n",
+                        pred.0, truncated
+                    ));
+                }
             }
         }
 
-        context_builder
+        if context_builder.len() > MAX_TOTAL_CONTEXT_CHARS {
+            truncate_middle(&context_builder, MAX_TOTAL_CONTEXT_CHARS)
+        } else {
+            context_builder
+        }
+    }
+}
+
+/// Truncates strings in the middle preserving essential beginning and end context.
+fn truncate_middle(input: &str, max_chars: usize) -> String {
+    if input.chars().count() <= max_chars {
+        return input.to_string();
+    }
+
+    let head_count = max_chars / 2;
+    let tail_count = max_chars - head_count;
+
+    let chars: Vec<char> = input.chars().collect();
+    let total = chars.len();
+    let omitted = total.saturating_sub(head_count + tail_count);
+
+    let head: String = chars[..head_count].iter().collect();
+    let tail: String = chars[total - tail_count..].iter().collect();
+
+    format!(
+        "{}\n\n[... Truncated {} characters for LLM context protection ...]\n\n{}",
+        head, omitted, tail
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_blackboard_handoff_and_truncation() {
+        let bb = Blackboard::new();
+        bb.record_handoff(HandoffEnvelope {
+            from_node: "planner".to_string(),
+            summary: "Planned 3 steps".to_string(),
+            artifacts: vec!["plan.md".to_string()],
+            exit_code: 0,
+            timestamp_ms: 1000,
+        }).await;
+
+        let huge_output = "a".repeat(50_000);
+        bb.set_node_output("planner", huge_output).await;
+
+        let ctx = bb.inject_context(&[crate::types::NodeId("planner".to_string())]).await;
+        assert!(ctx.contains("--- Handoff from [planner]"));
+        assert!(ctx.contains("Truncated"));
+        assert!(ctx.len() < 40_000);
     }
 }
