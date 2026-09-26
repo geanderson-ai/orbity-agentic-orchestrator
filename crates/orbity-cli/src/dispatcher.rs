@@ -221,9 +221,18 @@ impl CommandDispatcher {
                     .await;
                 let finops = orbity_graph::finops::GraphFinOpsTracker::new(args.budget_usd, None);
 
-                let sandbox_config = orbity_sandbox::types::SandboxConfig::default();
+                let mut sandbox_config = orbity_sandbox::types::SandboxConfig::default();
+                sandbox_config.network = orbity_sandbox::types::NetworkMode::HostMediated;
+                if let Ok(cwd) = std::env::current_dir() {
+                    sandbox_config.workspace = orbity_sandbox::types::WorkspaceMode::EphemeralCopyOnWrite(cwd);
+                }
+                let mut bwrap_box = orbity_sandbox::BwrapSandbox::new(sandbox_config);
+                use orbity_sandbox::traits::Sandbox;
+                bwrap_box.initialize().await
+                    .map_err(|e| format!("Sandbox initialization failed: {}", e))?;
+
                 let sandbox: std::sync::Arc<tokio::sync::Mutex<dyn orbity_sandbox::traits::Sandbox>> =
-                    std::sync::Arc::new(tokio::sync::Mutex::new(orbity_sandbox::BwrapSandbox::new(sandbox_config)));
+                    std::sync::Arc::new(tokio::sync::Mutex::new(bwrap_box));
 
                 let runner = std::sync::Arc::new(orbity_agent::runners::SandboxCliNodeRunner::new(sandbox));
 

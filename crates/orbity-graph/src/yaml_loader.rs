@@ -177,9 +177,91 @@ impl GraphYamlLoader {
             def.agent.name.to_lowercase().replace(' ', "_")
         };
 
-        let cli = def.agent.provider
+        let default_cli = def.agent.provider
             .or_else(|| def.agent.orchestrator.runner.clone())
             .unwrap_or_else(|| "agy".to_string());
+
+        let steps = def
+            .agent
+            .orchestrator
+            .plan
+            .as_ref()
+            .and_then(|p| p.steps.clone().or_else(|| p.default_pipeline.clone()))
+            .unwrap_or_default();
+
+        if !steps.is_empty() {
+            let mut nodes = Vec::new();
+            let mut edges = Vec::new();
+
+            for (idx, step) in steps.iter().enumerate() {
+                let step_id = step
+                    .step_id
+                    .clone()
+                    .unwrap_or_else(|| format!("{}_step_{}", agent_id, idx));
+                let delegate = step.delegate_to.as_deref().unwrap_or("");
+                let action = step.action.as_deref().unwrap_or("");
+
+                let cli = if delegate.contains("codex") || action.contains("codex") {
+                    "codex".to_string()
+                } else if delegate.contains("claude") || action.contains("claude") {
+                    "claude".to_string()
+                } else if delegate.contains("hermes") || action.contains("hermes") {
+                    "hermes".to_string()
+                } else if delegate.contains("pi") || action.contains("pi") {
+                    "pi".to_string()
+                } else if delegate.contains("agy") || action.contains("agy") {
+                    "agy".to_string()
+                } else {
+                    default_cli.clone()
+                };
+
+                nodes.push(YamlNodeDef {
+                    id: step_id.clone(),
+                    node_type: "agent".to_string(),
+                    engine: None,
+                    cli: Some(cli.clone()),
+                    provider: Some(cli),
+                    tier: def.agent.tier.clone(),
+                    model: def.agent.model.clone(),
+                    command: None,
+                    predicate_expr: None,
+                    prompt: None,
+                    timeout_secs: Some(300),
+                    quorum: None,
+                    retries: Some(1),
+                    budget_usd: Some(2.0),
+                    description: step.name.clone().or_else(|| Some(format!("Step {}", idx + 1))),
+                });
+
+                if idx > 0 {
+                    let prev_id = steps[idx - 1]
+                        .step_id
+                        .clone()
+                        .unwrap_or_else(|| format!("{}_step_{}", agent_id, idx - 1));
+                    edges.push(YamlEdgeDef {
+                        from: prev_id,
+                        to: step_id,
+                        edge_type: "direct".to_string(),
+                        predicate: None,
+                        max_iterations: None,
+                    });
+                }
+            }
+
+            let start_node = nodes.first().unwrap().id.clone();
+            let terminal_nodes = vec![nodes.last().unwrap().id.clone()];
+
+            let yaml_team = YamlGraphTeam {
+                name: def.agent.name,
+                description: Some("Autonomous agent execution graph".to_string()),
+                start_node,
+                terminal_nodes,
+                nodes,
+                edges,
+            };
+
+            return Self::build_from_yaml_team(yaml_team);
+        }
 
         let prompt_str = def.agent.orchestrator.prompt.map(|p| p.system);
 
@@ -187,8 +269,8 @@ impl GraphYamlLoader {
             id: agent_id.clone(),
             node_type: "agent".to_string(),
             engine: None,
-            cli: Some(cli.clone()),
-            provider: Some(cli),
+            cli: Some(default_cli.clone()),
+            provider: Some(default_cli),
             tier: def.agent.tier,
             model: def.agent.model,
             command: None,
