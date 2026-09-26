@@ -426,6 +426,99 @@ team:
       tier: "reasoning"
 ```
 
+### All-in-One Unified Team Setup (Single YAML)
+
+Orbity does **not** require scattering configurations across separate `agents/*.yaml` files. A single YAML file can define the entire workspace: **FinOps guardrails**, **approval policies**, **lead orchestrator**, **all agent workers**, and the **DAG execution graph**:
+
+```yaml
+version: "1.0"
+team:
+  name: "dev_team"
+  description: "Complete autonomous engineering and auditing squad in a single YAML"
+
+  # 1. FinOps Guardrails & Budgeting
+  finops:
+    max_budget_usd: 5.00
+    alert_at_budget_percentage: 80
+
+  # 2. Automated Governance & HITL Rules
+  approval_policy:
+    mode: "automatic"
+    auto_approve:
+      - tools: ["claude", "codex", "agy", "hermes", "pi"]
+        patterns: ["cargo *", "git diff*", "git status*"]
+    auto_reject:
+      - patterns: ["rm -rf /", "*id_rsa*"]
+
+  # 3. Sandbox Isolation Defaults (Bubblewrap)
+  sandbox_defaults:
+    provider: "bwrap"
+    filesystem:
+      root_mode: "ro-bind"
+      workspace_mode: "tmpfs"
+    network: "isolated"
+    timeout_seconds: 120
+
+  # 4. Lead Orchestrator
+  orchestrator:
+    id: "lead"
+    name: "Tech Lead"
+    runner: "agy"
+    tier: "reasoning"
+    prompt:
+      system: "You are the lead architect. Coordinate implementation with Coder and security audits with Reviewer."
+
+  # 5. Inline Agent Workers
+  workers:
+    - id: "coder"
+      name: "Full-Stack Engineer"
+      runner: "claude"
+      tier: "balanced"
+      prompt:
+        system: "Implement clean, modular, and maintainable code with unit tests."
+
+    - id: "reviewer"
+      name: "Security Auditor"
+      runner: "codex"
+      tier: "reasoning"
+      prompt:
+        system: "Audit code for correctness, test coverage, memory invariants, and security."
+
+  # 6. Directed Acyclic Graph (DAG Topology)
+  graph_topology:
+    entrypoint_node: "lead"
+    terminal_nodes: ["reviewer"]
+    nodes:
+      - id: "lead"
+        kind: "supervisor"
+        worker_ref: "lead"
+      - id: "coder"
+        kind: "agent"
+        worker_ref: "coder"
+      - id: "test-suite"
+        kind: "tool"
+        command: "cargo check --workspace"
+      - id: "reviewer"
+        kind: "agent"
+        worker_ref: "reviewer"
+    edges:
+      - from: "lead"
+        to: "coder"
+        type: "direct"
+      - from: "coder"
+        to: "test-suite"
+        type: "direct"
+      - from: "test-suite"
+        to: "reviewer"
+        type: "conditional"
+        condition: "outcome.exit_code == 0"
+```
+
+To run this entire setup directly:
+```bash
+orbity run "Refactor authentication layer with unit tests" --team dev_team
+```
+
 ---
 
 ## Quick Start
