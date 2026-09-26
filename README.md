@@ -346,6 +346,30 @@ orbity --help
 
 Orbity uses declarative YAML configuration. Teams are configured under `teams/<team_name>.yaml`, and individual agents under `agents/<agent_name>.yaml`.
 
+### Declarative Agent Structure: `agent -> name -> provider -> tier`
+
+To prevent YAML definitions from decaying as AI providers retire legacy models (e.g. `gpt-4-0613` or `claude-3-5-sonnet-20241022`), Orbity enforces a future-proof declarative hierarchy:
+
+```yaml
+agent:
+  id: "agt_reviewer"
+  name: "Security Reviewer"
+  provider: "claude"     # Engine: "claude" | "codex" | "agy" | "hermes" | "pi"
+  tier: "reasoning"      # Semantic Tier: "fast" | "balanced" | "reasoning" | "latest"
+```
+
+#### Semantic Model Tiers Matrix
+Instead of hardcoding volatile model versions, declare the cognitive profile required:
+
+| Tier | Profile & Cost | Claude (`claude`) | Codex (`codex`) | Agy (`agy`) | Hermes (`hermes`) | Pi (`pi`) |
+|---|---|---|---|---|---|---|
+| **`fast`** | High-speed, low-cost (lints, pre-checks) | `haiku` | `gpt-4o-mini` | `gemini-3.8-flash-low` | `openrouter/auto-fast` | `llama-cpp` |
+| **`balanced`** | Standard development & refactoring | `sonnet` | `gpt-4o` | `gemini-3.8-flash-high` | `claude-sonnet-4.6` | `sonnet` |
+| **`reasoning`** | Deep architecture & security audit | `opus` | `o3-mini` | `gemini-3.1-pro-high` | `claude-sonnet-4.6:high` | `sonnet:high` |
+| **`latest`** | Floating local default installation | *(CLI default)* | *(CLI default)* | *(CLI default)* | *(CLI default)* | *(CLI default)* |
+
+> 📖 **Comprehensive Model Discovery Guide:** See [`docs/CLI_MODEL_DISCOVERY.md`](docs/CLI_MODEL_DISCOVERY.md) for live inspection commands (`agy models`, `pi --list-models`, `hermes model`) and flags.
+
 ### Canonical Team Specification (`examples/teams/forester.yaml`)
 ```yaml
 version: "1.0"
@@ -375,6 +399,24 @@ team:
         patterns: ["rm -rf /", "*--no-preserve-root*", "*id_rsa*"]
       - rule: "budget_hard_cap_exceeded"
         condition: "cumulative_cost_usd > max_budget_usd"
+
+  # Lead orchestrator with semantic reasoning tier
+  orchestrator:
+    name: "Forester Lead Orchestrator"
+    provider: "agy"
+    tier: "reasoning"
+    role: "Lead Architect & Security Officer"
+
+  # Workers with specialized semantic tiers
+  workers:
+    - id: "codex-worker"
+      name: "Codex Rust Builder"
+      provider: "codex"
+      tier: "balanced"
+    - id: "claude-code-worker"
+      name: "Claude Security Sentinel"
+      provider: "claude"
+      tier: "reasoning"
 ```
 
 ---
@@ -568,6 +610,7 @@ Open **`http://localhost:3000`** in your browser to access the console. Endpoint
 5. **REST API & Asset Endpoints:**
    - `/health`: Automated liveness probe for Kubernetes and Docker orchestrators.
    - `/api/status`: Machine-readable runtime telemetry of agents, costs, and audit blocks.
+   - `/api/models`: Model discovery commands, native engine flags, and semantic tiers catalog.
    - `/assets/orbity-logo.jpg`: High-resolution brand logo asset served with binary byte streaming.
 
 ### Web Application Architecture & Endpoints
@@ -579,6 +622,7 @@ Open **`http://localhost:3000`** in your browser to access the console. Endpoint
 | `GET /dashboard` | HTML (Topcoat Shards) | Reactive Topcoat Shard Component Console with live agent cards |
 | `GET /health` | JSON | Liveness probe and harness diagnostic status |
 | `GET /api/status` | JSON | Real-time multi-agent states, FinOps budget, and audit chain state |
+| `GET /api/models` | JSON | Engine discovery commands, native flags, and semantic model tiers catalog |
 | `GET /governance` | HTML | HITL approval console for pending authorizations and exception overrides |
 | `GET /finops` | HTML | Token consumption analytics, cost tracking per tool, and budget limits |
 
