@@ -210,18 +210,93 @@ The workspace is organized into clean, modular crates adhering to single-respons
 ## Installation
 
 ### Automated Setup Script (Recommended)
-Orbity provides an automated bootstrap script that detects your OS (Linux, macOS, Windows WSL2), installs missing system dependencies, audits the 5 AI CLIs (`claude`, `codex`, `pi`, `hermes`, `agy`), compiles in release mode, and installs the `orbity` binary globally into your `$PATH`:
+Orbity provides an automated, cross-platform bootstrap script (`setup.sh`) that delivers rich, colorized, and declarative progress logs throughout the entire setup process.
+
+It automatically:
+1. **Detects OS & Distro:** Linux (Ubuntu, Debian, Fedora, Arch, Alpine, openSUSE), macOS (via Homebrew), and Windows (WSL2).
+2. **Installs System Dependencies:** Installs `bubblewrap` (bwrap), `sqlite3`, `pkg-config`, `curl`, `git`, and C compilers if missing.
+3. **Verifies Rust Toolchain:** Checks for `cargo` and `rustc` ($\ge 1.80$); automatically bootstraps `rustup` if needed.
+4. **Audits the 5 AI Coding CLIs:** Scans `$PATH` and user tool directories (`~/.local/bin`, `~/.hermes/node/bin`, `~/.cargo/bin`) for `claude`, `codex`, `pi`, `hermes`, and `agy`, printing a real-time status matrix with versions and paths.
+5. **Configures Global Terminal Access:** Permanently exports binary paths to your shell profile (`~/.bashrc`, `~/.zshrc`, `~/.profile`).
+6. **Compiles & Deploys Globally:** Compiles Orbity with LTO optimizations and installs the `orbity` binary to `~/.local/bin/orbity`.
+7. **Runs Health Preflight:** Executes `orbity doctor` automatically to verify end-to-end operational readiness.
 
 ```bash
 # Clone the repository
 git clone https://github.com/geanderson/meza-agentic-orchestrator.git
 cd meza-agentic-orchestrator
 
-# Run the automated installer
+# Interactive mode (asks for confirmation before applying system changes):
 ./setup.sh
 
-# Or in unattended / non-interactive mode:
+# Unattended / non-interactive mode (ideal for CI/CD, Docker, or quick setup):
 ./setup.sh -y
+
+# Check-only mode (audits environment & CLIs without installing or compiling):
+./setup.sh --check-only
+```
+
+#### Declarative Visual Output Preview:
+```text
+  ██████╗ ██████╗ ██████╗ ██╗████████╗██╗   ██╗
+ ██╔═══██╗██╔══██╗██╔══██╗██║╚══██╔══╝╚██╗ ██╔╝
+ ██║   ██║██████╔╝██████╔╝██║   ██║    ╚████╔╝ 
+ ██║   ██║██╔══██╗██╔══██╗██║   ██║     ╚██╔╝  
+ ╚██████╔╝██║  ██║██████╔╝██║   ██║      ██║   
+  ╚═════╝ ╚═╝  ╚═╝╚═════╝ ╚═╝   ╚═╝      ╚═╝   
+  High-Performance Autonomous Multi-Agent Orchestrator
+
+==> 1. Detecting Operating System & Architecture
+[INFO] Operating System: Linux (Ubuntu 24.04 LTS)
+[INFO] Architecture: x86_64
+[✓] OS platform is supported.
+
+==> 2. Verifying System Dependencies (bubblewrap, sqlite3, curl, git, build tools)
+[✓] Package 'bubblewrap' (bwrap) is installed (/usr/bin/bwrap).
+[✓] Package 'sqlite3' is installed (/usr/bin/sqlite3).
+[✓] Package 'curl' is installed (/usr/bin/curl).
+[✓] Package 'git' is installed (/usr/bin/git).
+[✓] C compiler 'gcc' is installed (/usr/bin/gcc).
+[✓] Tool 'pkg-config' is installed (/usr/bin/pkg-config).
+[✓] All required system packages are present.
+
+==> 3. Verifying Rust Toolchain (rustc, cargo)
+[✓] Rust compiler found: rustc 1.85.0
+[✓] Cargo package manager found: cargo 1.85.0
+
+==> 4. Auditing Suite of 5 AI Coding CLIs (claude, codex, pi, hermes, agy)
+
+  CLI        STATUS       BINARY PATH                                   VERSION
+  ────────────────────────────────────────────────────────────────────────────────────────
+  claude     [FOUND]      /home/user/.local/bin/claude                  2.1.239 (Claude Code)
+  codex      [FOUND]      /home/user/.local/bin/codex                   0.154.0
+  pi         [FOUND]      /home/user/.hermes/node/bin/pi                installed
+  hermes     [FOUND]      /home/user/.local/bin/hermes                  0.21.0
+  agy        [FOUND]      /home/user/.local/bin/agy                     1.2.11
+
+[✓] All 5 of 5 AI CLIs are installed and accessible in PATH!
+
+==> 5. Compiling Orbity in Release Mode (LTO Enabled)
+[INFO] Running: cargo build --release --workspace
+[✓] Binary compiled successfully at: target/release/orbity
+
+==> 6. Installing 'orbity' CLI Globally
+[✓] Binary copied to: /home/user/.local/bin/orbity
+[✓] Verification successful: 'orbity' is now globally accessible in any terminal!
+
+==> 7. Running 'orbity doctor' Verification
+=== Orbity Preflight Health Check ===
+Sandbox Provider (bwrap): ✅ Available (/usr/bin/bwrap)
+CLI Agents Detection:
+  - codex   : ✅ Installed (/home/user/.local/bin/codex)
+  - claude  : ✅ Installed (/home/user/.local/bin/claude)
+  - agy     : ✅ Installed (/home/user/.local/bin/agy)
+  - hermes  : ✅ Installed (/home/user/.local/bin/hermes)
+  - pi      : ✅ Installed (/home/user/.hermes/node/bin/pi)
+
+==============================================================================
+ 🎉 ORBITY SETUP COMPLETED SUCCESSFULLY!
+==============================================================================
 ```
 
 ---
