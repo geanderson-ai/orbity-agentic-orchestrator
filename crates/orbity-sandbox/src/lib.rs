@@ -1,4 +1,4 @@
-//! Orbity Sandbox - Process isolation and containment abstractions.
+//! Orbity Sandbox (v0.1.0-beta) - Process isolation and containment abstractions.
 
 pub mod bwrap;
 pub mod error;

@@ -128,7 +128,7 @@ impl TopcoatServer {
 
         let listener = TcpListener::bind(addr).await?;
         println!(
-            "🚀 Orbity Tokio Topcoat web server active on http://{}",
+            "🚀 Orbity Tokio Topcoat web server active (v0.1.0-beta) on http://{}",
             addr
         );
         println!("Endpoints ready:");
@@ -210,17 +210,17 @@ impl TopcoatServer {
                             "/health" => (
                                 "200 OK",
                                 "application/json",
-                                r#"{"status":"ok","server":"Tokio Topcoat 0.9","harness":"Orbity Multi Agentic Harness","uptime":"healthy"}"#.as_bytes().to_vec(),
+                                r#"{"status":"ok","version":"0.1.0-beta","stage":"beta","server":"Tokio Topcoat 0.9","harness":"Orbity Multi Agentic Harness","uptime":"healthy"}"#.as_bytes().to_vec(),
                             ),
                             "/api/status" => (
                                 "200 OK",
                                 "application/json",
-                                r#"{"status":"active","harness":"Orbity Multi Agentic Harness","finops":{"budget":20.0,"spent":1.25,"tokens":45000},"agents":[{"name":"Codex Worker","role":"codex","status":"Executing"},{"name":"Claude Reviewer","role":"claude","status":"Idle"},{"name":"Agy Researcher","role":"agy","status":"Idle"},{"name":"Hermes Tool","role":"hermes","status":"Idle"},{"name":"Pi Refactor","role":"pi","status":"Idle"}],"audit":{"chain_verified":true,"blocks":14}}"#.as_bytes().to_vec(),
+                                r#"{"status":"active","version":"0.1.0-beta","stage":"beta","harness":"Orbity Multi Agentic Harness","finops":{"budget":20.0,"spent":1.25,"tokens":45000},"agents":[{"name":"Codex Worker","role":"codex","status":"Executing"},{"name":"Claude Reviewer","role":"claude","status":"Idle"},{"name":"Agy Researcher","role":"agy","status":"Idle"},{"name":"Hermes Tool","role":"hermes","status":"Idle"},{"name":"Pi Refactor","role":"pi","status":"Idle"}],"audit":{"chain_verified":true,"blocks":14}}"#.as_bytes().to_vec(),
                             ),
                             "/api/models" => (
                                 "200 OK",
                                 "application/json",
-                                r#"{"harness":"Orbity Multi Agentic Harness","schema":"agent -> name -> provider -> tier","tiers":["fast","balanced","reasoning","latest"],"engines":[{"cli":"agy","name":"Antigravity CLI (Google DeepMind)","discovery":"agy models","flag":"--model <model>","reasoning":"--effort <low|medium|high|max>","tiers":{"fast":"gemini-3.8-flash-low","balanced":"gemini-3.8-flash-high","reasoning":"gemini-3.1-pro-high"}},{"cli":"codex","name":"OpenAI Codex CLI","discovery":"codex --help","flag":"-m <MODEL> / --model <MODEL>","reasoning":"-c model=\"o3-mini\"","tiers":{"fast":"gpt-4o-mini","balanced":"gpt-4o","reasoning":"o3-mini"}},{"cli":"claude","name":"Claude Code (Anthropic)","discovery":"claude --help / /model","flag":"--model <model>","reasoning":"--fallback-model <model>","tiers":{"fast":"haiku","balanced":"sonnet","reasoning":"opus"}},{"cli":"hermes","name":"Hermes Agent (Nous Research)","discovery":"hermes model","flag":"-m <MODEL> / --model <MODEL>","reasoning":"--reasoning <none|low|medium|high|max>","tiers":{"fast":"openrouter/auto-fast","balanced":"anthropic/claude-sonnet-4.6","reasoning":"anthropic/claude-sonnet-4.6 (high)"}},{"cli":"pi","name":"Pi Coding Agent (pi.dev)","discovery":"pi --list-models","flag":"--model <pattern>","reasoning":"--thinking <low|medium|high>","tiers":{"fast":"llama-cpp","balanced":"sonnet","reasoning":"sonnet:high"}}]}"#.as_bytes().to_vec(),
+                                r#"{"harness":"Orbity Multi Agentic Harness","version":"0.1.0-beta","stage":"beta","schema":"agent -> name -> provider -> tier","tiers":["fast","balanced","reasoning","latest"],"engines":[{"cli":"agy","name":"Antigravity CLI (Google DeepMind)","discovery":"agy models","flag":"--model <model>","reasoning":"--effort <low|medium|high|max>","tiers":{"fast":"gemini-3.8-flash-low","balanced":"gemini-3.8-flash-high","reasoning":"gemini-3.1-pro-high"}},{"cli":"codex","name":"OpenAI Codex CLI","discovery":"codex --help","flag":"-m <MODEL> / --model <MODEL>","reasoning":"-c model=\"o3-mini\"","tiers":{"fast":"gpt-4o-mini","balanced":"gpt-4o","reasoning":"o3-mini"}},{"cli":"claude","name":"Claude Code (Anthropic)","discovery":"claude --help / /model","flag":"--model <model>","reasoning":"--fallback-model <model>","tiers":{"fast":"haiku","balanced":"sonnet","reasoning":"opus"}},{"cli":"hermes","name":"Hermes Agent (Nous Research)","discovery":"hermes model","flag":"-m <MODEL> / --model <MODEL>","reasoning":"--reasoning <none|low|medium|high|max>","tiers":{"fast":"openrouter/auto-fast","balanced":"anthropic/claude-sonnet-4.6","reasoning":"anthropic/claude-sonnet-4.6 (high)"}},{"cli":"pi","name":"Pi Coding Agent (pi.dev)","discovery":"pi --list-models","flag":"--model <pattern>","reasoning":"--thinking <low|medium|high>","tiers":{"fast":"llama-cpp","balanced":"sonnet","reasoning":"sonnet:high"}}]}"#.as_bytes().to_vec(),
                             ),
                             "/governance" => (
                                 "200 OK",

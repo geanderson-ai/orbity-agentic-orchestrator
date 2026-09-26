@@ -1,8 +1,10 @@
 <div align="center">
   <img src="assets/orbity-logo.jpg" alt="Orbity Logo" width="220" style="border-radius: 50%; box-shadow: 0 8px 30px rgba(0,255,163,0.2);" />
   <h1>🪐 ORBITY</h1>
-  <p><strong>High-Performance Autonomous Multi-Agent Orchestrator in Rust</strong></p>
+  <p><strong>High-Performance Autonomous Multi-Agent Orchestrator in Rust (v0.1.0-beta)</strong></p>
 
+  [![Version](https://img.shields.io/badge/version-0.1.0--beta-blue?style=for-the-badge)](Cargo.toml)
+  [![Stage](https://img.shields.io/badge/stage-beta-orange?style=for-the-badge)](Cargo.toml)
   [![Made in Brazil](https://img.shields.io/badge/Made%20in-Brazil%20%F0%9F%87%A7%F0%9F%87%B7-009c3b?style=for-the-badge&logoColor=white)](https://github.com/geanderson/meza-agentic-orchestrator)
   [![Rust](https://img.shields.io/badge/Rust-2021_%2F_2024_Compatible-orange?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
   [![SQLite](https://img.shields.io/badge/SQLite-WAL_%2B_SHA--256-blue?style=for-the-badge&logo=sqlite)](https://sqlite.org)
@@ -183,8 +185,12 @@ The workspace is organized into clean, modular crates adhering to single-respons
 │   ├── VIDEO_STORYTELLING_REMOTION.md # Script and React code for programmatic video
 │   └── index.html                   # Interactive GitHub Pages portal
 ├── examples/                        # Declarative YAML definitions
-│   ├── teams/                       # Team topologies (e.g., forester.yaml)
-│   └── agents/                      # Standalone agents (e.g., agente01.yaml)
+│   ├── forester/                    # Complete team and agent example
+│   │   ├── teams/                   # forester.yaml
+│   │   └── agents/                  # agente01.yaml, agente02.yaml
+│   └── minimal/                     # Smallest valid team and agent setup
+│       ├── teams/                   # minimal.yaml
+│       └── agents/                  # minimal.yaml
 └── crates/                          # Rust modular crates
     ├── orbity-core/                 # Fundamental types, RuntimeEvent, TokenUsage, SecretMasker
     ├── orbity-storage/              # SQLite WAL pool, DAOs, AuditStore with SHA-256 chain
@@ -203,7 +209,8 @@ The workspace is organized into clean, modular crates adhering to single-respons
 - [📋 **Quality Gates Implementation Plan (`docs/IMPLEMENTATION_PLAN.md`)](docs/IMPLEMENTATION_PLAN.md)** — Full blueprint of all 8 Quality Gates (0-7), DoD criteria, and commit tracking.
 - [🎬 **Storytelling & Remotion Video Script (`docs/VIDEO_STORYTELLING_REMOTION.md`)](docs/VIDEO_STORYTELLING_REMOTION.md)** — Complete scene-by-scene script and React/Remotion code.
 - [🌐 **Interactive Web Portal (`docs/index.html`)](docs/index.html)** — Interactive graph simulator, terminal mock, and audit console.
-- [📁 **Example Team Topologies (`examples/teams/forester.yaml`)](examples/teams/forester.yaml)** — Production-ready declarative team specification.
+- [📁 **Complete Example (`examples/forester/`)](examples/forester/) — Production-ready declarative team and agent specifications.
+- [📁 **Minimal Example (`examples/minimal/`)](examples/minimal/) — Smallest valid YAML setup for a team and an agent.
 
 ---
 
@@ -370,7 +377,7 @@ Instead of hardcoding volatile model versions, declare the cognitive profile req
 
 > 📖 **Comprehensive Model Discovery Guide:** See [`docs/CLI_MODEL_DISCOVERY.md`](docs/CLI_MODEL_DISCOVERY.md) for live inspection commands (`agy models`, `pi --list-models`, `hermes model`) and flags.
 
-### Canonical Team Specification (`examples/teams/forester.yaml`)
+### Canonical Team Specification (`examples/forester/teams/forester.yaml`)
 ```yaml
 version: "1.0"
 team:
@@ -782,15 +789,16 @@ If you encounter a bug or wish to propose a feature:
 
 ## Releases / Changelog
 
-Detailed release notes and commit histories are maintained in the repository:
-- **v1.0.0 (Current):** Full release of all 8 Quality Gates (0-7), Tokio Topcoat server, 5 CLI adapters, Bubblewrap sandbox, and 52 passing tests.
+Detailed release notes and commit histories are maintained in [CHANGELOG.md](CHANGELOG.md):
+- **v0.1.0-beta (Current):** Initial public beta release featuring all 8 Quality Gates (0-7), Tokio Topcoat server, 5 CLI adapters, Bubblewrap sandbox, dynamic models & tier synchronization, and 52 passing tests.
 - For complete commit evidence, see [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 
 ---
 
 ## Versioning
 
-Orbity follows [Semantic Versioning (SemVer 2.0.0)](https://semver.org/):
+Orbity is currently in **Beta** (`0.1.0-beta`) and follows [Semantic Versioning (SemVer 2.0.0)](https://semver.org/):
+- **0.1.0-beta (Initial Public Beta):** Foundation stage introducing declarative agent orchestration, dynamic CLI provider sync, and live Topcoat dashboard.
 - **Major (X.0.0):** Breaking changes in declarative YAML contracts or CLI commands.
 - **Minor (0.X.0):** Backwards-compatible new features, worker adapters, or sinks.
 - **Patch (0.0.X):** Backwards-compatible bug fixes and security patches.

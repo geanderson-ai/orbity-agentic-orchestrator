@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.0-beta] - 2026-09-26
+
+### Added
+- **Public Beta Declaration:**
+  - Workspace package version set to `0.1.0-beta` across all crates (`orbity-cli`, `orbity-server`, `orbity-agent`, `orbity-graph`, `orbity-storage`, `orbity-sandbox`, `orbity-telemetry`, `orbity-core`).
+  - Preflight health checks and CLI banners declaring `(v0.1.0-beta)`.
+  - Tokio Topcoat web dashboard and API endpoints (`/health`, `/api/status`, `/api/models`) reporting version `0.1.0-beta` and stage `beta`.
+  - Dynamic discovery documentation and YAML schemas for multi-provider CLI models (`claude`, `codex`, `pi`, `hermes`, `agy`).
+  - Complete web console badges and setup banner reflecting public beta status.
+
 ## [0.1.0] - 2026-09-25
 
 ### Added

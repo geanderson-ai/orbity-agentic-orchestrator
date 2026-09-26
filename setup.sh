@@ -90,7 +90,7 @@ cat << "EOF"
  ██║   ██║██╔══██╗██╔══██╗██║   ██║     ╚██╔╝  
  ╚██████╔╝██║  ██║██████╔╝██║   ██║      ██║   
   ╚═════╝ ╚═╝  ╚═╝╚═════╝ ╚═╝   ╚═╝      ╚═╝   
-  High-Performance Autonomous Multi-Agent Orchestrator
+  High-Performance Autonomous Multi-Agent Orchestrator (v0.1.0-beta)
 EOF
 echo ""
 
@@ -415,7 +415,7 @@ step "7. Running 'orbity doctor' Verification"
 # --- Summary & Completion ----------------------------------------------------
 echo ""
 printf "${GREEN}${BOLD}==============================================================================${RESET}\n"
-printf "${GREEN}${BOLD} 🎉 ORBITY SETUP COMPLETED SUCCESSFULLY!${RESET}\n"
+printf "${GREEN}${BOLD} 🎉 ORBITY SETUP (v0.1.0-beta) COMPLETED SUCCESSFULLY!${RESET}\n"
 printf "${GREEN}${BOLD}==============================================================================${RESET}\n"
 echo ""
 echo "  The 'orbity' command is now installed and ready to be used in any terminal."

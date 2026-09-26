@@ -1,4 +1,4 @@
-//! Orbity Telemetry - 4-layer tracing, spans, subscribers and OpenTelemetry metrics.
+//! Orbity Telemetry (v0.1.0-beta) - 4-layer tracing, spans, subscribers and OpenTelemetry metrics.
 
 pub mod metrics;
 pub mod setup;

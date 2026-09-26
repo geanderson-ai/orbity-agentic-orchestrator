@@ -1,4 +1,4 @@
-//! Orbity Agent - Agent lifecycle, CLI runner adapters and MultiAgentOrchestrator.
+//! Orbity Agent (v0.1.0-beta) - Agent lifecycle, CLI runner adapters and MultiAgentOrchestrator.
 
 pub mod manager;
 pub mod orchestrator;

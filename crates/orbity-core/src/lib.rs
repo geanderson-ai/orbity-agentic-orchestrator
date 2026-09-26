@@ -1,4 +1,7 @@
-//! Orbity Core - Foundation types, structured events, FinOps domain and contracts.
+//! Orbity Core (v0.1.0-beta) - Foundation types, structured events, FinOps domain and contracts.
+
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const STAGE: &str = "beta";
 
 pub mod bus;
 pub mod contracts;

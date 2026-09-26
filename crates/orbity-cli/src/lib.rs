@@ -1,4 +1,4 @@
-//! Orbity CLI library definitions and exports.
+//! Orbity CLI (v0.1.0-beta) - Command line interface, preflight doctor and runtime harness.
 
 pub mod commands;
 pub mod dispatcher;

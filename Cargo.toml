@@ -12,7 +12,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.0-beta"
 edition = "2021"
 authors = ["Meza Agentic Team <team@meza.ai>"]
 license = "MIT"

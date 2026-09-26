@@ -1,4 +1,4 @@
-//! Orbity Storage - SQLite persistence with WAL mode and cryptographic hash-chained audit store.
+//! Orbity Storage (v0.1.0-beta) - SQLite persistence with WAL mode and cryptographic hash-chained audit store.
 
 pub mod audit_chain;
 pub mod audit_sink;

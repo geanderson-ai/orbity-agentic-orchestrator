@@ -8,7 +8,8 @@ use std::path::PathBuf;
     name = "orbity",
     author = "Meza Agentic Team",
     version,
-    about = "Orbity Multi Agentic Harness CLI"
+    about = "Orbity Multi Agentic Harness CLI (v0.1.0-beta)",
+    long_about = "Orbity Multi Agentic Harness CLI (v0.1.0-beta) - Mission-critical autonomous agent runtime in Rust"
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -128,11 +129,11 @@ pub struct ServeArgs {
 
 #[derive(Debug, Args)]
 pub struct SyncArgs {
-    /// Diretório de arquivos de equipes YAML (padrão: ./teams ou ./examples/teams)
+    /// Diretório de arquivos de equipes YAML (padrão: ./teams ou ./examples/forester/teams)
     #[arg(long)]
     pub teams_dir: Option<PathBuf>,
 
-    /// Diretório de arquivos de agentes YAML (padrão: ./agents ou ./examples/agents)
+    /// Diretório de arquivos de agentes YAML (padrão: ./agents ou ./examples/forester/agents)
     #[arg(long)]
     pub agents_dir: Option<PathBuf>,
 }

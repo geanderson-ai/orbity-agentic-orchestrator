@@ -26,7 +26,7 @@ impl PreflightReport {
 
     pub fn summary_text(&self) -> String {
         let mut out = String::new();
-        out.push_str("=== Orbity Preflight Health Check ===\n");
+        out.push_str("=== Orbity Preflight Health Check (v0.1.0-beta) ===\n");
         let bwrap_status = if self.bwrap_available {
             format!(
                 "✅ Available ({})",

@@ -1,4 +1,4 @@
-//! Orbity Graph - Graph Engineering, DAG execution, topological sorting and Blackboard memory.
+//! Orbity Graph (v0.1.0-beta) - Graph Engineering, DAG execution, topological sorting and Blackboard memory.
 
 pub mod blackboard;
 pub mod checkpoint;

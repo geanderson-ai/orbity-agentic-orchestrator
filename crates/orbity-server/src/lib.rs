@@ -1,4 +1,4 @@
-//! Orbity Server - Reactive Full-Stack Server Application with Tokio Topcoat.
+//! Orbity Server (v0.1.0-beta) - Reactive Full-Stack Server Application with Tokio Topcoat.
 
 pub mod context;
 pub mod governance;
