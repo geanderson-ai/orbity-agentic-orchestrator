@@ -750,11 +750,7 @@ Orbity follows [Semantic Versioning (SemVer 2.0.0)](https://semver.org/):
 
 ## License
 
-Orbity is open-source software licensed under either:
-- **Apache License, Version 2.0** ([LICENSE-APACHE](http://www.apache.org/licenses/LICENSE-2.0))
-- **MIT License** ([LICENSE-MIT](http://opensource.org/licenses/MIT))
-
-at your option.
+Orbity is open-source software licensed under the **MIT License** ([LICENSE-MIT](LICENSE-MIT)).
 
 ---
 

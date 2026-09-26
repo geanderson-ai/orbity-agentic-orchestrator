@@ -41,6 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `orbity audit verify`: Cryptographic verification of audit ledgers.
   - `setup.sh`: Automated, cross-platform bootstrap script with colorized progress logs and `--no-shell-edit` support.
 - **Open Source Governance:**
-  - Open source licenses (`LICENSE-MIT`, `LICENSE-APACHE`).
+  - Open source MIT license (`LICENSE-MIT`).
   - Community guidelines (`CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`).
   - GitHub Actions CI workflow for format, clippy, and test validation.
