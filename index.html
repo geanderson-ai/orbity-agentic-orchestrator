@@ -529,14 +529,26 @@
       flex-direction: column;
       pointer-events: auto;
       user-select: none;
-      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
-      cursor: default;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .node-card:active {
+      cursor: grabbing;
+    }
+
+    .node-card.dragging {
+      cursor: grabbing !important;
+      box-shadow: var(--shadow-xl);
+      z-index: 50 !important;
+      transition: none !important;
+      opacity: 0.95;
     }
 
     .node-card:hover {
       border-color: var(--border-strong);
       box-shadow: var(--shadow-lg);
-      transform: translateY(-2px);
     }
 
     .node-card.selected {
@@ -1118,8 +1130,7 @@
     <main class="canvas-viewport" id="canvasViewport"
           ondragover="onCanvasDragOver(event)" 
           ondrop="onCanvasDrop(event)"
-          onmousedown="onCanvasMouseDown(event)"
-          onwheel="onCanvasWheel(event)">
+          onmousedown="onCanvasMouseDown(event)">
       
       <div class="canvas-world" id="canvasWorld">
         <svg class="canvas-svg" id="canvasSvg">
@@ -1433,15 +1444,23 @@
     }
 
     function onCanvasMouseDown(e) {
-      if (e.target === canvasViewport || e.target.id === 'canvasSvg' || e.target.classList.contains('canvas-world')) {
-        canvasState.isPanning = true;
-        canvasState.panStartX = e.clientX - canvasState.panX;
-        canvasState.panStartY = e.clientY - canvasState.panY;
-        canvasViewport.classList.add('panning');
-
-        window.addEventListener('mousemove', onCanvasMouseMove);
-        window.addEventListener('mouseup', onCanvasMouseUp);
+      // If clicking inside a node card, inspector, or control widget, do not pan canvas
+      if (e.target.closest('.node-card') || 
+          e.target.closest('.node-inspector') || 
+          e.target.closest('.canvas-controls-bottom-left') || 
+          e.target.closest('.minimap-container') ||
+          e.target.closest('.modal-overlay')) {
+        return;
       }
+
+      canvasState.isPanning = true;
+      canvasState.panStartX = e.clientX - canvasState.panX;
+      canvasState.panStartY = e.clientY - canvasState.panY;
+      canvasViewport.classList.add('panning');
+      document.body.style.cursor = 'grabbing';
+
+      window.addEventListener('mousemove', onCanvasMouseMove);
+      window.addEventListener('mouseup', onCanvasMouseUp);
     }
 
     function onCanvasMouseMove(e) {
@@ -1462,10 +1481,13 @@
     }
 
     function onCanvasMouseUp() {
-      canvasState.isPanning = false;
-      canvasViewport.classList.remove('panning');
-      window.removeEventListener('mousemove', onCanvasMouseMove);
-      window.removeEventListener('mouseup', onCanvasMouseUp);
+      if (canvasState.isPanning) {
+        canvasState.isPanning = false;
+        canvasViewport.classList.remove('panning');
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', onCanvasMouseMove);
+        window.removeEventListener('mouseup', onCanvasMouseUp);
+      }
     }
 
     function onCanvasWheel(e) {
@@ -1543,10 +1565,13 @@
       card.className = `node-card ${node.type === 'sticky' ? 'sticky-note' : ''} ${node.type === 'portal' ? 'web-portal' : ''}`;
       card.style.left = `${node.x}px`;
       card.style.top = `${node.y}px`;
+      
+      // Bind dragging directly to card
+      card.addEventListener('mousedown', (e) => startNodeDrag(e, node.id));
 
       if (node.type === 'sticky') {
         card.innerHTML = `
-          <div class="node-header" onmousedown="startNodeDrag(event, '${node.id}')">
+          <div class="node-header">
             <div class="node-title-area">
               ${ICONS.sticky}
               <span class="node-id">${node.id}</span>
@@ -1557,7 +1582,7 @@
         `;
       } else if (node.type === 'portal') {
         card.innerHTML = `
-          <div class="node-header" onmousedown="startNodeDrag(event, '${node.id}')">
+          <div class="node-header">
             <div class="node-title-area">
               ${ICONS.portal}
               <span class="node-id">${node.id}</span>
@@ -1577,7 +1602,7 @@
           <!-- React Flow Handles -->
           <div class="node-port input" title="Entrada (Recepção de contexto)" onmousedown="onPortMouseDown(event, '${node.id}', 'input')"></div>
           
-          <div class="node-header" onmousedown="startNodeDrag(event, '${node.id}')" onclick="selectNode('${node.id}')">
+          <div class="node-header" onclick="selectNode('${node.id}')">
             <div class="node-title-area">
               <div class="node-badge-icon">${iconSvg}</div>
               <span class="node-id">${node.id}</span>
@@ -1605,7 +1630,14 @@
     let dragOffset = { x: 0, y: 0 };
 
     function startNodeDrag(e, nodeId) {
-      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.target.closest('.node-port') || 
+          e.target.closest('button') || 
+          e.target.closest('input') || 
+          e.target.closest('textarea') || 
+          e.target.closest('select') ||
+          e.target.closest('iframe')) {
+        return;
+      }
       e.stopPropagation();
 
       draggedNodeId = nodeId;
@@ -1614,12 +1646,18 @@
 
       selectNode(nodeId);
 
+      const el = document.getElementById(`node-${nodeId}`);
+      if (el) el.classList.add('dragging');
+
       const rect = canvasViewport.getBoundingClientRect();
       const mouseX = (e.clientX - rect.left - canvasState.panX) / canvasState.scale;
       const mouseY = (e.clientY - rect.top - canvasState.panY) / canvasState.scale;
 
       dragOffset.x = mouseX - node.x;
       dragOffset.y = mouseY - node.y;
+
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'grabbing';
 
       window.addEventListener('mousemove', onNodeDragging);
       window.addEventListener('mouseup', endNodeDrag);
@@ -1648,7 +1686,13 @@
     }
 
     function endNodeDrag() {
+      if (draggedNodeId) {
+        const el = document.getElementById(`node-${draggedNodeId}`);
+        if (el) el.classList.remove('dragging');
+      }
       draggedNodeId = null;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
       window.removeEventListener('mousemove', onNodeDragging);
       window.removeEventListener('mouseup', endNodeDrag);
     }
@@ -2347,6 +2391,7 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      canvasViewport.addEventListener('wheel', onCanvasWheel, { passive: false });
       updateTransform();
       initSSE();
       loadWorkspaceData();
