@@ -10,10 +10,20 @@ agent:
     plan:
       strategy: "Sequential"
       steps:
+        # Step 1: o Codex executa a tarefa de implementação.
         - name: "Executar tarefa"
           delegate_to: "minimal-worker"
+          action: "codex.exec"
+        # Step 2: o Agy recebe o resultado e faz a análise final.
+        - name: "Revisar resultado"
+          delegate_to: "minimal-reviewer"
+          action: "agy.analyze"
     team:
       - id: "minimal-worker"
         name: "Minimal Worker"
         provider: "codex"
         runner: "codex"
+      - id: "minimal-reviewer"
+        name: "Minimal Reviewer"
+        provider: "agy"
+        runner: "agy"

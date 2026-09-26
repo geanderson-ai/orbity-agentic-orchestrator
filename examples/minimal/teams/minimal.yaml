@@ -2,7 +2,7 @@
 version: "1.0"
 team:
   name: "minimal"
-  description: "Equipe mínima com um worker e uma etapa"
+  description: "Equipe mínima com implementação no Codex e revisão no Agy"
   orchestrator:
     id: "minimal-lead"
     name: "Minimal Lead"
@@ -10,12 +10,23 @@ team:
     plan:
       strategy: "Sequential"
       steps:
+        # Step 1: o Codex recebe a tarefa original e implementa a solução.
         - step_id: "execute"
-          name: "Executar tarefa"
+          name: "Implementar tarefa com Codex"
           delegate_to: "minimal-worker"
           action: "codex.exec"
+        # Step 2: o Agy recebe o resultado do step anterior para analisar e validar.
+        # Em um pipeline Sequential, a saída do Codex segue para esta etapa.
+        - step_id: "review"
+          name: "Analisar resultado com Agy"
+          delegate_to: "minimal-reviewer"
+          action: "agy.analyze"
   workers:
     - id: "minimal-worker"
       name: "Minimal Worker"
       provider: "codex"
       runner: "codex"
+    - id: "minimal-reviewer"
+      name: "Minimal Reviewer"
+      provider: "agy"
+      runner: "agy"
