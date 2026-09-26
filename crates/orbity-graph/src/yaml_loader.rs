@@ -121,7 +121,19 @@ impl GraphYamlLoader {
             return Self::build_from_simple_agent(agent_wrap.agent);
         }
 
-        // Fallback: return the original deserialization error from YamlGraphTeam
+        // Specific fallback error based on YAML content signature
+        if yaml_content.contains("agent:") {
+            let err: Result<orbity_core::contracts::AgentFileDefinition, _> = serde_yaml::from_str(yaml_content);
+            if let Err(e) = err {
+                return Err(GraphYamlError::Yaml(e));
+            }
+        } else if yaml_content.contains("team:") {
+            let err: Result<orbity_core::contracts::TeamFileDefinition, _> = serde_yaml::from_str(yaml_content);
+            if let Err(e) = err {
+                return Err(GraphYamlError::Yaml(e));
+            }
+        }
+
         let err: Result<YamlGraphTeam, _> = serde_yaml::from_str(yaml_content);
         Err(GraphYamlError::Yaml(err.unwrap_err()))
     }
