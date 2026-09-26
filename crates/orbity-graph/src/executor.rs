@@ -274,23 +274,37 @@ impl GraphExecutor {
                         attempts += 1;
                         match runner.run(&node, &injected_context, &blackboard).await {
                             Ok(out) => {
+                                let ok = out.success;
                                 output = out;
-                                break;
+                                if ok {
+                                    last_err.clear();
+                                    break;
+                                } else {
+                                    last_err = if !output.stderr.is_empty() {
+                                        output.stderr.clone()
+                                    } else {
+                                        format!("Process exited with status {:?}", output.exit_code)
+                                    };
+                                }
                             }
                             Err(e) => {
                                 last_err = e;
-                                tokio::time::sleep(tokio::time::Duration::from_millis(
-                                    50 * (attempts as u64),
-                                ))
-                                .await;
                             }
                         }
+                        tokio::time::sleep(tokio::time::Duration::from_millis(
+                            50 * (attempts as u64),
+                        ))
+                        .await;
                     }
 
-                    if !last_err.is_empty() && !output.success {
+                    if !output.success {
                         return Err(ExecutionError::NodeFailed {
                             node_id: node_id.0,
-                            message: last_err,
+                            message: if !last_err.is_empty() {
+                                last_err
+                            } else {
+                                "Node execution failed".to_string()
+                            },
                         });
                     }
 

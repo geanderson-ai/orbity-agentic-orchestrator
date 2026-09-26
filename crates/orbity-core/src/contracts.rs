@@ -77,6 +77,9 @@ pub struct PlanStep {
     pub delegate_to: Option<String>,
     pub action: Option<String>,
     pub sandbox_action: Option<String>,
+    #[serde(alias = "prompt.system", alias = "system_prompt")]
+    pub prompt_system: Option<String>,
+    pub prompt: Option<PromptConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

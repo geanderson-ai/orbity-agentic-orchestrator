@@ -213,6 +213,8 @@ impl NodeRunner for SandboxCliNodeRunner {
         let env = HashMap::new();
         let timeout = Duration::from_secs(timeout_secs);
 
+        println!("  ↳ Executing node [{}] using '{}'...", node.id.0, cmd);
+
         let sb = self.sandbox.lock().await;
         let exec_res = sb
             .run_command(&cmd, &args, &env, timeout)
@@ -220,6 +222,24 @@ impl NodeRunner for SandboxCliNodeRunner {
             .map_err(|e| format!("Sandbox execution error: {}", e))?;
 
         let token_report = TokenExtractor::extract(cli_type, &exec_res.stdout);
+
+        if exec_res.success() {
+            println!(
+                "  ✔ Node [{}] completed in {}ms (tokens: {} in / {} out, cost: ${:.4})",
+                node.id.0,
+                exec_res.duration_ms,
+                token_report.input_tokens,
+                token_report.output_tokens,
+                token_report.cost_usd
+            );
+        } else {
+            eprintln!(
+                "  ✖ Node [{}] failed (exit code {}):\n{}",
+                node.id.0,
+                exec_res.exit_code,
+                exec_res.stderr.trim()
+            );
+        }
 
         Ok(NodeOutput {
             success: exec_res.success(),

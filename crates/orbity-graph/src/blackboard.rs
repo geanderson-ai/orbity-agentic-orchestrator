@@ -122,10 +122,21 @@ impl Blackboard {
         Ok(())
     }
 
-    /// Formats the accumulated context from upstream predecessors as injected prompt text.
+    /// Formats the accumulated context from upstream predecessors and global user prompt.
     pub async fn inject_context(&self, predecessor_ids: &[crate::types::NodeId]) -> String {
         let state = self.data.read().await;
         let mut context_builder = String::new();
+
+        if let Some(val) = state.global_context.get("user_prompt") {
+            if let Some(user_prompt) = val.as_str() {
+                if !user_prompt.trim().is_empty() {
+                    context_builder.push_str(&format!(
+                        "--- User Task / Request ---\n{}\n\n",
+                        user_prompt.trim()
+                    ));
+                }
+            }
+        }
 
         for pred in predecessor_ids {
             if let Some(out) = state.node_outputs.get(&pred.0) {

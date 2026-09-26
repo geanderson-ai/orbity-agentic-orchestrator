@@ -234,7 +234,7 @@ impl CommandDispatcher {
                 let sandbox: std::sync::Arc<tokio::sync::Mutex<dyn orbity_sandbox::traits::Sandbox>> =
                     std::sync::Arc::new(tokio::sync::Mutex::new(bwrap_box));
 
-                let runner = std::sync::Arc::new(orbity_agent::runners::SandboxCliNodeRunner::new(sandbox));
+                let runner = std::sync::Arc::new(orbity_agent::runners::SandboxCliNodeRunner::new(sandbox.clone()));
 
                 let store = orbity_graph::checkpoint::GraphCheckpointStore::new(pool.inner().clone());
                 store.init_schema().await?;
@@ -262,12 +262,41 @@ impl CommandDispatcher {
                 match executor.execute().await {
                     Ok(()) => {
                         let _ = run_dao.update_status(&exec_id.to_string(), "Completed", Some(chrono::Utc::now())).await;
-                        println!("✅ Execution {} finished successfully!", exec_id);
+
+                        // Promote file modifications from isolated sandbox to host workspace
+                        if let Ok(cwd) = std::env::current_dir() {
+                            let sb = sandbox.lock().await;
+                            if let Ok(promoted) = sb.promote_changes(&cwd).await {
+                                if !promoted.is_empty() {
+                                    println!("\n📦 Workspace files updated ({} change(s)):", promoted.len());
+                                    for change in promoted {
+                                        println!("  - {:?}: {}", change.change_type, change.relative_path.display());
+                                    }
+                                }
+                            }
+                        }
+
+                        // Display output from nodes
+                        let snap = blackboard.snapshot().await;
+                        if let Some(outputs) = snap.get("node_outputs").and_then(|o| o.as_object()) {
+                            if !outputs.is_empty() {
+                                println!("\n📋 Agent Output Summary:");
+                                for (node, out) in outputs {
+                                    if let Some(text) = out.as_str() {
+                                        if !text.trim().is_empty() {
+                                            println!("\n--- [{}] ---\n{}", node, text.trim());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        println!("\n✅ Execution {} finished successfully!", exec_id);
                         Ok(0)
                     }
                     Err(e) => {
                         let _ = run_dao.update_status(&exec_id.to_string(), "Failed", Some(chrono::Utc::now())).await;
-                        eprintln!("❌ Execution {} failed: {}", exec_id, e);
+                        eprintln!("\n❌ Execution {} failed: {}", exec_id, e);
                         Ok(1)
                     }
                 }
