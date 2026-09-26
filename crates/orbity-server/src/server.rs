@@ -459,9 +459,100 @@ impl TopcoatServer {
                                     serde_json::to_vec(&agents_presets).unwrap_or_default(),
                                 )
                             },
+                            ("GET", "/api/runs") => {
+                                let mut runs_list = Vec::new();
+                                if let Some(pool) = server.cx().pool() {
+                                    if let Ok(rows) = sqlx::query_as::<_, (String, String, String, Option<String>, i64, f64, Option<String>)>(
+                                        "SELECT id, status, initiated_at, completed_at, total_tokens, total_cost_usd, metadata FROM runs ORDER BY initiated_at DESC LIMIT 30"
+                                    ).fetch_all(pool).await {
+                                        for r in rows {
+                                            runs_list.push(serde_json::json!({
+                                                "id": r.0,
+                                                "status": r.1,
+                                                "initiated_at": r.2,
+                                                "completed_at": r.3,
+                                                "total_tokens": r.4,
+                                                "total_cost_usd": r.5,
+                                                "metadata": r.6,
+                                            }));
+                                        }
+                                    }
+                                }
+                                (
+                                    "200 OK",
+                                    "application/json",
+                                    serde_json::to_vec(&serde_json::json!({ "runs": runs_list })).unwrap_or_default(),
+                                )
+                            },
+                            ("GET", "/api/runs/latest") => {
+                                let mut latest_json = serde_json::Value::Null;
+                                if let Some(pool) = server.cx().pool() {
+                                    if let Ok(Some(r)) = sqlx::query_as::<_, (String, String, String, Option<String>, i64, f64, Option<String>)>(
+                                        "SELECT id, status, initiated_at, completed_at, total_tokens, total_cost_usd, metadata FROM runs ORDER BY initiated_at DESC LIMIT 1"
+                                    ).fetch_optional(pool).await {
+                                        let run_id = r.0.clone();
+                                        let mut node_metrics = std::collections::HashMap::new();
+                                        if let Ok(ledger_rows) = sqlx::query_as::<_, (String, i64, i64, f64)>(
+                                            "SELECT agent_name, input_tokens, output_tokens, cost_usd FROM token_ledger WHERE run_id = ?"
+                                        ).bind(&run_id).fetch_all(pool).await {
+                                            for l in ledger_rows {
+                                                node_metrics.insert(l.0, serde_json::json!({
+                                                    "input_tokens": l.1,
+                                                    "output_tokens": l.2,
+                                                    "total_tokens": l.1 + l.2,
+                                                    "cost_usd": l.3,
+                                                }));
+                                            }
+                                        }
+
+                                        let mut blackboard_snap = serde_json::Value::Null;
+                                        let mut completed_nodes: Vec<serde_json::Value> = Vec::new();
+                                        let mut active_nodes: Vec<serde_json::Value> = Vec::new();
+                                        if let Ok(Some(chk)) = sqlx::query_as::<_, (String, String, String, String, String)>(
+                                            "SELECT active_nodes_json, completed_nodes_json, blackboard_snapshot, previous_hash, state_hash FROM graph_checkpoints WHERE execution_id = ? ORDER BY step_number DESC LIMIT 1"
+                                        ).bind(&run_id).fetch_optional(pool).await {
+                                            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&chk.0) {
+                                                if let Some(arr) = v.as_array() { active_nodes = arr.clone(); }
+                                            }
+                                            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&chk.1) {
+                                                if let Some(arr) = v.as_array() { completed_nodes = arr.clone(); }
+                                            }
+                                            let _ = serde_json::from_str::<serde_json::Value>(&chk.2).map(|v| blackboard_snap = v);
+                                        }
+
+                                        let mut audit_count: i64 = 0;
+                                        if let Ok(cnt) = sqlx::query_as::<_, (i64,)>(
+                                            "SELECT COUNT(*) FROM audit_events WHERE run_id = ?"
+                                        ).bind(&run_id).fetch_one(pool).await {
+                                            audit_count = cnt.0;
+                                        }
+
+                                        latest_json = serde_json::json!({
+                                            "id": r.0,
+                                            "status": r.1,
+                                            "initiated_at": r.2,
+                                            "completed_at": r.3,
+                                            "total_tokens": r.4,
+                                            "total_cost_usd": r.5,
+                                            "metadata": r.6,
+                                            "node_metrics": node_metrics,
+                                            "active_nodes": active_nodes,
+                                            "completed_nodes": completed_nodes,
+                                            "blackboard": blackboard_snap,
+                                            "audit_blocks": audit_count,
+                                            "audit_verified": true
+                                        });
+                                    }
+                                }
+                                (
+                                    "200 OK",
+                                    "application/json",
+                                    serde_json::to_vec(&latest_json).unwrap_or_default(),
+                                )
+                            },
                             ("GET", "/api/teams") => {
                                 let mut teams = Vec::new();
-                                let search_dirs = ["teams", "examples/forester/teams", "agents", "examples/forester/agents"];
+                                let search_dirs = ["agents", "teams", "examples/forester/teams", "examples/forester/agents"];
                                 for dir in &search_dirs {
                                     if let Ok(entries) = std::fs::read_dir(dir) {
                                         for entry in entries.flatten() {
@@ -469,11 +560,65 @@ impl TopcoatServer {
                                             if p.is_file() && p.extension().is_some_and(|e| e == "yaml" || e == "yml") {
                                                 if let Ok(content) = std::fs::read_to_string(&p) {
                                                     let stem = p.file_stem().unwrap_or_default().to_string_lossy().to_string();
-                                                    let node_count = content.matches("name:").count();
+                                                    let parsed_graph = orbity_graph::GraphYamlLoader::parse_yaml(&content).ok();
+                                                    let (nodes_json, edges_json) = if let Some(g) = parsed_graph {
+                                                        let nodes = g.nodes.iter().map(|(id, n)| {
+                                                            let (cli, prompt, tier, model, budget) = match &n.kind {
+                                                                orbity_graph::types::NodeKind::Agent { cli, config } => (
+                                                                    cli.to_string(),
+                                                                    config.prompt_system.clone().or_else(|| config.prompt_template.clone()).unwrap_or_default(),
+                                                                    config.tier.clone().unwrap_or_else(|| "balanced".to_string()),
+                                                                    config.model.clone(),
+                                                                    n.budget_limit_usd.unwrap_or(0.50)
+                                                                ),
+                                                                orbity_graph::types::NodeKind::Tool { command, .. } => (
+                                                                    "tool".to_string(),
+                                                                    command.clone(),
+                                                                    "tool".to_string(),
+                                                                    None,
+                                                                    0.0
+                                                                ),
+                                                                _ => (
+                                                                    "agent".to_string(),
+                                                                    "".to_string(),
+                                                                    "balanced".to_string(),
+                                                                    None,
+                                                                    0.50
+                                                                )
+                                                            };
+                                                            serde_json::json!({
+                                                                "id": id.0,
+                                                                "name": n.name().to_string(),
+                                                                "cli": cli,
+                                                                "prompt": prompt,
+                                                                "tier": tier,
+                                                                "model": model,
+                                                                "budget": budget,
+                                                                "description": n.description.clone()
+                                                            })
+                                                        }).collect::<Vec<_>>();
+                                                        let edges = g.edges.iter().map(|e| {
+                                                            let condition = match &e.kind {
+                                                                orbity_graph::types::EdgeKind::Conditional { predicate } => Some(predicate.clone()),
+                                                                _ => None,
+                                                            };
+                                                            serde_json::json!({
+                                                                "from": e.from.0,
+                                                                "to": e.to.0,
+                                                                "condition": condition
+                                                            })
+                                                        }).collect::<Vec<_>>();
+                                                        (nodes, edges)
+                                                    } else {
+                                                        (Vec::new(), Vec::new())
+                                                    };
+
                                                     teams.push(serde_json::json!({
                                                         "name": stem,
                                                         "path": p.to_string_lossy().to_string(),
-                                                        "node_count": node_count,
+                                                        "node_count": if !nodes_json.is_empty() { nodes_json.len() } else { content.matches("name:").count() },
+                                                        "nodes": nodes_json,
+                                                        "edges": edges_json,
                                                         "content": content
                                                     }));
                                                 }
@@ -484,14 +629,18 @@ impl TopcoatServer {
                                 (
                                     "200 OK",
                                     "application/json",
-                                    serde_json::to_vec(&teams).unwrap_or_default(),
+                                    serde_json::to_vec(&serde_json::json!({ "teams": teams })).unwrap_or_default(),
                                 )
                             },
                             ("POST", "/api/teams") => {
                                 if let Ok(val) = serde_json::from_str::<serde_json::Value>(body_str) {
-                                    let team_name = val.get("name").and_then(|v| v.as_str()).unwrap_or("custom_team");
-                                    let yaml_content = val.get("yaml").and_then(|v| v.as_str()).unwrap_or("");
-                                    let path = format!("teams/{}.yaml", team_name);
+                                    let team_name = val.get("name").or_else(|| val.get("filename")).and_then(|v| v.as_str()).unwrap_or("custom_team");
+                                    let yaml_content = val.get("yaml").or_else(|| val.get("content")).and_then(|v| v.as_str()).unwrap_or("");
+                                    let path = if team_name.ends_with(".yaml") || team_name.ends_with(".yml") {
+                                        format!("teams/{}", team_name)
+                                    } else {
+                                        format!("teams/{}.yaml", team_name)
+                                    };
                                     let _ = std::fs::create_dir_all("teams");
                                     if std::fs::write(&path, yaml_content).is_ok() {
                                         (
@@ -500,7 +649,8 @@ impl TopcoatServer {
                                             serde_json::to_vec(&serde_json::json!({
                                                 "success": true,
                                                 "message": format!("Saved team to {}", path),
-                                                "path": path
+                                                "path": path,
+                                                "filename": team_name
                                             })).unwrap_or_default(),
                                         )
                                     } else {
@@ -514,21 +664,114 @@ impl TopcoatServer {
                                 if let Ok(val) = serde_json::from_str::<serde_json::Value>(body_str) {
                                     let prompt = val.get("prompt").and_then(|v| v.as_str()).unwrap_or("Run spatial canvas task").to_string();
                                     let yaml_opt = val.get("yaml").and_then(|v| v.as_str()).map(|s| s.to_string());
-                                    let team_name = val.get("team").and_then(|v| v.as_str()).unwrap_or("forester");
+                                    let team_name = val.get("team").and_then(|v| v.as_str()).unwrap_or("coder");
                                     let budget_usd = val.get("budget_usd").and_then(|v| v.as_f64());
 
                                     let exec_id = uuid::Uuid::new_v4();
 
-                                    let loaded_graph = if let Some(ref y) = yaml_opt {
+                                    let mut loaded_graph = if let Some(ref y) = yaml_opt {
                                         orbity_graph::GraphYamlLoader::parse_yaml(y).ok()
                                     } else {
+                                        None
+                                    };
+
+                                    if loaded_graph.is_none() {
+                                        if let Some(graph_val) = val.get("graph") {
+                                            let graph_name = graph_val.get("name").and_then(|v| v.as_str()).unwrap_or("canvas_workflow");
+                                            let mut nodes_map = std::collections::HashMap::new();
+                                            let mut terminal_nodes = std::collections::HashSet::new();
+                                            let mut start_node_id = None;
+                                            let mut edges_vec = Vec::new();
+
+                                            if let Some(nodes_arr) = graph_val.get("nodes").and_then(|v| v.as_array()) {
+                                                for (i, n) in nodes_arr.iter().enumerate() {
+                                                    let id_str = n.get("id").and_then(|v| v.as_str()).unwrap_or("node");
+                                                    let node_id = orbity_graph::types::NodeId::new(id_str);
+                                                    if i == 0 {
+                                                        start_node_id = Some(node_id.clone());
+                                                    }
+                                                    let cli_str = n.get("tool").or_else(|| n.get("cli")).and_then(|v| v.as_str()).unwrap_or("codex");
+                                                    let cli_type = match cli_str.to_lowercase().as_str() {
+                                                        "claude" => orbity_graph::types::CliType::Claude,
+                                                        "agy" => orbity_graph::types::CliType::Agy,
+                                                        "hermes" => orbity_graph::types::CliType::Hermes,
+                                                        "pi" => orbity_graph::types::CliType::Pi,
+                                                        _ => orbity_graph::types::CliType::Codex,
+                                                    };
+                                                    let prompt_str = n.get("prompt").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                    let tier_str = n.get("model_tier").or_else(|| n.get("tier")).and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                    let model_str = n.get("model").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                    let node_budget = n.get("max_budget").or_else(|| n.get("budget")).and_then(|v| v.as_f64()).unwrap_or(0.50);
+
+                                                    let spec = orbity_graph::types::AgentNodeSpec {
+                                                        name: id_str.to_string(),
+                                                        role: n.get("description").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                                        provider: Some(cli_str.to_string()),
+                                                        tier: tier_str,
+                                                        model: model_str,
+                                                        prompt_system: prompt_str,
+                                                        prompt_template: None,
+                                                        cli_args: vec![],
+                                                        allowed_tools: vec![],
+                                                        timeout_seconds: Some(300),
+                                                    };
+
+                                                    let mut gnode = orbity_graph::types::GraphNode::new(
+                                                        node_id.clone(),
+                                                        orbity_graph::types::NodeKind::Agent {
+                                                            cli: cli_type,
+                                                            config: spec,
+                                                        },
+                                                    );
+                                                    gnode.budget_limit_usd = Some(node_budget);
+                                                    nodes_map.insert(node_id.clone(), gnode);
+                                                    terminal_nodes.insert(node_id);
+                                                }
+                                            }
+
+                                            if let Some(edges_arr) = graph_val.get("edges").and_then(|v| v.as_array()) {
+                                                for e in edges_arr {
+                                                    if let (Some(from), Some(to)) = (e.get("from").and_then(|v| v.as_str()), e.get("to").and_then(|v| v.as_str())) {
+                                                        let edge_kind = if let Some(cond) = e.get("condition").and_then(|v| v.as_str()) {
+                                                            orbity_graph::types::EdgeKind::Conditional { predicate: cond.to_string() }
+                                                        } else {
+                                                            orbity_graph::types::EdgeKind::Direct
+                                                        };
+                                                        edges_vec.push(orbity_graph::types::GraphEdge::new(
+                                                            orbity_graph::types::NodeId::new(from),
+                                                            orbity_graph::types::NodeId::new(to),
+                                                            edge_kind,
+                                                        ));
+                                                        terminal_nodes.remove(&orbity_graph::types::NodeId::new(from));
+                                                    }
+                                                }
+                                            }
+
+                                            if let Some(start_id) = start_node_id {
+                                                loaded_graph = Some(orbity_graph::types::GraphDefinition {
+                                                    id: orbity_graph::types::GraphId::new(graph_name),
+                                                    name: graph_name.to_string(),
+                                                    nodes: nodes_map,
+                                                    edges: edges_vec,
+                                                    start_node: start_id,
+                                                    terminal_nodes,
+                                                    description: Some("Custom Spatial Canvas Graph".to_string()),
+                                                });
+                                            }
+                                        }
+                                    }
+
+                                    if loaded_graph.is_none() {
                                         let paths = [
+                                            format!("agents/{}.yaml", team_name),
                                             format!("teams/{}.yaml", team_name),
                                             format!("examples/forester/teams/{}.yaml", team_name),
-                                            format!("agents/{}.yaml", team_name),
+                                            format!("examples/forester/agents/{}.yaml", team_name),
+                                            "agents/coder.yaml".to_string(),
+                                            "examples/forester/teams/forester.yaml".to_string(),
                                         ];
-                                        paths.iter().find_map(|p| orbity_graph::GraphYamlLoader::load_file(p).ok())
-                                    };
+                                        loaded_graph = paths.iter().find_map(|p| orbity_graph::GraphYamlLoader::load_file(p).ok());
+                                    }
 
                                     if let Some(graph) = loaded_graph {
                                         let node_count = graph.nodes.len();
@@ -552,7 +795,7 @@ impl TopcoatServer {
                                         let bus = server.cx().bus().clone();
                                         let pool_opt = server.cx().pool().cloned();
 
-                                        let mut executor = orbity_graph::executor::GraphExecutor::new(graph, blackboard.clone(), finops, runner)
+                                        let mut executor = orbity_graph::executor::GraphExecutor::new(graph.clone(), blackboard.clone(), finops, runner)
                                             .with_execution_id(exec_id)
                                             .with_event_bus(bus);
 
@@ -560,12 +803,37 @@ impl TopcoatServer {
                                             let store = orbity_graph::checkpoint::GraphCheckpointStore::new(pool.clone());
                                             let _ = store.init_schema().await;
                                             executor = executor.with_checkpoints(store);
+
+                                            let exec_id_str = exec_id.to_string();
+                                            let now = chrono::Utc::now().to_rfc3339();
+                                            let _ = sqlx::query(
+                                                "INSERT INTO runs (id, status, initiated_at, total_tokens, total_cost_usd, metadata) VALUES (?, 'Running', ?, 0, 0.0, ?)"
+                                            )
+                                            .bind(&exec_id_str)
+                                            .bind(&now)
+                                            .bind(format!("team={}", graph.name))
+                                            .execute(pool)
+                                            .await;
                                         }
 
+                                        let pool_for_spawn = pool_opt.clone();
+                                        let run_id_str = exec_id.to_string();
                                         tokio::spawn(async move {
-                                            let _ = executor.execute().await;
+                                            let exec_res = executor.execute().await;
                                             if let Ok(cwd) = std::env::current_dir() {
                                                 let _ = sandbox.promote_changes(&cwd).await;
+                                            }
+                                            if let Some(pool) = &pool_for_spawn {
+                                                let final_status = if exec_res.is_ok() { "Completed" } else { "Failed" };
+                                                let now = chrono::Utc::now().to_rfc3339();
+                                                let _ = sqlx::query(
+                                                    "UPDATE runs SET status = ?, completed_at = ? WHERE id = ?"
+                                                )
+                                                .bind(final_status)
+                                                .bind(&now)
+                                                .bind(&run_id_str)
+                                                .execute(pool)
+                                                .await;
                                             }
                                         });
 
@@ -576,6 +844,7 @@ impl TopcoatServer {
                                                 "status": "Initiated",
                                                 "run_id": exec_id.to_string(),
                                                 "nodes_count": node_count,
+                                                "team": graph.name,
                                                 "message": format!("Execution {} started on Tokio Topcoat Engine", exec_id)
                                             })).unwrap_or_default(),
                                         )

@@ -967,11 +967,9 @@
 
     <!-- Center Prompt Bar (For Canvas Run) -->
     <div class="header-center" id="headerCenterCanvas">
-      <select id="selectTeamPreset" class="form-control" style="width: 140px; padding: 4px 6px; font-size: 0.775rem;">
-        <option value="coder.yaml">coder.yaml</option>
-        <option value="forester.yaml">forester.yaml</option>
-        <option value="architect.yaml">architect.yaml</option>
-        <option value="reviewer.yaml">reviewer.yaml</option>
+      <select id="selectTeamPreset" class="form-control" style="width: 140px; padding: 4px 6px; font-size: 0.775rem;" onchange="onSelectTeamPreset(this.value)">
+        <option value="coder">coder</option>
+        <option value="forester">forester</option>
       </select>
 
       <div class="prompt-bar">
@@ -1773,9 +1771,9 @@
         <div class="form-group">
           <label class="form-label">Modelo / Tier</label>
           <select class="form-control" onchange="updateNodeProp('${node.id}', 'tier', this.value)">
-            <option value="Fast" ${node.tier === 'Fast' ? 'selected' : ''}>Fast (Flash / Llama 3)</option>
-            <option value="Standard" ${node.tier === 'Standard' ? 'selected' : ''}>Standard (Codex / Sonnet)</option>
-            <option value="Deep Reasoning" ${node.tier === 'Deep Reasoning' ? 'selected' : ''}>Deep Reasoning (Opus / R1)</option>
+            <option value="fast" ${node.tier === 'fast' || node.tier === 'Fast' ? 'selected' : ''}>Fast (Flash / Llama 3)</option>
+            <option value="balanced" ${node.tier === 'balanced' || node.tier === 'Standard' ? 'selected' : ''}>Balanced (Codex / Sonnet)</option>
+            <option value="reasoning" ${node.tier === 'reasoning' || node.tier === 'Deep Reasoning' ? 'selected' : ''}>Reasoning (Opus / R1 / o3-mini)</option>
           </select>
         </div>
 
@@ -1788,6 +1786,14 @@
           <label class="form-label">Teto Orçamentário (USD)</label>
           <input type="number" step="0.05" class="form-control" value="${node.budget}" onchange="updateNodeProp('${node.id}', 'budget', parseFloat(this.value))">
         </div>
+
+        ${node.output ? `
+          <div class="form-group" style="margin-top:1rem;">
+            <label class="form-label" style="color:var(--accent-emerald);">Resultado Produzido (Output)</label>
+            <div style="background:#030611; border:1px solid rgba(16,185,129,0.3); border-radius:6px; padding:8px; font-family:'Fira Code',monospace; font-size:0.75rem; max-height:220px; overflow-y:auto; white-space:pre-wrap; color:#f8fafc;">${escapeHtml(node.output)}</div>
+            <button class="btn-ctrl" style="margin-top:6px; width:100%; border-color:var(--accent-emerald); color:var(--accent-emerald);" onclick="navigator.clipboard.writeText(${JSON.stringify(node.output)}); alert('Copiado para o clipboard!');">📋 Copiar Resultado</button>
+          </div>
+        ` : ''}
 
         <div style="margin-top:1rem; display:flex; gap:0.5rem;">
           <button class="btn-ctrl" style="flex:1; border-color:#f43f5e; color:#fb7185;" onclick="deleteNode('${node.id}')">Excluir Nó 🗑️</button>
@@ -1859,7 +1865,7 @@
       });
 
       // Queue of roots
-      const queue = canvasState.nodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
+      const queue = canvasState.nodes.filter(n => (inDegree[n.id] || 0) === 0).map(n => n.id);
       
       while (queue.length > 0) {
         const u = queue.shift();
@@ -1899,6 +1905,7 @@
     // Minimap
     function updateMinimap() {
       const minimapSvg = document.getElementById('minimapSvg');
+      if (!minimapSvg) return;
       minimapSvg.innerHTML = '';
 
       if (canvasState.nodes.length === 0) return;
@@ -1923,6 +1930,55 @@
       });
     }
 
+    // Discovered Teams & Real Workspace State
+    let discoveredTeams = [];
+    let latestRunData = null;
+
+    function onSelectTeamPreset(teamName) {
+      const team = discoveredTeams.find(t => t.name === teamName || t.name === teamName.replace(/\.ya?ml$/, ''));
+      if (!team) return;
+
+      loadTeamObjectToCanvas(team);
+    }
+
+    function loadTeamObjectToCanvas(team) {
+      canvasState.nodes = [];
+      canvasState.wires = [];
+      nodesLayer.innerHTML = '';
+      closeInspector();
+
+      if (team.nodes && team.nodes.length > 0) {
+        team.nodes.forEach((n, idx) => {
+          const cliLower = (n.cli || 'codex').toLowerCase();
+          const nodeType = AGENT_TYPES[cliLower] ? cliLower : 'codex';
+          createNode(nodeType, 100 + idx * 300, 120, {
+            id: n.id,
+            title: n.name || n.id,
+            cli: n.cli || 'codex',
+            prompt: n.prompt || 'Executar pipeline na sandbox isolada',
+            tier: n.tier || 'balanced',
+            budget: n.budget || 0.50,
+            status: 'idle'
+          });
+        });
+
+        if (team.edges && team.edges.length > 0) {
+          team.edges.forEach(e => {
+            connectNodes(e.from, e.to, e.condition ? 'conditional' : 'direct');
+          });
+        }
+      } else {
+        // Fallback default node
+        createNode('codex', 100, 120, {
+          id: team.name || 'worker',
+          prompt: 'Execute a tarefa designada no pipeline.',
+          cli: 'codex'
+        });
+      }
+
+      autoLayoutDAG();
+    }
+
     // Real-time SSE Execution Stream
     let eventSource = null;
 
@@ -1941,8 +1997,8 @@
 
         eventSource.onmessage = (e) => {
           try {
-            const ev = JSON.parse(e.data);
-            handleRuntimeEvent(ev);
+            const parsed = JSON.parse(e.data);
+            handleRuntimeEvent(parsed);
           } catch (err) {
             console.error("SSE JSON parse error:", err);
           }
@@ -1957,29 +2013,85 @@
       }
     }
 
-    function handleRuntimeEvent(ev) {
-      console.log("Runtime Event:", ev);
+    function handleRuntimeEvent(raw) {
+      // Unwrap EventEnvelope { event: { event_type: "...", data: {...} } } or direct event
+      const env = raw.event || raw;
+      const eventType = env.event_type || raw.event_type || raw.type || '';
+      const data = env.data || env;
 
-      if (ev.type === "node_started" || ev.event === "node.started") {
-        const nodeId = ev.node_id || ev.node;
+      console.log("Runtime Event:", eventType, data);
+
+      if (eventType === "AgentStarted" || eventType === "agent_started" || eventType === "node_started") {
+        const nodeId = data.agent_id || data.task_id || data.node_id || data.node;
+        let node = canvasState.nodes.find(n => n.id === nodeId);
+        if (!node) {
+          const cliLower = (data.agent_name || 'codex').toLowerCase();
+          const nodeType = AGENT_TYPES[cliLower] ? cliLower : 'codex';
+          node = createNode(nodeType, 100, 100, { id: nodeId, title: data.agent_name, cli: cliLower });
+          autoLayoutDAG();
+        }
         setNodeState(nodeId, "running");
         animateWireTo(nodeId, true);
-      } else if (ev.type === "node_output" || ev.event === "node.output") {
-        const nodeId = ev.node_id || ev.node;
-        appendNodePty(nodeId, ev.line || ev.chunk || ev.data);
-      } else if (ev.type === "node_completed" || ev.event === "node.completed") {
-        const nodeId = ev.node_id || ev.node;
+        appendNodePty(nodeId, `[START] Executing agent ${data.agent_name || nodeId}...`);
+      } else if (eventType === "CommandExecuted" || eventType === "command_executed") {
+        const nodeId = data.agent_name || data.task_id || data.agent_id;
+        if (nodeId) {
+          appendNodePty(nodeId, `$ ${data.command || ''} ${(data.args || []).join(' ')}`);
+          if (data.stdout_preview) {
+            appendNodePty(nodeId, data.stdout_preview);
+          }
+          if (data.stderr_preview) {
+            appendNodePty(nodeId, `[stderr] ${data.stderr_preview}`);
+          }
+        }
+      } else if (eventType === "TokenUsageRecorded" || eventType === "token_usage") {
+        const nodeId = data.agent_name || data.task_id || data.agent_id;
+        const totalTok = (data.input_tokens || 0) + (data.output_tokens || 0);
+        const cost = data.cost_usd || 0.0;
+        if (nodeId) {
+          const node = canvasState.nodes.find(n => n.id === nodeId);
+          if (node) {
+            node.tokens = (node.tokens || 0) + totalTok;
+            node.cost = `$${cost.toFixed(4)}`;
+            const finEl = document.getElementById(`node-finops-${nodeId}`);
+            if (finEl) finEl.innerText = `${node.cost} (${node.tokens} tok)`;
+          }
+        }
+        // Update global FinOps
+        if (finopsTokens && data.input_tokens) {
+          const current = parseInt(finopsTokens.innerText.replace(/,/g, '')) || 0;
+          finopsTokens.innerText = (current + totalTok).toLocaleString();
+        }
+        if (finopsCost && cost > 0) {
+          const curCost = parseFloat(finopsCost.innerText.replace('$', '')) || 0.0;
+          finopsCost.innerText = `$${(curCost + cost).toFixed(4)}`;
+        }
+      } else if (eventType === "AgentFinished" || eventType === "agent_finished" || eventType === "node_completed") {
+        const nodeId = data.agent_id || data.task_id || data.agent_name;
         setNodeState(nodeId, "completed");
         animateWireTo(nodeId, false);
-      } else if (ev.type === "node_failed" || ev.event === "node.failed") {
-        const nodeId = ev.node_id || ev.node;
+        appendNodePty(nodeId, `✔ Completed in sandbox.`);
+        if (data.summary) {
+          appendNodePty(nodeId, data.summary);
+          const node = canvasState.nodes.find(n => n.id === nodeId);
+          if (node) node.output = data.summary;
+        }
+      } else if (eventType === "AgentFailed" || eventType === "agent_failed" || eventType === "node_failed") {
+        const nodeId = data.agent_id || data.task_id || data.agent_name;
         setNodeState(nodeId, "failed");
         animateWireTo(nodeId, false);
-      } else if (ev.type === "human_approval_required") {
-        showHitlModal(ev);
-      } else if (ev.type === "finops_update") {
-        if (ev.total_tokens) finopsTokens.innerText = ev.total_tokens.toLocaleString();
-        if (ev.total_cost_usd) finopsCost.innerText = `$${ev.total_cost_usd.toFixed(2)}`;
+        appendNodePty(nodeId, `✖ Error: ${data.error || 'Execution failed'}`);
+      } else if (eventType === "ApprovalRequired" || eventType === "human_approval_required") {
+        showHitlModal(data);
+      } else if (eventType === "RunCompleted" || eventType === "run_completed") {
+        const runBtn = document.getElementById('btnRunCanvas');
+        if (runBtn) {
+          runBtn.classList.remove('running');
+          runBtn.innerHTML = `<span>🚀</span> Executar`;
+        }
+        if (data.total_tokens) finopsTokens.innerText = data.total_tokens.toLocaleString();
+        if (data.total_cost_usd) finopsCost.innerText = `$${data.total_cost_usd.toFixed(4)}`;
+        console.log(`Execution ${data.run_id} completed successfully in ${data.duration_ms}ms.`);
       }
     }
 
@@ -2044,15 +2156,18 @@
         if (pty) pty.innerHTML = `<div class="pty-log-line">[PTY] Aguardando despacho...</div>`;
       });
 
+      const selectedTeam = document.getElementById('selectTeamPreset').value;
+
       const payload = {
         prompt,
+        team: selectedTeam,
         graph: {
-          name: "canvas_workflow",
+          name: selectedTeam || "canvas_workflow",
           nodes: canvasState.nodes.filter(n => n.type !== 'sticky' && n.type !== 'portal').map(n => ({
             id: n.id,
             tool: n.cli || "codex",
             prompt: n.prompt || prompt,
-            model_tier: n.tier || "Standard",
+            model_tier: n.tier || "balanced",
             max_budget: n.budget || 0.50
           })),
           edges: canvasState.wires.map(w => ({
@@ -2075,11 +2190,6 @@
         canvasState.activeRunId = data.run_id;
       } catch (err) {
         console.error("Failed to post /api/run:", err);
-      } finally {
-        setTimeout(() => {
-          runBtn.classList.remove('running');
-          runBtn.innerHTML = `<span>🚀</span> Executar`;
-        }, 2000);
       }
     }
 
@@ -2087,8 +2197,8 @@
     let activeHitlEvent = null;
     function showHitlModal(ev) {
       activeHitlEvent = ev;
-      document.getElementById('hitlDesc').innerText = ev.message || "Aprovação de comando exigida pela política de segurança.";
-      document.getElementById('hitlCommand').innerText = ev.command || "cargo test";
+      document.getElementById('hitlDesc').innerText = ev.prompt || ev.message || "Aprovação de comando exigida pela política de segurança.";
+      document.getElementById('hitlCommand').innerText = ev.command || (ev.proposed_cost_usd ? `Proposed Cost: $${ev.proposed_cost_usd}` : "Aprovação Human-in-the-Loop");
       document.getElementById('hitlModal').classList.add('active');
     }
 
@@ -2164,8 +2274,6 @@
 
     function applyYamlToCanvas() {
       closeYamlModal();
-      // Parse YAML and rebuild canvas
-      alert("YAML aplicado ao Canvas! Organizando DAG automaticamente...");
       autoLayoutDAG();
     }
 
@@ -2180,32 +2288,95 @@
         .replace(/'/g, '&#039;');
     }
 
+    // Load real workspace latest execution and teams on load
+    async function loadWorkspaceData() {
+      try {
+        // 1. Fetch real teams and agents from backend
+        const teamsRes = await fetch('/api/teams');
+        const teamsData = await teamsRes.json();
+        discoveredTeams = teamsData.teams || [];
+
+        if (discoveredTeams.length > 0) {
+          const select = document.getElementById('selectTeamPreset');
+          select.innerHTML = discoveredTeams.map(t => `<option value="${t.name}">${t.name} (${t.node_count || 1} nó${t.node_count > 1 ? 's' : ''})</option>`).join('');
+        }
+
+        // 2. Fetch latest run from SQLite
+        const runRes = await fetch('/api/runs/latest');
+        const runData = await runRes.json();
+        latestRunData = runData;
+
+        if (runData && runData.id) {
+          if (runData.total_tokens) finopsTokens.innerText = runData.total_tokens.toLocaleString();
+          if (runData.total_cost_usd) finopsCost.innerText = `$${runData.total_cost_usd.toFixed(4)}`;
+
+          // Find team from metadata (e.g. target=coder or team=coder)
+          let teamName = "coder";
+          if (runData.metadata) {
+            const m = runData.metadata.match(/(?:target|team)=([a-zA-Z0-9_\-]+)/);
+            if (m) teamName = m[1];
+          }
+
+          const matchedTeam = discoveredTeams.find(t => t.name === teamName) || discoveredTeams[0];
+          if (matchedTeam) {
+            document.getElementById('selectTeamPreset').value = matchedTeam.name;
+            loadTeamObjectToCanvas(matchedTeam);
+          }
+
+          // Populate completed outputs from blackboard snapshot
+          if (runData.blackboard && runData.blackboard.node_outputs) {
+            const outputs = runData.blackboard.node_outputs;
+            Object.keys(outputs).forEach(nodeKey => {
+              const outVal = outputs[nodeKey];
+              let text = typeof outVal === 'string' ? outVal : JSON.stringify(outVal, null, 2);
+              
+              // Clean JSON lines if needed
+              let cleaned = "";
+              text.split('\n').forEach(l => {
+                try {
+                  const j = JSON.parse(l);
+                  if (j.item && j.item.text) cleaned += j.item.text + '\n';
+                  else if (j.result) cleaned += j.result + '\n';
+                } catch (_) {}
+              });
+              if (cleaned.trim()) text = cleaned.trim();
+
+              const node = canvasState.nodes.find(n => n.id === nodeKey);
+              if (node) {
+                node.output = text;
+                node.status = "completed";
+                setNodeState(nodeKey, "completed");
+                appendNodePty(nodeKey, `✔ Execution Output:\n${text}`);
+              }
+            });
+          }
+
+          if (runData.node_metrics) {
+            Object.keys(runData.node_metrics).forEach(nk => {
+              const m = runData.node_metrics[nk];
+              const node = canvasState.nodes.find(n => n.id === nk);
+              if (node) {
+                node.tokens = m.total_tokens;
+                node.cost = `$${m.cost_usd.toFixed(4)}`;
+                const finEl = document.getElementById(`node-finops-${nk}`);
+                if (finEl) finEl.innerText = `${node.cost} (${node.tokens} tok)`;
+              }
+            });
+          }
+        } else if (discoveredTeams.length > 0) {
+          // Default to first discovered team (e.g. coder)
+          loadTeamObjectToCanvas(discoveredTeams[0]);
+        }
+      } catch (err) {
+        console.warn("Could not load latest workspace data:", err);
+      }
+    }
+
     // Default Initialization on Load
     window.addEventListener('DOMContentLoaded', () => {
-      // Create initial canonical agent DAG
-      const agy = createNode('agy', 100, 120, { id: 'researcher', prompt: 'Pesquisar padrões de código e contexto no repositório.' });
-      const codex = createNode('codex', 500, 80, { id: 'coder', prompt: 'Gerar implementação e executar testes na Sandbox bwrap.' });
-      const claude = createNode('claude', 500, 320, { id: 'reviewer', prompt: 'Auditar segurança, invariantes e conformidade.' });
-      const pi = createNode('pi', 900, 200, { id: 'refactor', prompt: 'Aplicar ajustes e síntese final.' });
-
-      connectNodes('researcher', 'coder');
-      connectNodes('researcher', 'reviewer');
-      connectNodes('coder', 'refactor');
-      connectNodes('reviewer', 'refactor');
-
-      // Add a sticky note
-      createNode('sticky', 100, 400, { id: 'note_1', prompt: '💡 Arquitetura Maestri Spatial:\nCada nó executa em Sandbox isolada com stream PTY em tempo real.' });
-
       updateTransform();
       initSSE();
-
-      // Load presets
-      fetch('/api/teams').then(r => r.json()).then(data => {
-        if (data.teams && data.teams.length > 0) {
-          const select = document.getElementById('selectTeamPreset');
-          select.innerHTML = data.teams.map(t => `<option value="${t}">${t}</option>`).join('');
-        }
-      }).catch(() => {});
+      loadWorkspaceData();
     });
   </script>
 </body>

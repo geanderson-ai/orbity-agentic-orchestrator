@@ -89,11 +89,13 @@ impl CommandDispatcher {
             Commands::Serve(args) => {
                 let addr: SocketAddr = format!("{}:{}", args.host, args.port).parse()?;
                 let bus = EventBus::new(EventBusConfig::default());
+                let pool = SqliteStoragePool::connect_file(&cli.db_path).await?;
+                pool.run_migrations().await?;
                 let config = ServerConfig {
                     bind_addr: addr,
                     ..Default::default()
                 };
-                let cx = Cx::new(bus, None, config);
+                let cx = Cx::new(bus, Some(pool.inner().clone()), config);
                 let server = TopcoatServer::new(cx);
 
                 server.run_server(addr).await?;
