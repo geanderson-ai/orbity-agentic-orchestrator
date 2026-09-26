@@ -297,7 +297,7 @@ async fn test_yaml_loader_forester_canonical_file() {
 
     let graph = GraphYamlLoader::load_file(target).expect("Must parse forester.yaml");
     assert_eq!(graph.name, "forester");
-    assert_eq!(graph.start_node.0.as_str(), "deep_research");
-    assert_eq!(graph.nodes.len(), 4);
-    assert_eq!(graph.edges.len(), 3);
+    assert_eq!(graph.start_node.0.as_str(), "forester-lead");
+    assert_eq!(graph.nodes.len(), 7);
+    assert_eq!(graph.edges.len(), 9);
 }

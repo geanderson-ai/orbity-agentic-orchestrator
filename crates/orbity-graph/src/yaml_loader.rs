@@ -48,6 +48,47 @@ fn default_edge_type() -> String {
     "direct".to_string()
 }
 
+fn default_agent_kind() -> String {
+    "agent".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct YamlTopologyNode {
+    pub id: String,
+    #[serde(default = "default_agent_kind")]
+    pub kind: String,
+    pub worker_ref: Option<String>,
+    pub command: Option<String>,
+    pub timeout_seconds: Option<u64>,
+    pub prompt: Option<String>,
+    pub approval_rule: Option<serde_yaml::Value>,
+    pub retries: Option<u32>,
+    pub budget_usd: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct YamlTopologyEdge {
+    pub from: serde_yaml::Value,
+    pub to: serde_yaml::Value,
+    #[serde(rename = "type", default = "default_edge_type")]
+    pub edge_type: String,
+    pub condition: Option<String>,
+    pub inject_context: Option<Vec<String>>,
+    pub max_iterations: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct YamlGraphTopology {
+    pub entrypoint_node: Option<String>,
+    pub start_node: Option<String>,
+    #[serde(default)]
+    pub terminal_nodes: Vec<String>,
+    #[serde(default)]
+    pub nodes: Vec<YamlTopologyNode>,
+    #[serde(default)]
+    pub edges: Vec<YamlTopologyEdge>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct YamlGraphTeam {
     pub name: String,
@@ -320,7 +361,16 @@ impl GraphYamlLoader {
         let team_name = def.team.name.clone();
         let description = def.team.description.clone();
 
-        // Extract steps from orchestrator plan default_pipeline or steps
+        // 1. If canonical graph_topology is provided, compile directly from rich graph topology
+        if let Some(ref topology_val) = def.team.graph_topology {
+            if !topology_val.is_null() {
+                if let Ok(graph) = Self::build_from_graph_topology(team_name.clone(), description.clone(), &def.team, topology_val) {
+                    return Ok(graph);
+                }
+            }
+        }
+
+        // 2. Extract steps from orchestrator plan default_pipeline or steps
         let steps = def
             .team
             .orchestrator
@@ -465,6 +515,173 @@ impl GraphYamlLoader {
             .step_id
             .clone()
             .unwrap_or_else(|| format!("step_{}", steps.len() - 1))];
+
+        let yaml_team = YamlGraphTeam {
+            name: team_name,
+            description,
+            start_node,
+            terminal_nodes,
+            nodes,
+            edges,
+        };
+
+        Self::build_from_yaml_team(yaml_team)
+    }
+
+    fn build_from_graph_topology(
+        team_name: String,
+        description: Option<String>,
+        team_config: &orbity_core::contracts::TeamConfig,
+        topology_value: &serde_yaml::Value,
+    ) -> Result<GraphDefinition, GraphYamlError> {
+        let topology: YamlGraphTopology = serde_yaml::from_value(topology_value.clone())
+            .map_err(|e| GraphYamlError::InvalidTopology(format!("Failed to parse graph_topology: {}", e)))?;
+
+        if topology.nodes.is_empty() {
+            return Err(GraphYamlError::InvalidTopology("graph_topology contains no nodes".to_string()));
+        }
+
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+
+        let find_worker = |ref_name: &str| -> Option<&orbity_core::contracts::WorkerConfig> {
+            let clean = ref_name.to_lowercase().replace('_', "-");
+            if let Some(w) = team_config.workers.iter().find(|w| w.id == ref_name || w.name.as_deref() == Some(ref_name)) {
+                return Some(w);
+            }
+            for w in &team_config.workers {
+                let w_id = w.id.to_lowercase().replace('_', "-");
+                let w_runner = w.runner.to_lowercase();
+                let w_provider = w.provider.as_deref().unwrap_or("").to_lowercase();
+                if clean.contains(&w_runner) || (!w_provider.is_empty() && clean.contains(&w_provider)) {
+                    return Some(w);
+                }
+                if w_id.contains("codex") && clean.contains("codex") {
+                    return Some(w);
+                }
+                if (w_id.contains("claude") || w_id.contains("review") || w_id.contains("audit")) && (clean.contains("claude") || clean.contains("review") || clean.contains("audit")) {
+                    return Some(w);
+                }
+                if (w_id.contains("hermes") || w_id.contains("scout") || w_id.contains("research")) && (clean.contains("hermes") || clean.contains("scout") || clean.contains("research")) {
+                    return Some(w);
+                }
+                if (w_id.contains("pi") || w_id.contains("fix")) && (clean.contains("pi") || clean.contains("fix")) {
+                    return Some(w);
+                }
+                if (w_id.contains("agy") || w_id.contains("lead") || w_id.contains("plan")) && (clean.contains("agy") || clean.contains("lead") || clean.contains("plan")) {
+                    return Some(w);
+                }
+            }
+            None
+        };
+
+        for node_def in &topology.nodes {
+            let node_id = node_def.id.clone();
+            let kind = node_def.kind.to_lowercase();
+            let matched_worker = node_def.worker_ref.as_deref().and_then(find_worker);
+
+            let (node_type, cli, tier, model, prompt_str, command, predicate_expr) = match kind.as_str() {
+                "tool" => {
+                    ("tool".to_string(), None, None, None, None, node_def.command.clone(), None)
+                }
+                "human_gate" => {
+                    ("human_gate".to_string(), None, None, None, node_def.prompt.clone(), None, None)
+                }
+                "router" | "conditional" => {
+                    ("conditional_router".to_string(), None, None, None, None, None, node_def.prompt.clone())
+                }
+                "join" | "barrier" => {
+                    ("join_barrier".to_string(), None, None, None, None, None, None)
+                }
+                "supervisor" => {
+                    let orch_runner = team_config.orchestrator.runner.clone().unwrap_or_else(|| "agy".to_string());
+                    let p = node_def.prompt.clone().or_else(|| team_config.orchestrator.prompt.as_ref().map(|p| p.system.clone()));
+                    ("agent".to_string(), Some(orch_runner.clone()), None, None, p, None, None)
+                }
+                _ => {
+                    let (cli_val, tier_val, model_val, p_val) = if let Some(w) = matched_worker {
+                        let c = if !w.runner.is_empty() {
+                            w.runner.clone()
+                        } else {
+                            w.provider.clone().unwrap_or_else(|| "codex".to_string())
+                        };
+                        let t = w.tier.clone();
+                        let m = w.model.clone();
+                        let p = node_def.prompt.clone().or_else(|| w.prompt.as_ref().map(|p| p.system.clone()));
+                        (c, t, m, p)
+                    } else {
+                        let ref_str = node_def.worker_ref.as_deref().unwrap_or(&node_def.id);
+                        let c = if ref_str.contains("codex") {
+                            "codex".to_string()
+                        } else if ref_str.contains("claude") {
+                            "claude".to_string()
+                        } else if ref_str.contains("hermes") {
+                            "hermes".to_string()
+                        } else if ref_str.contains("pi") {
+                            "pi".to_string()
+                        } else {
+                            "agy".to_string()
+                        };
+                        (c, None, None, node_def.prompt.clone())
+                    };
+                    ("agent".to_string(), Some(cli_val.clone()), tier_val, model_val, p_val, None, None)
+                }
+            };
+
+            nodes.push(YamlNodeDef {
+                id: node_id.clone(),
+                node_type,
+                engine: None,
+                cli: cli.clone(),
+                provider: cli,
+                tier,
+                model,
+                command,
+                predicate_expr,
+                prompt: prompt_str,
+                timeout_secs: node_def.timeout_seconds.or(Some(300)),
+                quorum: None,
+                retries: node_def.retries.or(Some(1)),
+                budget_usd: node_def.budget_usd.or(Some(1.0)),
+                description: Some(node_def.id.clone()),
+            });
+        }
+
+        for edge_def in &topology.edges {
+            let from_nodes: Vec<String> = match &edge_def.from {
+                serde_yaml::Value::Sequence(seq) => seq.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect(),
+                serde_yaml::Value::String(s) => vec![s.clone()],
+                _ => Vec::new(),
+            };
+
+            let to_nodes: Vec<String> = match &edge_def.to {
+                serde_yaml::Value::Sequence(seq) => seq.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect(),
+                serde_yaml::Value::String(s) => vec![s.clone()],
+                _ => Vec::new(),
+            };
+
+            for from_n in &from_nodes {
+                for to_n in &to_nodes {
+                    edges.push(YamlEdgeDef {
+                        from: from_n.clone(),
+                        to: to_n.clone(),
+                        edge_type: edge_def.edge_type.clone(),
+                        predicate: edge_def.condition.clone(),
+                        max_iterations: edge_def.max_iterations,
+                    });
+                }
+            }
+        }
+
+        let start_node = topology.entrypoint_node
+            .or(topology.start_node)
+            .unwrap_or_else(|| nodes.first().unwrap().id.clone());
+
+        let terminal_nodes = if !topology.terminal_nodes.is_empty() {
+            topology.terminal_nodes
+        } else {
+            vec![nodes.last().unwrap().id.clone()]
+        };
 
         let yaml_team = YamlGraphTeam {
             name: team_name,
