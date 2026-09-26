@@ -219,10 +219,40 @@ impl CommandDispatcher {
                         serde_json::Value::String(args.prompt.clone()),
                     )
                     .await;
-                let finops = orbity_graph::finops::GraphFinOpsTracker::new(args.budget_usd, None);
+
+                let approval_policy = if args.auto_approve {
+                    Some(orbity_core::contracts::ApprovalPolicy {
+                        mode: orbity_core::contracts::ApprovalMode::Automatic,
+                        auto_approve: vec![orbity_core::contracts::AutoApprovalRule {
+                            rule: "cli_auto_approve".to_string(),
+                            condition: None,
+                            tools: vec![],
+                            patterns: vec!["*".to_string()],
+                        }],
+                        ..Default::default()
+                    })
+                } else {
+                    None
+                };
+
+                let finops = orbity_graph::finops::GraphFinOpsTracker::new(args.budget_usd, approval_policy);
 
                 let mut sandbox_config = orbity_sandbox::types::SandboxConfig::default();
-                sandbox_config.network = orbity_sandbox::types::NetworkMode::HostMediated;
+                match args.sandbox.as_str() {
+                    "isolated" => {
+                        sandbox_config.network = orbity_sandbox::types::NetworkMode::Isolated;
+                        sandbox_config.root_readonly = true;
+                    }
+                    "allowlist" => {
+                        sandbox_config.network = orbity_sandbox::types::NetworkMode::HostMediated;
+                        sandbox_config.root_readonly = true;
+                    }
+                    _ => {
+                        sandbox_config.network = orbity_sandbox::types::NetworkMode::HostMediated;
+                        sandbox_config.root_readonly = false;
+                    }
+                }
+
                 if let Ok(cwd) = std::env::current_dir() {
                     sandbox_config.workspace = orbity_sandbox::types::WorkspaceMode::EphemeralCopyOnWrite(cwd);
                 }
@@ -317,22 +347,119 @@ impl CommandDispatcher {
                 store.init_schema().await?;
 
                 let latest_chk = store.load_latest_checkpoint(exec_uuid).await?;
-                match latest_chk {
-                    Some(chk) => {
-                        println!("🔄 Found checkpoint for run {} at step {}", args.run_id, chk.step_number);
-                        println!("   Active nodes:    {:?}", chk.active_nodes);
-                        println!("   Completed nodes: {:?}", chk.completed_nodes);
-                        println!("   State hash:      {}", chk.state_hash);
-                        if args.approve {
-                            println!("   Human decision:  APPROVED");
-                        } else if args.reject {
-                            println!("   Human decision:  REJECTED");
-                        }
-                        println!("✅ State verified and ready to continue.");
-                        Ok(0)
-                    }
+                let chk = match latest_chk {
+                    Some(c) => c,
                     None => {
                         eprintln!("❌ No checkpoint found in SQLite for run_id {}", args.run_id);
+                        return Ok(1);
+                    }
+                };
+
+                println!("🔄 Found checkpoint for run {} at step {}", args.run_id, chk.step_number);
+                println!("   Active nodes:    {:?}", chk.active_nodes);
+                println!("   Completed nodes: {:?}", chk.completed_nodes);
+                println!("   State hash:      {}", chk.state_hash);
+                if args.approve {
+                    println!("   Human decision:  APPROVED");
+                } else if args.reject {
+                    println!("   Human decision:  REJECTED");
+                }
+
+                // Retrieve target team name from run record or fallback search
+                let run_dao = orbity_storage::dao::run::RunDao::new(pool.clone());
+                let run_opt = run_dao.get(&args.run_id).await?;
+                let target_name = run_opt.as_ref()
+                    .and_then(|r| r.metadata.as_ref())
+                    .and_then(|m| m.strip_prefix("target="))
+                    .unwrap_or("dev_team");
+
+                let search_paths = vec![
+                    format!("teams/{}.yaml", target_name),
+                    format!("teams/{}.yml", target_name),
+                    format!("agents/{}.yaml", target_name),
+                    format!("agents/{}.yml", target_name),
+                    format!("{}.yaml", target_name),
+                    format!("{}.yml", target_name),
+                    format!("examples/forester/teams/{}.yaml", target_name),
+                    format!("examples/forester/agents/{}.yaml", target_name),
+                ];
+
+                let mut loaded_graph = None;
+                for file_path in &search_paths {
+                    if Path::new(file_path).exists() {
+                        if let Ok(graph) = GraphYamlLoader::load_file(file_path) {
+                            loaded_graph = Some(graph);
+                            break;
+                        }
+                    }
+                }
+
+                let graph = match loaded_graph {
+                    Some(g) => g,
+                    None => {
+                        eprintln!("❌ Could not locate YAML configuration for '{}'", target_name);
+                        return Ok(1);
+                    }
+                };
+
+                // Restore blackboard state
+                let blackboard = orbity_graph::blackboard::Blackboard::new();
+                let _ = blackboard.restore_snapshot(chk.blackboard_snapshot.clone()).await;
+
+                if args.approve {
+                    blackboard.set_context("approval_status", serde_json::Value::String("approved".to_string())).await;
+                } else if args.reject {
+                    blackboard.set_context("approval_status", serde_json::Value::String("rejected".to_string())).await;
+                }
+
+                let finops = orbity_graph::finops::GraphFinOpsTracker::new(None, None);
+
+                let mut sandbox_config = orbity_sandbox::types::SandboxConfig::default();
+                sandbox_config.network = orbity_sandbox::types::NetworkMode::HostMediated;
+                if let Ok(cwd) = std::env::current_dir() {
+                    sandbox_config.workspace = orbity_sandbox::types::WorkspaceMode::EphemeralCopyOnWrite(cwd);
+                }
+                let mut bwrap_box = orbity_sandbox::BwrapSandbox::new(sandbox_config);
+                use orbity_sandbox::traits::Sandbox;
+                bwrap_box.initialize().await
+                    .map_err(|e| format!("Sandbox initialization failed: {}", e))?;
+
+                let sandbox: std::sync::Arc<dyn orbity_sandbox::traits::Sandbox> =
+                    std::sync::Arc::new(bwrap_box);
+
+                let runner = std::sync::Arc::new(orbity_agent::runners::SandboxCliNodeRunner::new(sandbox.clone()));
+                let bus = EventBus::new(EventBusConfig::default());
+
+                let executor = orbity_graph::executor::GraphExecutor::new(graph, blackboard.clone(), finops, runner)
+                    .with_execution_id(exec_uuid)
+                    .with_event_bus(bus)
+                    .with_checkpoints(store)
+                    .with_initial_state(chk.step_number, chk.active_nodes.clone(), chk.completed_nodes.clone());
+
+                let _ = run_dao.update_status(&args.run_id, "Running", None).await;
+
+                println!("🚀 Resuming execution from step {}...", chk.step_number);
+                match executor.execute().await {
+                    Ok(()) => {
+                        let _ = run_dao.update_status(&args.run_id, "Completed", Some(chrono::Utc::now())).await;
+
+                        if let Ok(cwd) = std::env::current_dir() {
+                            if let Ok(promoted) = sandbox.promote_changes(&cwd).await {
+                                if !promoted.is_empty() {
+                                    println!("\n📦 Workspace files updated ({} change(s)):", promoted.len());
+                                    for change in promoted {
+                                        println!("  - {:?}: {}", change.change_type, change.relative_path.display());
+                                    }
+                                }
+                            }
+                        }
+
+                        println!("\n✅ Resumed execution {} finished successfully!", args.run_id);
+                        Ok(0)
+                    }
+                    Err(e) => {
+                        let _ = run_dao.update_status(&args.run_id, "Failed", Some(chrono::Utc::now())).await;
+                        eprintln!("\n❌ Resumed execution {} failed: {}", args.run_id, e);
                         Ok(1)
                     }
                 }
