@@ -141,24 +141,47 @@ impl CommandDispatcher {
                 println!("🚀 Initiating run {}...", exec_id);
                 println!("Prompt: {}", args.prompt);
 
-                // Load team or pipeline if specified, or search in teams/ or examples/forester/teams/
-                let team_name = args.team.as_deref().unwrap_or("dev_team");
-                let search_paths = [
-                    format!("teams/{}.yaml", team_name),
-                    format!("teams/{}.yml", team_name),
-                    format!("{}.yaml", team_name),
-                    format!("examples/forester/teams/{}.yaml", team_name),
-                    format!("examples/forester/teams/{}.yml", team_name),
+                // Load team or agent pipeline if specified, or search in agents/, teams/, root or examples
+                let target_name = args.team.as_deref().unwrap_or("dev_team");
+                let mut search_paths = vec![
+                    format!("teams/{}.yaml", target_name),
+                    format!("teams/{}.yml", target_name),
+                    format!("agents/{}.yaml", target_name),
+                    format!("agents/{}.yml", target_name),
+                    format!("{}.yaml", target_name),
+                    format!("{}.yml", target_name),
+                    format!("examples/forester/teams/{}.yaml", target_name),
+                    format!("examples/forester/agents/{}.yaml", target_name),
                 ];
 
+                // If default dev_team is not found, automatically check if there are any YAML files in agents/ or teams/
+                if args.team.is_none() {
+                    if let Ok(entries) = std::fs::read_dir("agents") {
+                        for entry in entries.flatten() {
+                            let p = entry.path();
+                            if p.is_file() && (p.extension().is_some_and(|e| e == "yaml" || e == "yml")) {
+                                search_paths.push(p.to_string_lossy().to_string());
+                            }
+                        }
+                    }
+                    if let Ok(entries) = std::fs::read_dir("teams") {
+                        for entry in entries.flatten() {
+                            let p = entry.path();
+                            if p.is_file() && (p.extension().is_some_and(|e| e == "yaml" || e == "yml")) {
+                                search_paths.push(p.to_string_lossy().to_string());
+                            }
+                        }
+                    }
+                }
+
                 let mut loaded_graph = None;
-                for team_path in &search_paths {
-                    if Path::new(team_path).exists() {
-                        match GraphYamlLoader::load_file(team_path) {
+                for file_path in &search_paths {
+                    if Path::new(file_path).exists() {
+                        match GraphYamlLoader::load_file(file_path) {
                             Ok(graph) => {
                                 println!(
-                                    "Loaded team graph definition from {} (nodes: {})",
-                                    team_path,
+                                    "Loaded execution definition from {} (nodes: {})",
+                                    file_path,
                                     graph.nodes.len()
                                 );
                                 loaded_graph = Some(graph);
@@ -166,8 +189,8 @@ impl CommandDispatcher {
                             }
                             Err(e) => {
                                 eprintln!(
-                                    "❌ Failed to parse team graph from {}: {}",
-                                    team_path, e
+                                    "❌ Failed to parse graph definition from {}: {}",
+                                    file_path, e
                                 );
                                 return Ok(1);
                             }
@@ -179,8 +202,8 @@ impl CommandDispatcher {
                     Some(g) => g,
                     None => {
                         eprintln!(
-                            "❌ Error: Team '{}' was not found in ./teams/ or ./examples/forester/teams/.",
-                            team_name
+                            "❌ Error: Could not find any configuration for '{}' in ./agents/, ./teams/, or project root.\nCreate a YAML file in agents/ (e.g. agents/coder.yaml) or teams/ (e.g. teams/dev_team.yaml).",
+                            target_name
                         );
                         return Ok(1);
                     }
@@ -223,7 +246,7 @@ impl CommandDispatcher {
                     completed_at: None,
                     total_tokens: 0,
                     total_cost_usd: 0.0,
-                    metadata: Some(format!("team={}", team_name)),
+                    metadata: Some(format!("target={}", target_name)),
                 };
                 let _ = run_dao.create(&run_rec).await;
 

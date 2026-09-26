@@ -66,6 +66,25 @@ pub struct YamlNestedGraphTeam {
     pub team: YamlGraphTeam,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct YamlSimpleAgentWrapper {
+    pub agent: YamlSimpleAgent,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct YamlSimpleAgent {
+    pub id: Option<String>,
+    pub name: String,
+    pub role: Option<String>,
+    pub cli: Option<String>,
+    pub provider: Option<String>,
+    pub tier: Option<String>,
+    pub model: Option<String>,
+    pub system_prompt: Option<String>,
+    pub prompt: Option<serde_yaml::Value>,
+    pub timeout_secs: Option<u64>,
+}
+
 pub struct GraphYamlLoader;
 
 impl GraphYamlLoader {
@@ -88,9 +107,110 @@ impl GraphYamlLoader {
             return Self::build_from_team_file_def(team_file);
         }
 
+        // 4. Try AgentFileDefinition (canonical agente01.yaml format)
+        if let Ok(agent_file) =
+            serde_yaml::from_str::<orbity_core::contracts::AgentFileDefinition>(yaml_content)
+        {
+            return Self::build_from_agent_file_def(agent_file);
+        }
+
+        // 5. Try simple agent wrapper { agent: { name, cli, ... } }
+        if let Ok(agent_wrap) = serde_yaml::from_str::<YamlSimpleAgentWrapper>(yaml_content) {
+            return Self::build_from_simple_agent(agent_wrap.agent);
+        }
+
         // Fallback: return the original deserialization error from YamlGraphTeam
         let err: Result<YamlGraphTeam, _> = serde_yaml::from_str(yaml_content);
         Err(GraphYamlError::Yaml(err.unwrap_err()))
+    }
+
+    fn build_from_simple_agent(
+        agent: YamlSimpleAgent,
+    ) -> Result<GraphDefinition, GraphYamlError> {
+        let agent_id = agent.id.unwrap_or_else(|| agent.name.to_lowercase().replace(' ', "_"));
+        let cli = agent.cli.or(agent.provider).unwrap_or_else(|| "claude".to_string());
+        let prompt_str = agent.system_prompt.or_else(|| {
+            agent.prompt.and_then(|p| match p {
+                serde_yaml::Value::String(s) => Some(s),
+                serde_yaml::Value::Mapping(m) => m.get(&serde_yaml::Value::String("system".to_string()))
+                    .and_then(|v| v.as_str().map(|s| s.to_string())),
+                _ => None,
+            })
+        });
+
+        let node = YamlNodeDef {
+            id: agent_id.clone(),
+            node_type: "agent".to_string(),
+            engine: None,
+            cli: Some(cli.clone()),
+            provider: Some(cli),
+            tier: agent.tier,
+            model: agent.model,
+            command: None,
+            predicate_expr: None,
+            prompt: prompt_str,
+            timeout_secs: agent.timeout_secs.or(Some(300)),
+            quorum: None,
+            retries: Some(1),
+            budget_usd: Some(5.0),
+            description: agent.role.or(Some(agent.name.clone())),
+        };
+
+        let yaml_team = YamlGraphTeam {
+            name: agent.name,
+            description: Some("Single-agent execution graph".to_string()),
+            start_node: agent_id.clone(),
+            terminal_nodes: vec![agent_id],
+            nodes: vec![node],
+            edges: Vec::new(),
+        };
+
+        Self::build_from_yaml_team(yaml_team)
+    }
+
+    fn build_from_agent_file_def(
+        def: orbity_core::contracts::AgentFileDefinition,
+    ) -> Result<GraphDefinition, GraphYamlError> {
+        let agent_id = if !def.agent.id.is_empty() {
+            def.agent.id.clone()
+        } else {
+            def.agent.name.to_lowercase().replace(' ', "_")
+        };
+
+        let cli = def.agent.provider
+            .or_else(|| def.agent.orchestrator.runner.clone())
+            .unwrap_or_else(|| "agy".to_string());
+
+        let prompt_str = def.agent.orchestrator.prompt.map(|p| p.system);
+
+        let node = YamlNodeDef {
+            id: agent_id.clone(),
+            node_type: "agent".to_string(),
+            engine: None,
+            cli: Some(cli.clone()),
+            provider: Some(cli),
+            tier: def.agent.tier,
+            model: def.agent.model,
+            command: None,
+            predicate_expr: None,
+            prompt: prompt_str,
+            timeout_secs: Some(300),
+            quorum: None,
+            retries: Some(1),
+            budget_usd: Some(5.0),
+            description: Some(def.agent.name.clone()),
+        };
+
+        let yaml_team = YamlGraphTeam {
+            name: def.agent.name,
+            description: Some("Autonomous agent execution graph".to_string()),
+            start_node: agent_id.clone(),
+            terminal_nodes: vec![agent_id],
+            nodes: vec![node],
+            edges: Vec::new(),
+        };
+
+        Self::build_from_yaml_team(yaml_team)
     }
 
     fn build_from_team_file_def(
