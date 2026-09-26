@@ -10,6 +10,7 @@ orbity-core.workspace = true
 orbity-storage.workspace = true
 orbity-graph.workspace = true
 orbity-agent.workspace = true
+orbity-sandbox.workspace = true
 sqlx.workspace = true
 uuid.workspace = true
 tokio.workspace = true

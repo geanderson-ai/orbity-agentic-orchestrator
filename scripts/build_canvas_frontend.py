@@ -1,4 +1,9 @@
-<!DOCTYPE html>
+#!/usr/bin/env python3
+"""
+Generator for index.html with the full Spatial Canvas (Maestri-style) engine.
+"""
+
+HTML_CONTENT = r'''<!DOCTYPE html>
 <html lang="pt-BR" class="dark">
 <head>
   <meta charset="UTF-8">
@@ -2210,3 +2215,13 @@
   </script>
 </body>
 </html>
+'''
+
+def main():
+    target_path = "/home/geanderson/Dados-800GB/meza/meza-agentic-orchestrator/index.html"
+    with open(target_path, "w", encoding="utf-8") as f:
+        f.write(HTML_CONTENT.strip() + "\n")
+    print(f"Successfully generated {target_path}")
+
+if __name__ == "__main__":
+    main()

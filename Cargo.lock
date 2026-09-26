@@ -1004,6 +1004,7 @@ dependencies = [
  "orbity-agent",
  "orbity-core",
  "orbity-graph",
+ "orbity-sandbox",
  "orbity-storage",
  "serde",
  "serde_json",

@@ -233,24 +233,52 @@ impl TopcoatServer {
                             let _ = stream.flush().await;
                             return;
                         }
+                        let method = first_line.split_whitespace().next().unwrap_or("GET");
+                        let body_str = req.split("\r\n\r\n").nth(1).unwrap_or("");
 
-                        let (status, content_type, body_bytes): (&str, &str, Vec<u8>) = match path {
-                            "/" | "/index.html" => (
+                        // Handle Server-Sent Events (SSE) stream for real-time canvas updates
+                        if path == "/events" || path == "/api/events" {
+                            let header = format!(
+                                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\nAccess-Control-Allow-Origin: {}\r\n\r\n",
+                                origin_allowed
+                            );
+                            if stream.write_all(header.as_bytes()).await.is_err() {
+                                return;
+                            }
+                            let init_msg = "event: connected\ndata: {\"status\":\"connected\",\"server\":\"Topcoat 0.9 Spatial Canvas\"}\n\n";
+                            let _ = stream.write_all(init_msg.as_bytes()).await;
+                            let _ = stream.flush().await;
+
+                            let mut rx = server.cx().bus().subscribe();
+                            while let Ok(event) = rx.recv().await {
+                                let sse_str = ServerPushManager::format_sse(&event);
+                                if stream.write_all(sse_str.as_bytes()).await.is_err() {
+                                    break;
+                                }
+                                if stream.flush().await.is_err() {
+                                    break;
+                                }
+                            }
+                            return;
+                        }
+
+                        let (status, content_type, body_bytes): (&str, &str, Vec<u8>) = match (method, path) {
+                            ("GET", "/" | "/index.html" | "/canvas") => (
                                 "200 OK",
                                 "text/html; charset=utf-8",
                                 EMBEDDED_FRONTEND_HTML.as_bytes().to_vec(),
                             ),
-                            "/assets/orbity-logo.jpg" | "/orbity-logo.jpg" | "/favicon.ico" => (
+                            ("GET", "/assets/orbity-logo.jpg" | "/orbity-logo.jpg" | "/favicon.ico") => (
                                 "200 OK",
                                 "image/jpeg",
                                 ORBITY_LOGO_JPG.to_vec(),
                             ),
-                            "/dashboard" | "/console" | "/topcoat" => (
+                            ("GET", "/dashboard" | "/console" | "/topcoat") => (
                                 "200 OK",
                                 "text/html; charset=utf-8",
                                 server.render_dashboard().into_bytes(),
                             ),
-                            "/health" => {
+                            ("GET", "/health") => {
                                 let pool_ok = match server.cx().pool() {
                                     Some(pool) => sqlx::query("SELECT 1").execute(pool).await.is_ok(),
                                     None => true,
@@ -265,7 +293,7 @@ impl TopcoatServer {
                                     "status": status_str,
                                     "version": "0.1.0-beta",
                                     "stage": "beta",
-                                    "server": "Tokio Topcoat 0.9",
+                                    "server": "Tokio Topcoat 0.9 Spatial Canvas",
                                     "harness": "Orbity Multi Agentic Harness",
                                     "uptime": "healthy",
                                     "checks": {
@@ -280,7 +308,7 @@ impl TopcoatServer {
                                     serde_json::to_vec(&health_json).unwrap_or_default(),
                                 )
                             },
-                            "/api/status" => {
+                            ("GET", "/api/status") => {
                                 let total_events = server.cx().bus().events_published_count();
                                 let mut run_count: i64 = 0;
                                 let mut total_tokens_spent: i64 = 0;
@@ -301,6 +329,7 @@ impl TopcoatServer {
                                     "version": "0.1.0-beta",
                                     "stage": "beta",
                                     "harness": "Orbity Multi Agentic Harness",
+                                    "canvas_enabled": true,
                                     "finops": {
                                         "budget_usd": 20.0,
                                         "spent_usd": total_cost_usd,
@@ -311,11 +340,11 @@ impl TopcoatServer {
                                         "total_runs_recorded": run_count
                                     },
                                     "agents": [
-                                        {"name": "Codex Worker", "role": "codex", "status": "Ready"},
-                                        {"name": "Claude Reviewer", "role": "claude", "status": "Ready"},
-                                        {"name": "Agy Researcher", "role": "agy", "status": "Ready"},
-                                        {"name": "Hermes Tool", "role": "hermes", "status": "Ready"},
-                                        {"name": "Pi Refactor", "role": "pi", "status": "Ready"}
+                                        {"name": "Codex Worker", "role": "codex", "status": "Ready", "tier": "balanced"},
+                                        {"name": "Claude Reviewer", "role": "claude", "status": "Ready", "tier": "balanced"},
+                                        {"name": "Agy Researcher", "role": "agy", "status": "Ready", "tier": "fast"},
+                                        {"name": "Hermes Tool", "role": "hermes", "status": "Ready", "tier": "balanced"},
+                                        {"name": "Pi Refactor", "role": "pi", "status": "Ready", "tier": "fast"}
                                     ]
                                 });
                                 (
@@ -324,20 +353,285 @@ impl TopcoatServer {
                                     serde_json::to_vec(&status_json).unwrap_or_default(),
                                 )
                             },
-                            "/api/models" => (
+                            ("GET", "/api/models") => (
                                 "200 OK",
                                 "application/json",
                                 r#"{"harness":"Orbity Multi Agentic Harness","version":"0.1.0-beta","stage":"beta","schema":"agent -> name -> provider -> tier","tiers":["fast","balanced","reasoning","latest"],"engines":[{"cli":"agy","name":"Antigravity CLI (Google DeepMind)","discovery":"agy models","flag":"--model <model>","reasoning":"--effort <low|medium|high|max>","tiers":{"fast":"gemini-3.8-flash-low","balanced":"gemini-3.8-flash-high","reasoning":"gemini-3.1-pro-high"}},{"cli":"codex","name":"OpenAI Codex CLI","discovery":"codex --help","flag":"-m <MODEL> / --model <MODEL>","reasoning":"-c model=\"o3-mini\"","tiers":{"fast":"gpt-4o-mini","balanced":"gpt-4o","reasoning":"o3-mini"}},{"cli":"claude","name":"Claude Code (Anthropic)","discovery":"claude --help / /model","flag":"--model <model>","reasoning":"--fallback-model <model>","tiers":{"fast":"haiku","balanced":"sonnet","reasoning":"opus"}},{"cli":"hermes","name":"Hermes Agent (Nous Research)","discovery":"hermes model","flag":"-m <MODEL> / --model <MODEL>","reasoning":"--reasoning <none|low|medium|high|max>","tiers":{"fast":"openrouter/auto-fast","balanced":"anthropic/claude-sonnet-4.6","reasoning":"anthropic/claude-sonnet-4.6 (high)"}},{"cli":"pi","name":"Pi Coding Agent (pi.dev)","discovery":"pi --list-models","flag":"--model <pattern>","reasoning":"--thinking <low|medium|high>","tiers":{"fast":"llama-cpp","balanced":"sonnet","reasoning":"sonnet:high"}}]}"#.as_bytes().to_vec(),
                             ),
-                            "/governance" => (
+                            ("GET", "/api/agents") => {
+                                let agents_presets = serde_json::json!([
+                                    {
+                                        "type": "agent",
+                                        "cli": "codex",
+                                        "name": "Codex Builder",
+                                        "description": "Code generation, unit test synthesis and implementation",
+                                        "icon": "🟠",
+                                        "default_tier": "balanced",
+                                        "default_timeout": 60,
+                                        "default_budget": 0.50
+                                    },
+                                    {
+                                        "type": "agent",
+                                        "cli": "claude",
+                                        "name": "Claude Reviewer",
+                                        "description": "Architecture review, security audits, and type safety",
+                                        "icon": "🟣",
+                                        "default_tier": "balanced",
+                                        "default_timeout": 60,
+                                        "default_budget": 0.50
+                                    },
+                                    {
+                                        "type": "agent",
+                                        "cli": "agy",
+                                        "name": "Agy Planner",
+                                        "description": "Deep research, workflow synthesis and problem decomposition",
+                                        "icon": "🔵",
+                                        "default_tier": "fast",
+                                        "default_timeout": 60,
+                                        "default_budget": 0.30
+                                    },
+                                    {
+                                        "type": "agent",
+                                        "cli": "hermes",
+                                        "name": "Hermes Tool Caller",
+                                        "description": "API fetching, documentation discovery and web tooling",
+                                        "icon": "🟡",
+                                        "default_tier": "balanced",
+                                        "default_timeout": 60,
+                                        "default_budget": 0.40
+                                    },
+                                    {
+                                        "type": "agent",
+                                        "cli": "pi",
+                                        "name": "Pi Refactorer",
+                                        "description": "Surgical diff edits, docstring linting and fast formatting",
+                                        "icon": "🟢",
+                                        "default_tier": "fast",
+                                        "default_timeout": 45,
+                                        "default_budget": 0.20
+                                    },
+                                    {
+                                        "type": "tool",
+                                        "name": "Shell / Tool",
+                                        "command": "cargo test",
+                                        "description": "Runs isolated CLI commands inside Bubblewrap sandbox",
+                                        "icon": "⚙️",
+                                        "default_timeout": 60
+                                    },
+                                    {
+                                        "type": "conditional_router",
+                                        "name": "Conditional Router",
+                                        "predicate": "exit_code == 0",
+                                        "description": "Dynamic branching based on predecessor outputs and status",
+                                        "icon": "🔀"
+                                    },
+                                    {
+                                        "type": "human_gate",
+                                        "name": "Human Gate",
+                                        "prompt": "Approve production deployment",
+                                        "description": "Human-in-the-loop interactive approval gate",
+                                        "icon": "🛑"
+                                    },
+                                    {
+                                        "type": "join_barrier",
+                                        "name": "Join Barrier",
+                                        "description": "Synchronizes parallel fan-out branches before proceeding",
+                                        "icon": "⏳"
+                                    },
+                                    {
+                                        "type": "sticky_note",
+                                        "name": "Sticky Note",
+                                        "content": "# Instructions\nDescribe collaborative human-agent notes here.",
+                                        "color": "yellow",
+                                        "icon": "📝"
+                                    },
+                                    {
+                                        "type": "portal",
+                                        "name": "Web Portal",
+                                        "url": "http://127.0.0.1:3000",
+                                        "description": "Live device / browser viewport inside the canvas",
+                                        "icon": "🌐"
+                                    }
+                                ]);
+                                (
+                                    "200 OK",
+                                    "application/json",
+                                    serde_json::to_vec(&agents_presets).unwrap_or_default(),
+                                )
+                            },
+                            ("GET", "/api/teams") => {
+                                let mut teams = Vec::new();
+                                let search_dirs = ["teams", "examples/forester/teams", "agents", "examples/forester/agents"];
+                                for dir in &search_dirs {
+                                    if let Ok(entries) = std::fs::read_dir(dir) {
+                                        for entry in entries.flatten() {
+                                            let p = entry.path();
+                                            if p.is_file() && p.extension().is_some_and(|e| e == "yaml" || e == "yml") {
+                                                if let Ok(content) = std::fs::read_to_string(&p) {
+                                                    let stem = p.file_stem().unwrap_or_default().to_string_lossy().to_string();
+                                                    let node_count = content.matches("name:").count();
+                                                    teams.push(serde_json::json!({
+                                                        "name": stem,
+                                                        "path": p.to_string_lossy().to_string(),
+                                                        "node_count": node_count,
+                                                        "content": content
+                                                    }));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                (
+                                    "200 OK",
+                                    "application/json",
+                                    serde_json::to_vec(&teams).unwrap_or_default(),
+                                )
+                            },
+                            ("POST", "/api/teams") => {
+                                if let Ok(val) = serde_json::from_str::<serde_json::Value>(body_str) {
+                                    let team_name = val.get("name").and_then(|v| v.as_str()).unwrap_or("custom_team");
+                                    let yaml_content = val.get("yaml").and_then(|v| v.as_str()).unwrap_or("");
+                                    let path = format!("teams/{}.yaml", team_name);
+                                    let _ = std::fs::create_dir_all("teams");
+                                    if std::fs::write(&path, yaml_content).is_ok() {
+                                        (
+                                            "200 OK",
+                                            "application/json",
+                                            serde_json::to_vec(&serde_json::json!({
+                                                "success": true,
+                                                "message": format!("Saved team to {}", path),
+                                                "path": path
+                                            })).unwrap_or_default(),
+                                        )
+                                    } else {
+                                        ("500 Internal Server Error", "application/json", b"{\"error\":\"Failed to write team file\"}".to_vec())
+                                    }
+                                } else {
+                                    ("400 Bad Request", "application/json", b"{\"error\":\"Invalid JSON body\"}".to_vec())
+                                }
+                            },
+                            ("POST", "/api/run") => {
+                                if let Ok(val) = serde_json::from_str::<serde_json::Value>(body_str) {
+                                    let prompt = val.get("prompt").and_then(|v| v.as_str()).unwrap_or("Run spatial canvas task").to_string();
+                                    let yaml_opt = val.get("yaml").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                    let team_name = val.get("team").and_then(|v| v.as_str()).unwrap_or("forester");
+                                    let budget_usd = val.get("budget_usd").and_then(|v| v.as_f64());
+
+                                    let exec_id = uuid::Uuid::new_v4();
+
+                                    let loaded_graph = if let Some(ref y) = yaml_opt {
+                                        orbity_graph::GraphYamlLoader::parse_yaml(y).ok()
+                                    } else {
+                                        let paths = [
+                                            format!("teams/{}.yaml", team_name),
+                                            format!("examples/forester/teams/{}.yaml", team_name),
+                                            format!("agents/{}.yaml", team_name),
+                                        ];
+                                        paths.iter().find_map(|p| orbity_graph::GraphYamlLoader::load_file(p).ok())
+                                    };
+
+                                    if let Some(graph) = loaded_graph {
+                                        let node_count = graph.nodes.len();
+                                        let blackboard = orbity_graph::blackboard::Blackboard::new();
+                                        blackboard.set_context("user_prompt", serde_json::Value::String(prompt.clone())).await;
+
+                                        let finops = orbity_graph::finops::GraphFinOpsTracker::new(budget_usd, None);
+
+                                        let mut sandbox_config = orbity_sandbox::types::SandboxConfig::default();
+                                        sandbox_config.network = orbity_sandbox::types::NetworkMode::HostMediated;
+                                        if let Ok(cwd) = std::env::current_dir() {
+                                            sandbox_config.workspace = orbity_sandbox::types::WorkspaceMode::EphemeralCopyOnWrite(cwd);
+                                        }
+
+                                        let mut bwrap = orbity_sandbox::BwrapSandbox::new(sandbox_config);
+                                        use orbity_sandbox::traits::Sandbox;
+                                        let _ = bwrap.initialize().await;
+                                        let sandbox: std::sync::Arc<dyn orbity_sandbox::traits::Sandbox> = std::sync::Arc::new(bwrap);
+                                        let runner = std::sync::Arc::new(orbity_agent::runners::SandboxCliNodeRunner::new(sandbox.clone()));
+
+                                        let bus = server.cx().bus().clone();
+                                        let pool_opt = server.cx().pool().cloned();
+
+                                        let mut executor = orbity_graph::executor::GraphExecutor::new(graph, blackboard.clone(), finops, runner)
+                                            .with_execution_id(exec_id)
+                                            .with_event_bus(bus);
+
+                                        if let Some(pool) = &pool_opt {
+                                            let store = orbity_graph::checkpoint::GraphCheckpointStore::new(pool.clone());
+                                            let _ = store.init_schema().await;
+                                            executor = executor.with_checkpoints(store);
+                                        }
+
+                                        tokio::spawn(async move {
+                                            let _ = executor.execute().await;
+                                            if let Ok(cwd) = std::env::current_dir() {
+                                                let _ = sandbox.promote_changes(&cwd).await;
+                                            }
+                                        });
+
+                                        (
+                                            "200 OK",
+                                            "application/json",
+                                            serde_json::to_vec(&serde_json::json!({
+                                                "status": "Initiated",
+                                                "run_id": exec_id.to_string(),
+                                                "nodes_count": node_count,
+                                                "message": format!("Execution {} started on Tokio Topcoat Engine", exec_id)
+                                            })).unwrap_or_default(),
+                                        )
+                                    } else {
+                                        ("400 Bad Request", "application/json", b"{\"error\":\"Failed to parse or locate graph topology\"}".to_vec())
+                                    }
+                                } else {
+                                    ("400 Bad Request", "application/json", b"{\"error\":\"Invalid JSON payload\"}".to_vec())
+                                }
+                            },
+                            ("GET", "/api/canvas/state") => {
+                                let state_path = ".orbity_canvas_state.json";
+                                if let Ok(state_str) = std::fs::read_to_string(state_path) {
+                                    ("200 OK", "application/json", state_str.into_bytes())
+                                } else {
+                                    ("200 OK", "application/json", b"{\"nodes\":[],\"edges\":[],\"sticky_notes\":[],\"portals\":[],\"zoom\":1.0,\"pan\":{\"x\":0,\"y\":0}}".to_vec())
+                                }
+                            },
+                            ("POST", "/api/canvas/state") => {
+                                let state_path = ".orbity_canvas_state.json";
+                                let _ = std::fs::write(state_path, body_str);
+                                ("200 OK", "application/json", b"{\"success\":true,\"saved\":true}".to_vec())
+                            },
+                            ("POST", "/api/governance/approve" | "/governance/approve") => {
+                                if let Ok(req_val) = serde_json::from_str::<HitlApprovalRequest>(body_str) {
+                                    let resp = server.handle_hitl_approval(req_val).await;
+                                    (
+                                        "200 OK",
+                                        "application/json",
+                                        serde_json::to_vec(&resp).unwrap_or_default(),
+                                    )
+                                } else {
+                                    ("400 Bad Request", "application/json", b"{\"error\":\"Invalid HITL approval payload\"}".to_vec())
+                                }
+                            },
+                            ("POST", "/api/governance/reject" | "/governance/reject") => {
+                                if let Ok(req_val) = serde_json::from_str::<HitlApprovalRequest>(body_str) {
+                                    let resp = server.handle_hitl_approval(req_val).await;
+                                    (
+                                        "200 OK",
+                                        "application/json",
+                                        serde_json::to_vec(&resp).unwrap_or_default(),
+                                    )
+                                } else {
+                                    ("400 Bad Request", "application/json", b"{\"error\":\"Invalid HITL rejection payload\"}".to_vec())
+                                }
+                            },
+                            ("GET", "/governance") => (
                                 "200 OK",
                                 "text/html; charset=utf-8",
-                                "<!DOCTYPE html><html><head><title>Governance Console</title><style>body{background:#0f172a;color:#f8fafc;font-family:sans-serif;padding:24px;}</style></head><body><h1>Governance & HITL Console</h1><p>Human-in-the-Loop approval gate ready. Status: Active.</p><a href='/' style='color:#38bdf8;'>Back to Interactive Web UI</a></body></html>".as_bytes().to_vec(),
+                                "<!DOCTYPE html><html><head><title>Governance Console</title><style>body{background:#0f172a;color:#f8fafc;font-family:sans-serif;padding:24px;}</style></head><body><h1>Governance & HITL Console</h1><p>Human-in-the-Loop approval gate ready. Status: Active.</p><a href='/' style='color:#38bdf8;'>Back to Spatial Canvas UI</a></body></html>".as_bytes().to_vec(),
                             ),
-                            "/finops" => (
+                            ("GET", "/finops") => (
                                 "200 OK",
                                 "text/html; charset=utf-8",
-                                "<!DOCTYPE html><html><head><title>FinOps Console</title><style>body{background:#0f172a;color:#f8fafc;font-family:sans-serif;padding:24px;}</style></head><body><h1>FinOps & Tokenomics</h1><p>Budget Cap: Enforced. Cumulative cost: $1.25. Tokens: 45,000.</p><a href='/' style='color:#38bdf8;'>Back to Interactive Web UI</a></body></html>".as_bytes().to_vec(),
+                                "<!DOCTYPE html><html><head><title>FinOps Console</title><style>body{background:#0f172a;color:#f8fafc;font-family:sans-serif;padding:24px;}</style></head><body><h1>FinOps & Tokenomics</h1><p>Budget Cap: Enforced. Cumulative cost tracking active.</p><a href='/' style='color:#38bdf8;'>Back to Spatial Canvas UI</a></body></html>".as_bytes().to_vec(),
                             ),
                             _ => (
                                 "404 Not Found",
@@ -347,7 +641,7 @@ impl TopcoatServer {
                         };
 
                         let header = format!(
-                            "HTTP/1.1 {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: {}\r\nConnection: close\r\n\r\n",
+                            "HTTP/1.1 {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: {}\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type, Authorization\r\nConnection: close\r\n\r\n",
                             status,
                             content_type,
                             body_bytes.len(),
