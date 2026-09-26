@@ -170,28 +170,35 @@ impl Sandbox for BwrapSandbox {
         }
 
         // 4. Environment variable filtering
+        let real_home = std::env::var("HOME").unwrap_or_else(|_| "/tmp/workspace".to_string());
         bwrap_cmd.arg("--clearenv");
-        bwrap_cmd.arg("--setenv").arg("HOME").arg("/tmp/workspace");
+        bwrap_cmd.arg("--setenv").arg("HOME").arg(&real_home);
         bwrap_cmd.arg("--setenv").arg("PATH").arg(
             std::env::var("PATH").unwrap_or_else(|_| "/usr/local/bin:/usr/bin:/bin".to_string()),
         );
         bwrap_cmd.arg("--setenv").arg("LANG").arg("C.UTF-8");
         bwrap_cmd.arg("--setenv").arg("TERM").arg("xterm-256color");
 
-        // Inject explicitly allowed non-sensitive environment variables
-        for (k, v) in env {
+        // Forward host environment variables needed for LLM CLI tools and auth
+        for (k, v) in std::env::vars() {
             let k_upper = k.to_uppercase();
-            if k_upper.starts_with("AWS_")
-                || k_upper.starts_with("GITHUB_")
+            if k_upper.starts_with("ANTHROPIC_")
                 || k_upper.starts_with("OPENAI_")
-                || k_upper.starts_with("ANTHROPIC_")
-                || k_upper.contains("SECRET")
-                || k_upper.contains("TOKEN")
-                || k_upper.contains("KEY")
+                || k_upper.starts_with("GEMINI_")
+                || k_upper.starts_with("CLAUDE_")
+                || k_upper.starts_with("CODEX_")
+                || k_upper.starts_with("ORBITY_")
+                || k_upper.starts_with("XDG_")
+                || k_upper == "USER"
+                || k_upper == "SHELL"
+                || self.config.env_passthrough.contains(&k)
             {
-                // Silently scrub or skip leaking secrets into sandbox
-                continue;
+                bwrap_cmd.arg("--setenv").arg(k).arg(v);
             }
+        }
+
+        // Inject node-specific environment variables
+        for (k, v) in env {
             bwrap_cmd.arg("--setenv").arg(k).arg(v);
         }
 

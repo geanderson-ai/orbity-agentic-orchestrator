@@ -233,11 +233,18 @@ impl NodeRunner for SandboxCliNodeRunner {
                 token_report.cost_usd
             );
         } else {
+            let err_detail = if !exec_res.stderr.trim().is_empty() {
+                exec_res.stderr.trim().to_string()
+            } else if !exec_res.stdout.trim().is_empty() {
+                exec_res.stdout.trim().to_string()
+            } else {
+                format!("Process terminated with exit code {}", exec_res.exit_code)
+            };
             eprintln!(
                 "  ✖ Node [{}] failed (exit code {}):\n{}",
                 node.id.0,
                 exec_res.exit_code,
-                exec_res.stderr.trim()
+                err_detail
             );
         }
 
