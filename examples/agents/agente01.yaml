@@ -6,6 +6,8 @@ version: "1.0"
 agent:
   id: "agt_01h89x2k"
   name: "Agente01"
+  provider: "agy"
+  tier: "balanced"
   tags:
     - "refactoring"
     - "sqlite"
@@ -26,6 +28,9 @@ agent:
   # Orquestrador interno obrigatório
   orchestrator:
     type: "embedded"
+    name: "Agente01-Lead"
+    provider: "agy"
+    tier: "balanced"
     runner: "agy" # Antigravity CLI como motor de raciocínio do orquestrador
     cli_options:
       mode: "plan"
@@ -48,16 +53,25 @@ agent:
     # Time de operários ao redor deste agente
     team:
       - id: "codex_coder"
+        name: "Codex Rust Coder"
+        provider: "codex"
+        tier: "balanced"
         role: "Rust Code Implementation"
         runner: "codex"
         cli_subcommand: "exec"
 
       - id: "claude_reviewer"
+        name: "Claude Security Reviewer"
+        provider: "claude"
+        tier: "reasoning"
         role: "Code Review & Security Analysis"
         runner: "claude"
         cli_args: ["--print", "--output-format", "json"]
 
       - id: "agy_analyzer"
+        name: "Agy Architecture Analyzer"
+        provider: "agy"
+        tier: "fast"
         role: "Deep Research & Architecture Analysis"
         runner: "agy"
         cli_args: ["--print", "--output-format", "json"]

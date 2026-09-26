@@ -6,6 +6,8 @@ version: "1.0"
 agent:
   id: "agt_02m84k1z"
   name: "Agente02-SecuritySentry"
+  provider: "claude"
+  tier: "reasoning"
   tags:
     - "security"
     - "fuzzing"
@@ -25,6 +27,9 @@ agent:
   # Orquestrador interno
   orchestrator:
     type: "embedded"
+    name: "Agente02-SecurityLead"
+    provider: "claude"
+    tier: "reasoning"
     runner: "claude" # Claude Code como motor analítico do orquestrador
     cli_options:
       output_format: "json"
@@ -45,11 +50,17 @@ agent:
     # Time sob comando deste agente
     team:
       - id: "claude_auditor"
+        name: "Claude Security Auditor"
+        provider: "claude"
+        tier: "reasoning"
         role: "Vulnerability & Static Analysis"
         runner: "claude"
         cli_args: ["--print", "--output-format", "json"]
 
       - id: "codex_tester"
+        name: "Codex Fuzzing Tester"
+        provider: "codex"
+        tier: "fast"
         role: "Fuzzing & Test Execution"
         runner: "codex"
         cli_subcommand: "exec"

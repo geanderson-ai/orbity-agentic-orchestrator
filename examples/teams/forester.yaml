@@ -59,6 +59,8 @@ team:
   orchestrator:
     id: "forester-lead"
     name: "Forester Lead Orchestrator"
+    provider: "agy"
+    tier: "reasoning"
     role: "Lead Architect & Security Officer"
     runner: "agy" # Executa via Antigravity CLI com planning mode
     cli_options:
@@ -108,6 +110,8 @@ team:
     # 1. Codex CLI (OpenAI Codex CLI)
     - id: "codex-worker"
       name: "Codex CLI Worker"
+      provider: "codex"
+      tier: "balanced"
       role: "Especialista em Implementação de Código e Testes Unitários"
       runner: "codex"
       cli_command: "codex"
@@ -124,6 +128,8 @@ team:
     # 2. Claude Code (Anthropic Claude CLI)
     - id: "claude-code-worker"
       name: "Claude Code Sentinel"
+      provider: "claude"
+      tier: "reasoning"
       role: "Auditor de Arquitetura, Segurança e Invariantes de Memória"
       runner: "claude"
       cli_command: "claude"
@@ -143,6 +149,8 @@ team:
     # 3. Agy Antigravity (Google DeepMind CLI)
     - id: "agy-worker"
       name: "Agy Antigravity Scout"
+      provider: "agy"
+      tier: "fast"
       role: "Especialista em Raciocínio Profundo, Pesquisa e Planejamento"
       runner: "agy"
       cli_command: "agy"
@@ -165,6 +173,8 @@ team:
     # 4. Hermes Agent (NousResearch Hermes CLI)
     - id: "hermes-researcher"
       name: "Hermes Scout & Toolmaster"
+      provider: "hermes"
+      tier: "fast"
       role: "Especialista em Execução de Ferramentas, Busca e Automação"
       runner: "hermes"
       cli_command: "hermes"
@@ -183,6 +193,8 @@ team:
     # 5. Pi Assistant (Pi AI Coding Assistant)
     - id: "pi-coder"
       name: "Pi Fast Coder"
+      provider: "pi"
+      tier: "fast"
       role: "Especialista em Transformações Ágeis de Código e Refatoração"
       runner: "pi"
       cli_command: "pi"
