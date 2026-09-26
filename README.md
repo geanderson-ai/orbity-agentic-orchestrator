@@ -534,48 +534,53 @@ With zero external runtime bloat and sub-25MB RAM usage, the web application del
 orbity serve --port 3000
 ```
 Open **`http://localhost:3000`** in your browser to access the console. Endpoints include:
-- `http://localhost:3000/`: Real-time Multi-Agent Network Dashboard
-- `http://localhost:3000/health`: JSON health check (`{"status":"ok"}`)
+- `http://localhost:3000/`: Interactive Web Application (Live DAG Simulator, 5-Agent Network, Real-Time FinOps & SHA-256 Audit Blockchain)
+- `http://localhost:3000/assets/orbity-logo.jpg`: Official Orbity logo image asset
+- `http://localhost:3000/dashboard`: Topcoat Shard Component Console
+- `http://localhost:3000/health`: JSON health & harness status check
+- `http://localhost:3000/api/status`: Real-time JSON state for active agents, FinOps metrics, and verified blocks
 - `http://localhost:3000/governance`: Human-in-the-Loop approval console
 - `http://localhost:3000/finops`: Tokenomics & Budget tracking console
 
 ### Key Web Console Capabilities
 
-1. **Live Multi-Agent Orchestration Board (`/`):**
-   - Real-time agent status cards displaying active states (`Idle`, `Planning`, `Executing`, `Paused`, `Completed`, `Failed`).
+1. **Interactive Full-Stack Web Application (`/`):**
+   - Embedded single-page application compiled directly into the binary with zero external web server dependencies.
+   - Interactive live DAG Graph simulator demonstrating topological execution across the 5 CLIs (`agy`, `codex`, `claude`, `hermes`, `pi`).
+   - FinOps real-time token accumulation meter and dynamic USD budget tracking.
+   - Interactive SHA-256 cryptographic audit chain visualizer with live tampering injection and one-click verification.
+   - Real-time terminal log stream with color-coded 4-layer event badges.
+
+2. **Topcoat Shard Component Console (`/dashboard`):**
+   - Server-rendered reactive Shard Components (`Views::agent_card`, `Views::finops_widget`, `Views::audit_chain_badge`).
    - Dynamic step progress with streaming SSR (`live!` / `emit!`), showing current topological DAG node execution without full-page reloads.
-   - Worker assignment indicators across the 5 CLIs (`agy`, `codex`, `claude`, `hermes`, `pi`).
 
-2. **Human-in-the-Loop (HITL) Governance Center (`/governance`):**
-   - Interactive `@click` approval and rejection triggers for paused operations, dangerous commands, or budget exceptions.
+3. **Human-in-the-Loop (HITL) Governance Center (`/governance`):**
+   - Interactive approval and rejection triggers for paused operations, dangerous commands, or budget exceptions.
    - Unblocks the background Rust execution engine in under **50ms** upon operator confirmation.
-   - Live policy inspection displaying active `auto_approve` and `auto_reject` rules configured from `forester.yaml`.
+   - Live policy inspection displaying active `auto_approve` and `auto_reject` rules.
 
-3. **Real-Time FinOps & Tokenomics Dashboard (`/finops`):**
+4. **Real-Time FinOps & Tokenomics Dashboard (`/finops`):**
    - Call-by-call breakdown of token usage: Input, Output, Cache Read, and Reasoning tokens.
    - Real-time USD cost computation against the team's `max_budget_usd` hard cap.
    - Visual progress gauges and tripwire alarms that warn before financial ceilings are breached.
 
-4. **Cryptographic Audit Ledger Explorer (`/audit`):**
-   - Visual blockchain-lite inspector displaying the Genesis Block `#0` and all subsequent chained blocks.
-   - Real-time SHA-256 parent hash and state hash linkages for every runtime event.
-   - One-click **"Verify Integrity"** action that sweeps the SQLite WAL database and visually pinpoints the exact sequence number if any unauthorized tampering occurs.
-
-5. **Live Event Stream & 4-Layer Log Terminal (`/logs`):**
-   - Subscribes directly to the `EventBus` via long-lived WebSockets (`/ws/live`).
-   - Instant filtering between Layer 1 (Runtime), Layer 2 (Execution), Layer 3 (Audit), and Layer 4 (Telemetry).
-   - Zero-latency log streaming with zero browser freezing.
+5. **REST API & Asset Endpoints:**
+   - `/health`: Automated liveness probe for Kubernetes and Docker orchestrators.
+   - `/api/status`: Machine-readable runtime telemetry of agents, costs, and audit blocks.
+   - `/assets/orbity-logo.jpg`: High-resolution brand logo asset served with binary byte streaming.
 
 ### Web Application Architecture & Endpoints
 
 | Route / Endpoint | Type | Description |
 |---|---|---|
-| `GET /` | HTML / Shard | Main reactive multi-agent board, DAG execution visualizer, and agent cards |
-| `GET /governance` | HTML / Shard | HITL approval console for pending authorizations and exception overrides |
-| `GET /audit` | HTML / Shard | Cryptographic audit chain explorer with one-click tamper verification |
-| `GET /finops` | HTML / Shard | Token consumption analytics, cost tracking per tool, and budget limits |
-| `GET /doctor` | HTML / Shard | Live preflight health monitor for Bubblewrap sandbox, SQLite WAL, and 5 CLIs |
-| `WS /ws/live` | WebSocket | High-throughput bi-directional server-push stream emitting real-time event deltas |
+| `GET /` | HTML (Embedded SPA) | Complete interactive web interface with DAG simulator, live agents, FinOps, and audit explorer |
+| `GET /assets/orbity-logo.jpg` | Binary (JPEG) | Embedded official brand logo asset |
+| `GET /dashboard` | HTML (Topcoat Shards) | Reactive Topcoat Shard Component Console with live agent cards |
+| `GET /health` | JSON | Liveness probe and harness diagnostic status |
+| `GET /api/status` | JSON | Real-time multi-agent states, FinOps budget, and audit chain state |
+| `GET /governance` | HTML | HITL approval console for pending authorizations and exception overrides |
+| `GET /finops` | HTML | Token consumption analytics, cost tracking per tool, and budget limits |
 
 ---
 
