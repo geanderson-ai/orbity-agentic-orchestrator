@@ -45,18 +45,18 @@ impl SandboxCliNodeRunner {
 
         match cli {
             CliType::Codex => {
-                // codex exec [PROMPT] --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox [-m MODEL]
+                // codex exec [OPTIONS] [PROMPT]
                 let mut args = vec![
                     "exec".to_string(),
-                    full_prompt,
-                    "--json".to_string(),
                     "--skip-git-repo-check".to_string(),
                     "--dangerously-bypass-approvals-and-sandbox".to_string(),
+                    "--json".to_string(),
                 ];
                 if let Some(res) = resolved_model {
                     args.extend(res.cli_args);
                 }
                 args.extend_from_slice(extra_args);
+                args.push(full_prompt);
                 ("codex".to_string(), args)
             }
             CliType::Claude => {
@@ -328,14 +328,14 @@ mod tests {
         assert!(args.contains(&"--model".to_string()));
         assert!(args.contains(&"sonnet".to_string()));
 
-        // Codex with reasoning tier
+        // Codex with explicit model override
         let (cmd, args) = SandboxCliNodeRunner::build_cli_command_with_model(
             CliType::Codex,
             "audit",
             "",
             &[],
-            Some("reasoning"),
             None,
+            Some("o3-mini"),
         );
         assert_eq!(cmd, "codex");
         assert!(args.contains(&"-m".to_string()));

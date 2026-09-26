@@ -12,7 +12,6 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::{Duration, Instant};
-use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 use uuid::Uuid;
 
@@ -159,7 +158,7 @@ impl Sandbox for BwrapSandbox {
         // Writable state bindings for LLM CLI tools in user's home
         if let Ok(home) = std::env::var("HOME") {
             let home_path = std::path::Path::new(&home);
-            for sub in &[".codex", ".claude", ".gemini", ".hermes", ".cache", ".config", ".local/share"] {
+            for sub in &[".codex", ".claude", ".claude.json", ".gemini", ".hermes", ".cache", ".config", ".local/share"] {
                 let p = home_path.join(sub);
                 if p.exists() {
                     bwrap_cmd.arg("--bind").arg(&p).arg(&p);
@@ -219,30 +218,22 @@ impl Sandbox for BwrapSandbox {
             bwrap_cmd.arg(arg);
         }
 
+        bwrap_cmd.stdin(Stdio::null());
         bwrap_cmd.stdout(Stdio::piped());
         bwrap_cmd.stderr(Stdio::piped());
 
         // Spawn child
-        let mut child = bwrap_cmd.spawn()?;
+        let child = bwrap_cmd.spawn()?;
 
-        // Wait with strict timeout
-        let wait_result = tokio::time::timeout(timeout, child.wait()).await;
+        // Wait with strict timeout using wait_with_output to consume pipes concurrently
+        let wait_result = tokio::time::timeout(timeout, child.wait_with_output()).await;
 
         match wait_result {
-            Ok(Ok(status)) => {
+            Ok(Ok(output)) => {
                 let duration_ms = start_time.elapsed().as_millis() as u64;
-
-                let mut stdout = String::new();
-                if let Some(mut out) = child.stdout.take() {
-                    let _ = out.read_to_string(&mut stdout).await;
-                }
-
-                let mut stderr = String::new();
-                if let Some(mut err) = child.stderr.take() {
-                    let _ = err.read_to_string(&mut stderr).await;
-                }
-
-                let exit_code = status.code().unwrap_or(-1);
+                let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+                let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+                let exit_code = output.status.code().unwrap_or(-1);
 
                 Ok(ExecutionResult {
                     exit_code,
@@ -254,8 +245,6 @@ impl Sandbox for BwrapSandbox {
             }
             Ok(Err(e)) => Err(SandboxError::IoError(e)),
             Err(_) => {
-                // Timeout occurred: kill child forcefully with SIGKILL
-                let _ = child.kill().await;
                 let duration_ms = start_time.elapsed().as_millis() as u64;
 
                 Ok(ExecutionResult {
@@ -356,8 +345,25 @@ async fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), SandboxError> 
 
     while let Some(entry) = entries.next_entry().await? {
         let file_type = entry.file_type().await?;
+        let file_name = entry.file_name();
+        let name_str = file_name.to_string_lossy();
+
+        // Skip massive build artifacts, git internals and database caches
+        if name_str == "target"
+            || name_str == ".git"
+            || name_str == "node_modules"
+            || name_str == ".venv"
+            || name_str == "venv"
+            || name_str == ".cache"
+            || name_str.ends_with(".db")
+            || name_str.ends_with(".db-wal")
+            || name_str.ends_with(".db-shm")
+        {
+            continue;
+        }
+
         let src_path = entry.path();
-        let dst_path = dst.join(entry.file_name());
+        let dst_path = dst.join(file_name);
 
         if file_type.is_dir() {
             Box::pin(copy_dir_recursive(&src_path, &dst_path)).await?;
@@ -406,6 +412,12 @@ async fn collect_and_promote(
             }
 
             let change_type = if target_dest.exists() {
+                if let Ok(target_content) = tokio::fs::read(&target_dest).await {
+                    if target_content == content {
+                        // File was not modified in sandbox
+                        continue;
+                    }
+                }
                 FileChangeType::Modified
             } else {
                 FileChangeType::Created

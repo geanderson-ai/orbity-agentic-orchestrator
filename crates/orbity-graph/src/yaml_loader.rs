@@ -16,12 +16,15 @@ pub enum GraphYamlError {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct YamlNodeDef {
     pub id: String,
+    #[serde(default = "default_agent_kind")]
     #[serde(rename = "type")]
     pub node_type: String,
     pub engine: Option<String>,
     pub cli: Option<String>,
+    pub tool: Option<String>,
     pub provider: Option<String>,
     pub tier: Option<String>,
+    pub model_tier: Option<String>,
     pub model: Option<String>,
     pub command: Option<String>,
     pub predicate_expr: Option<String>,
@@ -30,6 +33,7 @@ pub struct YamlNodeDef {
     pub quorum: Option<usize>,
     pub retries: Option<u32>,
     pub budget_usd: Option<f64>,
+    pub max_budget: Option<f64>,
     pub description: Option<String>,
 }
 
@@ -89,10 +93,11 @@ pub struct YamlGraphTopology {
     pub edges: Vec<YamlTopologyEdge>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct YamlGraphTeam {
     pub name: String,
     pub description: Option<String>,
+    #[serde(default)]
     pub start_node: String,
     #[serde(default)]
     pub terminal_nodes: Vec<String>,
@@ -133,28 +138,32 @@ pub struct GraphYamlLoader;
 impl GraphYamlLoader {
     /// Loads and parses a YAML string into a GraphDefinition.
     pub fn parse_yaml(yaml_content: &str) -> Result<GraphDefinition, GraphYamlError> {
-        // 1. Try direct YamlGraphTeam
-        if let Ok(team) = serde_yaml::from_str::<YamlGraphTeam>(yaml_content) {
-            return Self::build_from_yaml_team(team);
-        }
-
-        // 2. Try nested team wrapper { team: { name, start_node, ... } }
-        if let Ok(wrapper) = serde_yaml::from_str::<YamlNestedGraphTeam>(yaml_content) {
-            return Self::build_from_yaml_team(wrapper.team);
-        }
-
-        // 3. Try TeamFileDefinition (canonical forester.yaml format)
+        // 1. Try TeamFileDefinition (canonical forester.yaml format)
         if let Ok(team_file) =
             serde_yaml::from_str::<orbity_core::contracts::TeamFileDefinition>(yaml_content)
         {
             return Self::build_from_team_file_def(team_file);
         }
 
-        // 4. Try AgentFileDefinition (canonical agente01.yaml format)
+        // 2. Try AgentFileDefinition (canonical agente01.yaml format)
         if let Ok(agent_file) =
             serde_yaml::from_str::<orbity_core::contracts::AgentFileDefinition>(yaml_content)
         {
             return Self::build_from_agent_file_def(agent_file);
+        }
+
+        // 3. Try direct YamlGraphTeam
+        if let Ok(team) = serde_yaml::from_str::<YamlGraphTeam>(yaml_content) {
+            if !team.nodes.is_empty() {
+                return Self::build_from_yaml_team(team);
+            }
+        }
+
+        // 4. Try nested team wrapper { team: { name, start_node, ... } }
+        if let Ok(wrapper) = serde_yaml::from_str::<YamlNestedGraphTeam>(yaml_content) {
+            if !wrapper.team.nodes.is_empty() {
+                return Self::build_from_yaml_team(wrapper.team);
+            }
         }
 
         // 5. Try simple agent wrapper { agent: { name, cli, ... } }
@@ -214,6 +223,7 @@ impl GraphYamlLoader {
             retries: Some(1),
             budget_usd: Some(5.0),
             description: agent.role.or(Some(agent.name.clone())),
+            ..Default::default()
         };
 
         let yaml_team = YamlGraphTeam {
@@ -291,6 +301,7 @@ impl GraphYamlLoader {
                     retries: Some(1),
                     budget_usd: Some(2.0),
                     description: step.name.clone().or_else(|| Some(format!("Step {}", idx + 1))),
+                    ..Default::default()
                 });
 
                 if idx > 0 {
@@ -341,6 +352,7 @@ impl GraphYamlLoader {
             retries: Some(1),
             budget_usd: Some(5.0),
             description: Some(def.agent.name.clone()),
+            ..Default::default()
         };
 
         let yaml_team = YamlGraphTeam {
@@ -409,6 +421,7 @@ impl GraphYamlLoader {
                         retries: Some(1),
                         budget_usd: Some(1.0),
                         description: w.role.clone().or(w.name.clone()),
+                        ..Default::default()
                     });
 
                     if idx > 0 {
@@ -488,6 +501,7 @@ impl GraphYamlLoader {
                 retries: Some(1),
                 budget_usd: Some(0.50),
                 description: step.name.clone(),
+                ..Default::default()
             });
 
             if idx > 0 {
@@ -644,6 +658,7 @@ impl GraphYamlLoader {
                 retries: node_def.retries.or(Some(1)),
                 budget_usd: node_def.budget_usd.or(Some(1.0)),
                 description: Some(node_def.id.clone()),
+                ..Default::default()
             });
         }
 
@@ -696,27 +711,45 @@ impl GraphYamlLoader {
     }
 
     fn build_from_yaml_team(team: YamlGraphTeam) -> Result<GraphDefinition, GraphYamlError> {
+        let start_node = if !team.start_node.is_empty() {
+            team.start_node.clone()
+        } else if let Some(first) = team.nodes.first() {
+            first.id.clone()
+        } else {
+            "start".to_string()
+        };
+
         let mut builder = GraphDefinition::builder(
             GraphId::new(&team.name),
             &team.name,
-            NodeId::new(&team.start_node),
+            NodeId::new(&start_node),
         );
 
         if let Some(desc) = team.description {
             builder = builder.with_description(desc);
         }
 
-        for term in team.terminal_nodes {
-            builder = builder.add_terminal_node(NodeId::new(term));
+        if !team.terminal_nodes.is_empty() {
+            for term in team.terminal_nodes {
+                builder = builder.add_terminal_node(NodeId::new(term));
+            }
+        } else if let Some(last) = team.nodes.last() {
+            builder = builder.add_terminal_node(NodeId::new(&last.id));
         }
 
         for n in team.nodes {
-            let kind = match n.node_type.as_str() {
+            let n_type = if !n.node_type.is_empty() {
+                n.node_type.as_str()
+            } else {
+                "agent"
+            };
+
+            let kind = match n_type {
                 "orchestrator" => NodeKind::Orchestrator {
                     engine: n.engine.unwrap_or_else(|| "topcoat".to_string()),
                 },
                 "agent" => {
-                    let cli_str = n.provider.as_deref().or(n.cli.as_deref());
+                    let cli_str = n.provider.as_deref().or(n.cli.as_deref()).or(n.tool.as_deref());
                     let cli = match cli_str {
                         Some("codex") => CliType::Codex,
                         Some("claude") => CliType::Claude,
@@ -725,13 +758,14 @@ impl GraphYamlLoader {
                         Some("pi") => CliType::Pi,
                         _ => CliType::Custom,
                     };
+                    let tier = n.tier.or(n.model_tier);
                     NodeKind::Agent {
                         cli,
                         config: crate::types::AgentNodeSpec {
                             name: n.id.clone(),
                             role: n.description.clone(),
-                            provider: n.provider.or(n.cli),
-                            tier: n.tier,
+                            provider: n.provider.or(n.cli).or(n.tool),
+                            tier,
                             model: n.model,
                             prompt_system: n.prompt,
                             timeout_seconds: n.timeout_secs,
@@ -763,7 +797,7 @@ impl GraphYamlLoader {
             if let Some(retries) = n.retries {
                 node = node.with_retries(retries);
             }
-            if let Some(budget) = n.budget_usd {
+            if let Some(budget) = n.budget_usd.or(n.max_budget) {
                 node = node.with_budget(budget);
             }
             if let Some(desc) = n.description {

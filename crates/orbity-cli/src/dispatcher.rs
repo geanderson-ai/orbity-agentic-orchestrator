@@ -150,8 +150,10 @@ impl CommandDispatcher {
                     format!("agents/{}.yml", target_name),
                     format!("{}.yaml", target_name),
                     format!("{}.yml", target_name),
-                    format!("examples/forester/teams/{}.yaml", target_name),
-                    format!("examples/forester/agents/{}.yaml", target_name),
+                    "agents/coder.yaml".to_string(),
+                    "teams/coder.yaml".to_string(),
+                    "examples/forester/teams/forester.yaml".to_string(),
+                    "examples/forester/agents/planner.yaml".to_string(),
                 ];
 
                 // If default dev_team is not found, automatically check if there are any YAML files in agents/ or teams/
@@ -201,11 +203,41 @@ impl CommandDispatcher {
                 let graph = match loaded_graph {
                     Some(g) => g,
                     None => {
-                        eprintln!(
-                            "❌ Error: Could not find any configuration for '{}' in ./agents/, ./teams/, or project root.\nCreate a YAML file in agents/ (e.g. agents/coder.yaml) or teams/ (e.g. teams/dev_team.yaml).",
-                            target_name
+                        println!("ℹ️  No YAML team found in workspace. Creating default single-agent pipeline using 'codex'...");
+                        let worker_id = orbity_graph::types::NodeId::new("worker");
+                        let single_agent = orbity_graph::types::AgentNodeSpec {
+                            name: "Agent Worker".to_string(),
+                            role: Some("Full-stack developer".to_string()),
+                            provider: Some("openai".to_string()),
+                            tier: Some("Standard".to_string()),
+                            model: None,
+                            prompt_system: None,
+                            prompt_template: None,
+                            cli_args: vec![],
+                            allowed_tools: vec![],
+                            timeout_seconds: Some(180),
+                        };
+                        let node = orbity_graph::types::GraphNode::new(
+                            worker_id.clone(),
+                            orbity_graph::types::NodeKind::Agent {
+                                cli: orbity_graph::types::CliType::Codex,
+                                config: single_agent,
+                            },
                         );
-                        return Ok(1);
+                        let mut nodes_map = std::collections::HashMap::new();
+                        nodes_map.insert(worker_id.clone(), node);
+                        let mut term_set = std::collections::HashSet::new();
+                        term_set.insert(worker_id.clone());
+
+                        orbity_graph::types::GraphDefinition {
+                            id: orbity_graph::types::GraphId::new("dynamic_run"),
+                            name: "dynamic_run".to_string(),
+                            nodes: nodes_map,
+                            edges: vec![],
+                            start_node: worker_id,
+                            terminal_nodes: term_set,
+                            description: Some("Dynamic single-agent pipeline".to_string()),
+                        }
                     }
                 };
 
@@ -239,12 +271,13 @@ impl CommandDispatcher {
 
                 let mut sandbox_config = orbity_sandbox::types::SandboxConfig::default();
                 match args.sandbox.as_str() {
-                    "isolated" => {
-                        sandbox_config.network = orbity_sandbox::types::NetworkMode::Isolated;
+                    "isolated" | "allowlist" => {
+                        // Isolated filesystem sandbox with host mediated LLM network
+                        sandbox_config.network = orbity_sandbox::types::NetworkMode::HostMediated;
                         sandbox_config.root_readonly = true;
                     }
-                    "allowlist" => {
-                        sandbox_config.network = orbity_sandbox::types::NetworkMode::HostMediated;
+                    "strict" | "offline" => {
+                        sandbox_config.network = orbity_sandbox::types::NetworkMode::Isolated;
                         sandbox_config.root_readonly = true;
                     }
                     _ => {
@@ -313,7 +346,24 @@ impl CommandDispatcher {
                                 for (node, out) in outputs {
                                     if let Some(text) = out.as_str() {
                                         if !text.trim().is_empty() {
-                                            println!("\n--- [{}] ---\n{}", node, text.trim());
+                                            let mut rendered = String::new();
+                                            for line in text.lines() {
+                                                if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+                                                    if let Some(msg) = v.get("item").and_then(|i| i.get("text")).and_then(|t| t.as_str()) {
+                                                        rendered.push_str(msg);
+                                                        rendered.push('\n');
+                                                    } else if let Some(msg) = v.get("result").and_then(|r| r.as_str()) {
+                                                        rendered.push_str(msg);
+                                                        rendered.push('\n');
+                                                    }
+                                                }
+                                            }
+                                            let final_text = if !rendered.trim().is_empty() {
+                                                rendered.trim().to_string()
+                                            } else {
+                                                text.trim().to_string()
+                                            };
+                                            println!("\n--- [{}] ---\n{}", node, final_text);
                                         }
                                     }
                                 }

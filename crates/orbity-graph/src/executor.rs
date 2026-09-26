@@ -266,8 +266,15 @@ impl GraphExecutor {
                         .await
                         .map_err(ExecutionError::BudgetExceeded)?;
 
-                    // Inject context from predecessors
-                    let injected_context = blackboard.inject_context(&preds).await;
+                    // Inject context from predecessors or user prompt if root node
+                    let mut injected_context = blackboard.inject_context(&preds).await;
+                    if injected_context.is_empty() {
+                        if let Some(user_prompt) = blackboard.get_context("user_prompt").await {
+                            if let Some(s) = user_prompt.as_str() {
+                                injected_context = s.to_string();
+                            }
+                        }
+                    }
 
                     // Publish AgentStarted event
                     if let Some(b) = &bus {

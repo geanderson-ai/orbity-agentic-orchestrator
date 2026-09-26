@@ -1,0 +1,10 @@
+name: coder
+description: "Equipe ágil de codificação com OpenAI Codex CLI"
+version: "1.0"
+
+nodes:
+  - id: coder
+    tool: codex
+    prompt: "Escreva um código limpo e funcional em Python de acordo com a solicitação do usuário."
+    model_tier: Standard
+    max_budget: 0.50

@@ -88,25 +88,10 @@ impl ModelTierResolver {
                 reasoning_effort: Some("high".to_string()),
             }),
 
-            // OpenAI Codex
-            (CliType::Codex, ModelTier::Fast) => Some(ResolvedModel {
-                model_id: "gpt-4o-mini".to_string(),
-                flag_name: "-m".to_string(),
-                cli_args: vec!["-m".to_string(), "gpt-4o-mini".to_string()],
-                reasoning_effort: None,
-            }),
-            (CliType::Codex, ModelTier::Balanced) => Some(ResolvedModel {
-                model_id: "gpt-4o".to_string(),
-                flag_name: "-m".to_string(),
-                cli_args: vec!["-m".to_string(), "gpt-4o".to_string()],
-                reasoning_effort: None,
-            }),
-            (CliType::Codex, ModelTier::Reasoning) => Some(ResolvedModel {
-                model_id: "o3-mini".to_string(),
-                flag_name: "-m".to_string(),
-                cli_args: vec!["-m".to_string(), "o3-mini".to_string()],
-                reasoning_effort: Some("high".to_string()),
-            }),
+            // OpenAI Codex (Preserve native configuration by default to support ChatGPT/API auth seamlessly)
+            (CliType::Codex, ModelTier::Fast) => None,
+            (CliType::Codex, ModelTier::Balanced) => None,
+            (CliType::Codex, ModelTier::Reasoning) => None,
 
             // Antigravity (Agy)
             (CliType::Agy, ModelTier::Fast) => Some(ResolvedModel {
@@ -236,14 +221,11 @@ mod tests {
 
     #[test]
     fn test_resolve_codex_tiers() {
-        let fast = ModelTierResolver::resolve(CliType::Codex, Some("fast"), None).unwrap();
-        assert_eq!(fast.model_id, "gpt-4o-mini");
-        assert_eq!(fast.cli_args, vec!["-m", "gpt-4o-mini"]);
+        let fast = ModelTierResolver::resolve(CliType::Codex, Some("fast"), None);
+        assert!(fast.is_none());
 
-        let reasoning =
-            ModelTierResolver::resolve(CliType::Codex, Some("reasoning"), None).unwrap();
-        assert_eq!(reasoning.model_id, "o3-mini");
-        assert_eq!(reasoning.cli_args, vec!["-m", "o3-mini"]);
+        let balanced = ModelTierResolver::resolve(CliType::Codex, Some("balanced"), None);
+        assert!(balanced.is_none());
     }
 
     #[test]

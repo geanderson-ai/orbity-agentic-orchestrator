@@ -10,7 +10,6 @@ use orbity_sandbox::mock::MockSandbox;
 use orbity_sandbox::types::ExecutionResult;
 use sqlx::sqlite::SqlitePoolOptions;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
 #[tokio::test]
