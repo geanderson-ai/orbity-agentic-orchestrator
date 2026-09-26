@@ -25,8 +25,8 @@ use uuid::Uuid;
 #[tokio::test]
 async fn test_real_multi_agent_concurrent_orchestration_and_audit() {
     // 1. Load team contract YAML
-    let team_path = std::path::Path::new("../../examples/teams/forester.yaml");
-    let fallback_path = std::path::Path::new("examples/teams/forester.yaml");
+    let team_path = std::path::Path::new("../../examples/forester/teams/forester.yaml");
+    let fallback_path = std::path::Path::new("examples/forester/teams/forester.yaml");
     let target_path = if team_path.exists() {
         team_path
     } else {

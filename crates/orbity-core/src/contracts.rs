@@ -356,8 +356,8 @@ mod tests {
 
     #[test]
     fn test_parse_example_agent01() {
-        let path = std::path::Path::new("../../examples/agents/agente01.yaml");
-        let fallback_path = std::path::Path::new("examples/agents/agente01.yaml");
+        let path = std::path::Path::new("../../examples/forester/agents/agente01.yaml");
+        let fallback_path = std::path::Path::new("examples/forester/agents/agente01.yaml");
         let target = if path.exists() { path } else { fallback_path };
         let def = load_agent_file(target).expect("Failed to parse agente01.yaml");
 
@@ -377,8 +377,8 @@ mod tests {
 
     #[test]
     fn test_parse_example_agent02() {
-        let path = std::path::Path::new("../../examples/agents/agente02.yaml");
-        let fallback_path = std::path::Path::new("examples/agents/agente02.yaml");
+        let path = std::path::Path::new("../../examples/forester/agents/agente02.yaml");
+        let fallback_path = std::path::Path::new("examples/forester/agents/agente02.yaml");
         let target = if path.exists() { path } else { fallback_path };
         let def = load_agent_file(target).expect("Failed to parse agente02.yaml");
 
@@ -389,8 +389,8 @@ mod tests {
 
     #[test]
     fn test_parse_example_forester_team() {
-        let path = std::path::Path::new("../../examples/teams/forester.yaml");
-        let fallback_path = std::path::Path::new("examples/teams/forester.yaml");
+        let path = std::path::Path::new("../../examples/forester/teams/forester.yaml");
+        let fallback_path = std::path::Path::new("examples/forester/teams/forester.yaml");
         let target = if path.exists() { path } else { fallback_path };
         let def = load_team_file(target).expect("Failed to parse forester.yaml");
 

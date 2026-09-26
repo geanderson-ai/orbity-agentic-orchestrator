@@ -248,7 +248,7 @@ Suíte de Agentes CLI Detectados:
 
 ```bash
 # 1. Carregar uma equipe declarativa a partir de um YAML:
-orbity team load ./examples/teams/forester.yaml
+orbity team load ./examples/forester/teams/forester.yaml
 
 # 2. Executar uma tarefa completa com a equipe forester:
 orbity team run forester "Implementar autenticação JWT e testes em Rust" --budget-usd 2.00

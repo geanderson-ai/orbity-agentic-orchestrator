@@ -158,7 +158,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
     - Políticas de Governança Declarativa no YAML: `ApprovalPolicy`, `AutoApprovalRule`, `AutoRejectRule`, `ApprovalMode`, `FallbackAction`, `ExpensiveModelAction`.
     - Enum: `AgentLifecycleState` (`Draft`, `Spawning`, `Idle`, `Planning`, `Executing`, `Paused`, `Completed`, `Failed`, `Archived`).
     - Parser YAML com `serde_yaml` suportando convenção de pastas (`teams/<nome>.yaml` onde o arquivo vira o nome da equipe, ex: `forester.yaml`, e `agents/<id>.yaml`), com carregamento completo de regras de aprovação e rejeição declarativas.
-  - **Critério de Aceite (DoD):** Parser lê e valida com sucesso arquivos como `examples/teams/forester.yaml` e `examples/agents/agente01.yaml` gerando structs tipadas e avaliando regras de aprovação/rejeição declarativas.
+  - **Critério de Aceite (DoD):** Parser lê e valida com sucesso arquivos como `examples/forester/teams/forester.yaml` e `examples/forester/agents/agente01.yaml` gerando structs tipadas e avaliando regras de aprovação/rejeição declarativas.
 
 #### Critérios de Saída do Gate 0 (Quality Gate)
 - Todos os crates configurados e compilando sem warnings (`cargo clippy --workspace -- -D warnings`).
@@ -464,7 +464,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 
 - [x] **TASK-410: Gerenciador de Ciclo de Vida do Agente e Parser Declarativo de Topologia de Grafo (YAML)**
   - **Escopo:** Implementar CRUD de agentes (`agentCreate`, `agentList`, `agentGet`, `agentUpdate`, `agentDelete`) e deserializador YAML para equipes em grafo (`teams/forester.yaml` com blocos `nodes:` e `edges:`).
-  - **Critério de Aceite (DoD):** Carregamento de `examples/teams/forester.yaml` instanciando um `GraphDefinition` com validação de tipagem e integridade.
+  - **Critério de Aceite (DoD):** Carregamento de `examples/forester/teams/forester.yaml` instanciando um `GraphDefinition` com validação de tipagem e integridade.
 
 
 #### Critérios de Saída do Gate 4 (Quality Gate)
@@ -586,7 +586,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
 - [x] **TASK-604: Subcomandos de Agentes e Equipes Declarativas (`orbity agent` e `orbity team`)**
   - **Escopo:** Implementar subcomandos CLI para CRUD e carregamento via YAML:
     - `orbity agent create [-f <YAML>]` / `orbity agent list` / `orbity agent get <ID>` / `orbity agent update <ID>` / `orbity agent delete <ID>`.
-    - `orbity team load <PATH_YAML>` (ex: `./examples/teams/forester.yaml`).
+    - `orbity team load <PATH_YAML>` (ex: `./examples/forester/teams/forester.yaml`).
     - `orbity team list` / `orbity team run <TEAM_NAME> <PROMPT>`.
   - **Critério de Aceite (DoD):** Comandos com autocomplete, formatação de saída amigável em tabelas no terminal e execução de ponta a ponta a partir de arquivos YAML.
 
@@ -613,7 +613,7 @@ O sistema é um **runtime e orquestrador de agentes de IA de alto desempenho e s
       - Arquivo excluído $\rightarrow$ marca soft-delete (`Archived`) auditado preservando o histórico.
       - Arquivo idêntico $\rightarrow$ nenhuma ação no banco (overhead < 2ms).
     - Exibição de sumário visual informativo no terminal quando houver mudanças sincronizadas.
-  - **Critério de Aceite (DoD):** Adição, edição e remoção de arquivos em `examples/agents/` sincronizam automaticamente o banco SQLite e emitem eventos `AgentSyncedFromYaml` na trilha com hash encadeado.
+  - **Critério de Aceite (DoD):** Adição, edição e remoção de arquivos em `examples/forester/agents/` sincronizam automaticamente o banco SQLite e emitem eventos `AgentSyncedFromYaml` na trilha com hash encadeado.
 
 #### Critérios de Saída do Gate 6 (Quality Gate)
 - O binário compilado `orbity` responde a todos os subcomandos de forma idiomática e amigável.

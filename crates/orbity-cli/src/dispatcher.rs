@@ -53,7 +53,7 @@ impl CommandDispatcher {
                     if Path::new("teams").exists() {
                         std::path::PathBuf::from("teams")
                     } else {
-                        std::path::PathBuf::from("examples/teams")
+                        std::path::PathBuf::from("examples/forester/teams")
                     }
                 });
 
@@ -61,7 +61,7 @@ impl CommandDispatcher {
                     if Path::new("agents").exists() {
                         std::path::PathBuf::from("agents")
                     } else {
-                        std::path::PathBuf::from("examples/agents")
+                        std::path::PathBuf::from("examples/forester/agents")
                     }
                 });
 
@@ -141,14 +141,14 @@ impl CommandDispatcher {
                 println!("🚀 Initiating run {}...", exec_id);
                 println!("Prompt: {}", args.prompt);
 
-                // Load team or pipeline if specified, or search in teams/ or examples/teams/
+                // Load team or pipeline if specified, or search in teams/ or examples/forester/teams/
                 let team_name = args.team.as_deref().unwrap_or("dev_team");
                 let search_paths = [
                     format!("teams/{}.yaml", team_name),
                     format!("teams/{}.yml", team_name),
                     format!("{}.yaml", team_name),
-                    format!("examples/teams/{}.yaml", team_name),
-                    format!("examples/teams/{}.yml", team_name),
+                    format!("examples/forester/teams/{}.yaml", team_name),
+                    format!("examples/forester/teams/{}.yml", team_name),
                 ];
 
                 let mut loaded_graph = None;
@@ -179,7 +179,7 @@ impl CommandDispatcher {
                     Some(g) => g,
                     None => {
                         eprintln!(
-                            "❌ Error: Team '{}' was not found in ./teams/ or ./examples/teams/.",
+                            "❌ Error: Team '{}' was not found in ./teams/ or ./examples/forester/teams/.",
                             team_name
                         );
                         return Ok(1);

@@ -1,0 +1,19 @@
+# Exemplo mínimo de agente Orbity.
+version: "1.0"
+agent:
+  id: "agt_minimal"
+  name: "Minimal Agent"
+  orchestrator:
+    type: "embedded"
+    name: "Minimal Agent Lead"
+    runner: "codex"
+    plan:
+      strategy: "Sequential"
+      steps:
+        - name: "Executar tarefa"
+          delegate_to: "minimal-worker"
+    team:
+      - id: "minimal-worker"
+        name: "Minimal Worker"
+        provider: "codex"
+        runner: "codex"

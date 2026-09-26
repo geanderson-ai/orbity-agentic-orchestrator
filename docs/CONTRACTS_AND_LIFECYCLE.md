@@ -665,7 +665,7 @@ A CLI oferece controle completo tanto imperativo quanto declarativo baseado na p
 # ==============================================================================
 
 # Carregar equipe forester a partir de seu arquivo YAML
-orbity team load ./examples/teams/forester.yaml
+orbity team load ./examples/forester/teams/forester.yaml
 # Saída:
 # ✓ Equipe 'forester' registrada com sucesso!
 #   └─ Orquestrador Líder: Forester Lead Orchestrator (ID: forester-lead)
@@ -683,7 +683,7 @@ orbity team run forester "Auditar e refatorar conexões de banco SQLite em orbit
 # ==============================================================================
 
 # agentCreate: Criar novo agente via YAML individual ou argumentos
-orbity agent create -f ./examples/agents/agente01.yaml
+orbity agent create -f ./examples/forester/agents/agente01.yaml
 orbity agent create --name "BugHunter" --model "claude-3-5-sonnet" --plan "AutonomousLoop"
 
 # agentList: Listar agentes com seus orquestradores e estados atuais
@@ -695,7 +695,7 @@ orbity agent get agt_01h89x2k
 
 # agentUpdate: Atualizar prompt ou orçamento em tempo real
 orbity agent update agt_01h89x2k --budget-usd 2.00
-orbity agent update agt_01h89x2k -f ./examples/agents/agente01_v2.yaml
+orbity agent update agt_01h89x2k -f ./examples/forester/agents/agente01_v2.yaml
 
 # agentDelete: Desativar agente de forma auditada
 orbity agent delete agt_01h89x2k
@@ -705,7 +705,7 @@ orbity agent delete agt_01h89x2k
 # ==============================================================================
 
 # Validar topologia e integridade de arestas de uma equipe (Kahn DAG + Cycle check)
-orbity graph validate ./examples/teams/forester.yaml
+orbity graph validate ./examples/forester/teams/forester.yaml
 
 # Inspecionar nós, arestas, barreiras e pontos de aprovação humana no terminal
 orbity graph inspect forester

@@ -28,7 +28,7 @@ pub struct SyncSummary {
 pub struct DeclarativeSync;
 
 impl DeclarativeSync {
-    /// Scans a directory of team YAML files (e.g. `examples/teams/`) and syncs to SQLite.
+    /// Scans a directory of team YAML files (e.g. `examples/forester/teams/`) and syncs to SQLite.
     pub async fn sync_teams(
         pool: &SqliteStoragePool,
         teams_dir: impl AsRef<Path>,
@@ -89,7 +89,7 @@ impl DeclarativeSync {
         Ok(summary)
     }
 
-    /// Scans a directory of agent YAML files (e.g. `examples/agents/`) and syncs to SQLite.
+    /// Scans a directory of agent YAML files (e.g. `examples/forester/agents/`) and syncs to SQLite.
     pub async fn sync_agents(
         pool: &SqliteStoragePool,
         agents_dir: impl AsRef<Path>,

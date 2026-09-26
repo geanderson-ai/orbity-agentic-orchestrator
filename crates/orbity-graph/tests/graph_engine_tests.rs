@@ -291,8 +291,8 @@ edges:
 
 #[tokio::test]
 async fn test_yaml_loader_forester_canonical_file() {
-    let path = std::path::Path::new("../../examples/teams/forester.yaml");
-    let fallback = std::path::Path::new("examples/teams/forester.yaml");
+    let path = std::path::Path::new("../../examples/forester/teams/forester.yaml");
+    let fallback = std::path::Path::new("examples/forester/teams/forester.yaml");
     let target = if path.exists() { path } else { fallback };
 
     let graph = GraphYamlLoader::load_file(target).expect("Must parse forester.yaml");
