@@ -75,7 +75,9 @@ async fn test_real_multi_agent_concurrent_orchestration_and_audit() {
         completed_at: None,
         total_tokens: 0,
         total_cost_usd: 0.0,
-        metadata: Some(r#"{"objective": "Implement SQLite WAL & Cryptographic Audit"}"#.to_string()),
+        metadata: Some(
+            r#"{"objective": "Implement SQLite WAL & Cryptographic Audit"}"#.to_string(),
+        ),
     };
     run_dao.create(&run_record).await.expect("Create run");
 
@@ -86,7 +88,9 @@ async fn test_real_multi_agent_concurrent_orchestration_and_audit() {
     // Genesis Block in Audit Store
     let mut init_event = RuntimeEvent::RunInitiated {
         run_id: run_id.clone(),
-        prompt: "Refactor SQLite storage and audit chain with key sk-ant-secret-key-1234567890abcdef".to_string(),
+        prompt:
+            "Refactor SQLite storage and audit chain with key sk-ant-secret-key-1234567890abcdef"
+                .to_string(),
         team_name: Some("forester".to_string()),
     };
     masker.mask_event(&mut init_event);
@@ -110,70 +114,112 @@ async fn test_real_multi_agent_concurrent_orchestration_and_audit() {
         let l_dao = TokenLedgerDao::new((*p1).clone());
         let task_id = format!("task-codex-{}", Uuid::new_v4());
 
-        t_dao.create(&TaskRecord {
-            id: task_id.clone(),
-            run_id: (*r1).clone(),
-            parent_task_id: None,
-            agent_name: "codex-worker".to_string(),
-            status: "Running".to_string(),
-            input_prompt: Some("Implement SQLite WAL and migrations in Rust".to_string()),
-            output_result: None,
-            duration_ms: None,
-            created_at: Utc::now(),
-        }).await.unwrap();
+        t_dao
+            .create(&TaskRecord {
+                id: task_id.clone(),
+                run_id: (*r1).clone(),
+                parent_task_id: None,
+                agent_name: "codex-worker".to_string(),
+                status: "Running".to_string(),
+                input_prompt: Some("Implement SQLite WAL and migrations in Rust".to_string()),
+                output_result: None,
+                duration_ms: None,
+                created_at: Utc::now(),
+            })
+            .await
+            .unwrap();
 
-        a_store.append_event(&r1, Some(&task_id), &RuntimeEvent::AgentStarted {
-            run_id: (*r1).clone(),
-            task_id: Some(task_id.clone()),
-            agent_id: "codex-worker".to_string(),
-            agent_name: "Codex CLI Worker".to_string(),
-        }).await.unwrap();
+        a_store
+            .append_event(
+                &r1,
+                Some(&task_id),
+                &RuntimeEvent::AgentStarted {
+                    run_id: (*r1).clone(),
+                    task_id: Some(task_id.clone()),
+                    agent_id: "codex-worker".to_string(),
+                    agent_name: "Codex CLI Worker".to_string(),
+                },
+            )
+            .await
+            .unwrap();
 
         // Simulate code generation and compilation
-        a_store.append_event(&r1, Some(&task_id), &RuntimeEvent::FileWritten {
-            run_id: (*r1).clone(),
-            task_id: Some(task_id.clone()),
-            agent_name: "codex-worker".to_string(),
-            file_path: "crates/orbity-storage/src/migrations.rs".to_string(),
-            bytes_written: 2048,
-            content_hash: "hash_migrations_v1".to_string(),
-        }).await.unwrap();
+        a_store
+            .append_event(
+                &r1,
+                Some(&task_id),
+                &RuntimeEvent::FileWritten {
+                    run_id: (*r1).clone(),
+                    task_id: Some(task_id.clone()),
+                    agent_name: "codex-worker".to_string(),
+                    file_path: "crates/orbity-storage/src/migrations.rs".to_string(),
+                    bytes_written: 2048,
+                    content_hash: "hash_migrations_v1".to_string(),
+                },
+            )
+            .await
+            .unwrap();
 
-        a_store.append_event(&r1, Some(&task_id), &RuntimeEvent::CommandExecuted {
-            run_id: (*r1).clone(),
-            task_id: Some(task_id.clone()),
-            agent_name: "codex-worker".to_string(),
-            command: "cargo".to_string(),
-            args: vec!["test".to_string(), "--workspace".to_string()],
-            exit_code: 0,
-            duration_ms: 1200,
-            stdout_preview: Some("test result: ok".to_string()),
-            stderr_preview: None,
-            sandbox_id: Some("sbx-01".to_string()),
-        }).await.unwrap();
+        a_store
+            .append_event(
+                &r1,
+                Some(&task_id),
+                &RuntimeEvent::CommandExecuted {
+                    run_id: (*r1).clone(),
+                    task_id: Some(task_id.clone()),
+                    agent_name: "codex-worker".to_string(),
+                    command: "cargo".to_string(),
+                    args: vec!["test".to_string(), "--workspace".to_string()],
+                    exit_code: 0,
+                    duration_ms: 1200,
+                    stdout_preview: Some("test result: ok".to_string()),
+                    stderr_preview: None,
+                    sandbox_id: Some("sbx-01".to_string()),
+                },
+            )
+            .await
+            .unwrap();
 
-        l_dao.record_usage(&TokenLedgerRecord {
-            id: Uuid::new_v4().to_string(),
-            run_id: (*r1).clone(),
-            task_id: Some(task_id.clone()),
-            agent_name: "codex-worker".to_string(),
-            input_tokens: 3500,
-            output_tokens: 1200,
-            cached_tokens: 800,
-            reasoning_tokens: 400,
-            cost_usd: 0.045,
-            recorded_at: Utc::now(),
-        }).await.unwrap();
+        l_dao
+            .record_usage(&TokenLedgerRecord {
+                id: Uuid::new_v4().to_string(),
+                run_id: (*r1).clone(),
+                task_id: Some(task_id.clone()),
+                agent_name: "codex-worker".to_string(),
+                input_tokens: 3500,
+                output_tokens: 1200,
+                cached_tokens: 800,
+                reasoning_tokens: 400,
+                cost_usd: 0.045,
+                recorded_at: Utc::now(),
+            })
+            .await
+            .unwrap();
 
-        t_dao.update_status(&task_id, "Completed", Some("Rust code and tests generated successfully"), Some(1250)).await.unwrap();
+        t_dao
+            .update_status(
+                &task_id,
+                "Completed",
+                Some("Rust code and tests generated successfully"),
+                Some(1250),
+            )
+            .await
+            .unwrap();
 
-        a_store.append_event(&r1, Some(&task_id), &RuntimeEvent::AgentFinished {
-            run_id: (*r1).clone(),
-            task_id: Some(task_id.clone()),
-            agent_id: "codex-worker".to_string(),
-            agent_name: "Codex CLI Worker".to_string(),
-            summary: Some("Code implemented and passed test suite".to_string()),
-        }).await.unwrap();
+        a_store
+            .append_event(
+                &r1,
+                Some(&task_id),
+                &RuntimeEvent::AgentFinished {
+                    run_id: (*r1).clone(),
+                    task_id: Some(task_id.clone()),
+                    agent_id: "codex-worker".to_string(),
+                    agent_name: "Codex CLI Worker".to_string(),
+                    summary: Some("Code implemented and passed test suite".to_string()),
+                },
+            )
+            .await
+            .unwrap();
     });
 
     // Worker 2: Claude Code Sentinel (Security & Review)
@@ -185,62 +231,106 @@ async fn test_real_multi_agent_concurrent_orchestration_and_audit() {
         let l_dao = TokenLedgerDao::new((*p2).clone());
         let task_id = format!("task-claude-{}", Uuid::new_v4());
 
-        t_dao.create(&TaskRecord {
-            id: task_id.clone(),
-            run_id: (*r2).clone(),
-            parent_task_id: None,
-            agent_name: "claude-code-worker".to_string(),
-            status: "Running".to_string(),
-            input_prompt: Some("Review cryptographic hash chain invariants and secret masking".to_string()),
-            output_result: None,
-            duration_ms: None,
-            created_at: Utc::now(),
-        }).await.unwrap();
+        t_dao
+            .create(&TaskRecord {
+                id: task_id.clone(),
+                run_id: (*r2).clone(),
+                parent_task_id: None,
+                agent_name: "claude-code-worker".to_string(),
+                status: "Running".to_string(),
+                input_prompt: Some(
+                    "Review cryptographic hash chain invariants and secret masking".to_string(),
+                ),
+                output_result: None,
+                duration_ms: None,
+                created_at: Utc::now(),
+            })
+            .await
+            .unwrap();
 
-        a_store.append_event(&r2, Some(&task_id), &RuntimeEvent::AgentStarted {
-            run_id: (*r2).clone(),
-            task_id: Some(task_id.clone()),
-            agent_id: "claude-code-worker".to_string(),
-            agent_name: "Claude Code Sentinel".to_string(),
-        }).await.unwrap();
+        a_store
+            .append_event(
+                &r2,
+                Some(&task_id),
+                &RuntimeEvent::AgentStarted {
+                    run_id: (*r2).clone(),
+                    task_id: Some(task_id.clone()),
+                    agent_id: "claude-code-worker".to_string(),
+                    agent_name: "Claude Code Sentinel".to_string(),
+                },
+            )
+            .await
+            .unwrap();
 
-        a_store.append_event(&r2, Some(&task_id), &RuntimeEvent::FileRead {
-            run_id: (*r2).clone(),
-            task_id: Some(task_id.clone()),
-            agent_name: "claude-code-worker".to_string(),
-            file_path: "crates/orbity-storage/src/audit_chain.rs".to_string(),
-            bytes_read: 4096,
-        }).await.unwrap();
+        a_store
+            .append_event(
+                &r2,
+                Some(&task_id),
+                &RuntimeEvent::FileRead {
+                    run_id: (*r2).clone(),
+                    task_id: Some(task_id.clone()),
+                    agent_name: "claude-code-worker".to_string(),
+                    file_path: "crates/orbity-storage/src/audit_chain.rs".to_string(),
+                    bytes_read: 4096,
+                },
+            )
+            .await
+            .unwrap();
 
-        a_store.append_event(&r2, Some(&task_id), &RuntimeEvent::PolicyAllowed {
-            run_id: (*r2).clone(),
-            agent_name: "claude-code-worker".to_string(),
-            action: "merge_diff".to_string(),
-            resource: "crates/orbity-storage".to_string(),
-        }).await.unwrap();
+        a_store
+            .append_event(
+                &r2,
+                Some(&task_id),
+                &RuntimeEvent::PolicyAllowed {
+                    run_id: (*r2).clone(),
+                    agent_name: "claude-code-worker".to_string(),
+                    action: "merge_diff".to_string(),
+                    resource: "crates/orbity-storage".to_string(),
+                },
+            )
+            .await
+            .unwrap();
 
-        l_dao.record_usage(&TokenLedgerRecord {
-            id: Uuid::new_v4().to_string(),
-            run_id: (*r2).clone(),
-            task_id: Some(task_id.clone()),
-            agent_name: "claude-code-worker".to_string(),
-            input_tokens: 4200,
-            output_tokens: 850,
-            cached_tokens: 1500,
-            reasoning_tokens: 600,
-            cost_usd: 0.052,
-            recorded_at: Utc::now(),
-        }).await.unwrap();
+        l_dao
+            .record_usage(&TokenLedgerRecord {
+                id: Uuid::new_v4().to_string(),
+                run_id: (*r2).clone(),
+                task_id: Some(task_id.clone()),
+                agent_name: "claude-code-worker".to_string(),
+                input_tokens: 4200,
+                output_tokens: 850,
+                cached_tokens: 1500,
+                reasoning_tokens: 600,
+                cost_usd: 0.052,
+                recorded_at: Utc::now(),
+            })
+            .await
+            .unwrap();
 
-        t_dao.update_status(&task_id, "Completed", Some("Zero vulnerabilities found. Approved."), Some(800)).await.unwrap();
+        t_dao
+            .update_status(
+                &task_id,
+                "Completed",
+                Some("Zero vulnerabilities found. Approved."),
+                Some(800),
+            )
+            .await
+            .unwrap();
 
-        a_store.append_event(&r2, Some(&task_id), &RuntimeEvent::AgentFinished {
-            run_id: (*r2).clone(),
-            task_id: Some(task_id.clone()),
-            agent_id: "claude-code-worker".to_string(),
-            agent_name: "Claude Code Sentinel".to_string(),
-            summary: Some("Invariants verified and approved".to_string()),
-        }).await.unwrap();
+        a_store
+            .append_event(
+                &r2,
+                Some(&task_id),
+                &RuntimeEvent::AgentFinished {
+                    run_id: (*r2).clone(),
+                    task_id: Some(task_id.clone()),
+                    agent_id: "claude-code-worker".to_string(),
+                    agent_name: "Claude Code Sentinel".to_string(),
+                    summary: Some("Invariants verified and approved".to_string()),
+                },
+            )
+            .await
+            .unwrap();
     });
 
     // Worker 3: Hermes Researcher (Tool & Search Execution)
@@ -252,42 +342,58 @@ async fn test_real_multi_agent_concurrent_orchestration_and_audit() {
         let l_dao = TokenLedgerDao::new((*p3).clone());
         let task_id = format!("task-hermes-{}", Uuid::new_v4());
 
-        t_dao.create(&TaskRecord {
-            id: task_id.clone(),
-            run_id: (*r3).clone(),
-            parent_task_id: None,
-            agent_name: "hermes-researcher".to_string(),
-            status: "Running".to_string(),
-            input_prompt: Some("Search best practices on SQLite WAL busy timeout".to_string()),
-            output_result: None,
-            duration_ms: None,
-            created_at: Utc::now(),
-        }).await.unwrap();
+        t_dao
+            .create(&TaskRecord {
+                id: task_id.clone(),
+                run_id: (*r3).clone(),
+                parent_task_id: None,
+                agent_name: "hermes-researcher".to_string(),
+                status: "Running".to_string(),
+                input_prompt: Some("Search best practices on SQLite WAL busy timeout".to_string()),
+                output_result: None,
+                duration_ms: None,
+                created_at: Utc::now(),
+            })
+            .await
+            .unwrap();
 
-        a_store.append_event(&r3, Some(&task_id), &RuntimeEvent::ToolCalled {
-            run_id: (*r3).clone(),
-            task_id: Some(task_id.clone()),
-            agent_name: "hermes-researcher".to_string(),
-            tool_name: "web.search".to_string(),
-            input: serde_json::json!({"query": "sqlite wal busy_timeout rust sqlx"}),
-            output: Some(serde_json::json!({"status": "found", "count": 3})),
-            duration_ms: 320,
-        }).await.unwrap();
+        a_store
+            .append_event(
+                &r3,
+                Some(&task_id),
+                &RuntimeEvent::ToolCalled {
+                    run_id: (*r3).clone(),
+                    task_id: Some(task_id.clone()),
+                    agent_name: "hermes-researcher".to_string(),
+                    tool_name: "web.search".to_string(),
+                    input: serde_json::json!({"query": "sqlite wal busy_timeout rust sqlx"}),
+                    output: Some(serde_json::json!({"status": "found", "count": 3})),
+                    duration_ms: 320,
+                },
+            )
+            .await
+            .unwrap();
 
-        l_dao.record_usage(&TokenLedgerRecord {
-            id: Uuid::new_v4().to_string(),
-            run_id: (*r3).clone(),
-            task_id: Some(task_id.clone()),
-            agent_name: "hermes-researcher".to_string(),
-            input_tokens: 1800,
-            output_tokens: 400,
-            cached_tokens: 0,
-            reasoning_tokens: 0,
-            cost_usd: 0.015,
-            recorded_at: Utc::now(),
-        }).await.unwrap();
+        l_dao
+            .record_usage(&TokenLedgerRecord {
+                id: Uuid::new_v4().to_string(),
+                run_id: (*r3).clone(),
+                task_id: Some(task_id.clone()),
+                agent_name: "hermes-researcher".to_string(),
+                input_tokens: 1800,
+                output_tokens: 400,
+                cached_tokens: 0,
+                reasoning_tokens: 0,
+                cost_usd: 0.015,
+                recorded_at: Utc::now(),
+            })
+            .await
+            .unwrap();
 
-        t_dao.update_status(&task_id, "Completed", Some("Research completed"), Some(350)).await.unwrap();
+        t_dao
+            .update_status(&task_id, "Completed", Some("Research completed"), Some(350))
+            .await
+            .unwrap();
     });
 
     // Worker 4: Pi Assistant (Quick Fix Refactoring)
@@ -299,69 +405,102 @@ async fn test_real_multi_agent_concurrent_orchestration_and_audit() {
         let l_dao = TokenLedgerDao::new((*p4).clone());
         let task_id = format!("task-pi-{}", Uuid::new_v4());
 
-        t_dao.create(&TaskRecord {
-            id: task_id.clone(),
-            run_id: (*r4).clone(),
-            parent_task_id: None,
-            agent_name: "pi-coder".to_string(),
-            status: "Running".to_string(),
-            input_prompt: Some("Fast lint and format cleanup".to_string()),
-            output_result: None,
-            duration_ms: None,
-            created_at: Utc::now(),
-        }).await.unwrap();
+        t_dao
+            .create(&TaskRecord {
+                id: task_id.clone(),
+                run_id: (*r4).clone(),
+                parent_task_id: None,
+                agent_name: "pi-coder".to_string(),
+                status: "Running".to_string(),
+                input_prompt: Some("Fast lint and format cleanup".to_string()),
+                output_result: None,
+                duration_ms: None,
+                created_at: Utc::now(),
+            })
+            .await
+            .unwrap();
 
-        a_store.append_event(&r4, Some(&task_id), &RuntimeEvent::CommandExecuted {
-            run_id: (*r4).clone(),
-            task_id: Some(task_id.clone()),
-            agent_name: "pi-coder".to_string(),
-            command: "cargo".to_string(),
-            args: vec!["fmt".to_string(), "--check".to_string()],
-            exit_code: 0,
-            duration_ms: 180,
-            stdout_preview: Some("formatted".to_string()),
-            stderr_preview: None,
-            sandbox_id: None,
-        }).await.unwrap();
+        a_store
+            .append_event(
+                &r4,
+                Some(&task_id),
+                &RuntimeEvent::CommandExecuted {
+                    run_id: (*r4).clone(),
+                    task_id: Some(task_id.clone()),
+                    agent_name: "pi-coder".to_string(),
+                    command: "cargo".to_string(),
+                    args: vec!["fmt".to_string(), "--check".to_string()],
+                    exit_code: 0,
+                    duration_ms: 180,
+                    stdout_preview: Some("formatted".to_string()),
+                    stderr_preview: None,
+                    sandbox_id: None,
+                },
+            )
+            .await
+            .unwrap();
 
-        l_dao.record_usage(&TokenLedgerRecord {
-            id: Uuid::new_v4().to_string(),
-            run_id: (*r4).clone(),
-            task_id: Some(task_id.clone()),
-            agent_name: "pi-coder".to_string(),
-            input_tokens: 800,
-            output_tokens: 200,
-            cached_tokens: 0,
-            reasoning_tokens: 0,
-            cost_usd: 0.005,
-            recorded_at: Utc::now(),
-        }).await.unwrap();
+        l_dao
+            .record_usage(&TokenLedgerRecord {
+                id: Uuid::new_v4().to_string(),
+                run_id: (*r4).clone(),
+                task_id: Some(task_id.clone()),
+                agent_name: "pi-coder".to_string(),
+                input_tokens: 800,
+                output_tokens: 200,
+                cached_tokens: 0,
+                reasoning_tokens: 0,
+                cost_usd: 0.005,
+                recorded_at: Utc::now(),
+            })
+            .await
+            .unwrap();
 
-        t_dao.update_status(&task_id, "Completed", Some("Clean formatting verified"), Some(200)).await.unwrap();
+        t_dao
+            .update_status(
+                &task_id,
+                "Completed",
+                Some("Clean formatting verified"),
+                Some(200),
+            )
+            .await
+            .unwrap();
     });
 
     // Await all concurrent agent tasks
-    let (res_codex, res_claude, res_hermes, res_pi) = tokio::join!(
-        handle_codex,
-        handle_claude,
-        handle_hermes,
-        handle_pi
-    );
+    let (res_codex, res_claude, res_hermes, res_pi) =
+        tokio::join!(handle_codex, handle_claude, handle_hermes, handle_pi);
     res_codex.expect("Codex task succeeded");
     res_claude.expect("Claude task succeeded");
     res_hermes.expect("Hermes task succeeded");
     res_pi.expect("Pi task succeeded");
 
     // 6. Supervisor FinOps consolidation
-    let summary = ledger_dao.get_run_summary(&run_id).await.expect("Get run summary");
+    let summary = ledger_dao
+        .get_run_summary(&run_id)
+        .await
+        .expect("Get run summary");
     assert_eq!(summary.records_count, 4);
-    assert_eq!(summary.total_tokens, 3500+1200+800+400 + 4200+850+1500+600 + 1800+400 + 800+200);
+    assert_eq!(
+        summary.total_tokens,
+        3500 + 1200 + 800 + 400 + 4200 + 850 + 1500 + 600 + 1800 + 400 + 800 + 200
+    );
     assert!((summary.total_cost_usd - (0.045 + 0.052 + 0.015 + 0.005)).abs() < 1e-6);
 
     // Verify against BudgetPolicy from forester.yaml ($2.00 max budget)
     let budget_policy = BudgetPolicy {
-        max_cost_usd: team_def.team.finops.as_ref().and_then(|f| f.max_budget_usd).unwrap_or(2.0),
-        max_tokens: team_def.team.finops.as_ref().and_then(|f| f.max_total_tokens).unwrap_or(300_000),
+        max_cost_usd: team_def
+            .team
+            .finops
+            .as_ref()
+            .and_then(|f| f.max_budget_usd)
+            .unwrap_or(2.0),
+        max_tokens: team_def
+            .team
+            .finops
+            .as_ref()
+            .and_then(|f| f.max_total_tokens)
+            .unwrap_or(300_000),
         max_agent_calls: 50,
         expensive_model_approval_threshold: Some(0.80),
         auto_approve_expensive_models: false,
@@ -397,7 +536,11 @@ async fn test_real_multi_agent_concurrent_orchestration_and_audit() {
         .await
         .expect("Update run status");
 
-    let final_run = run_dao.get(&run_id).await.unwrap().expect("Final run found");
+    let final_run = run_dao
+        .get(&run_id)
+        .await
+        .unwrap()
+        .expect("Final run found");
     assert_eq!(final_run.status, "Completed");
     assert_eq!(final_run.total_tokens, summary.total_tokens);
 
@@ -409,10 +552,20 @@ async fn test_real_multi_agent_concurrent_orchestration_and_audit() {
     }
 
     // 8. Cryptographic Audit Verification
-    let audit_result = audit_verifier.verify_run(&run_id).await.expect("Run audit verifier");
+    let audit_result = audit_verifier
+        .verify_run(&run_id)
+        .await
+        .expect("Run audit verifier");
     match &audit_result {
-        AuditVerificationResult::Valid { total_events, final_hash, .. } => {
-            println!("Cryptographic audit trail verified successfully! Total events: {}, Final hash: {}", total_events, final_hash);
+        AuditVerificationResult::Valid {
+            total_events,
+            final_hash,
+            ..
+        } => {
+            println!(
+                "Cryptographic audit trail verified successfully! Total events: {}, Final hash: {}",
+                total_events, final_hash
+            );
             assert!(*total_events >= 10);
             assert_eq!(final_hash.len(), 64);
         }
@@ -430,14 +583,27 @@ async fn test_real_multi_agent_concurrent_orchestration_and_audit() {
     .expect("Simulate malicious tamper");
 
     // Verify that the audit verifier immediately detects the fraud
-    let tampered_result = audit_verifier.verify_run(&run_id).await.expect("Run audit verifier after tamper");
+    let tampered_result = audit_verifier
+        .verify_run(&run_id)
+        .await
+        .expect("Run audit verifier after tamper");
     match tampered_result {
-        AuditVerificationResult::Tampered { sequence_num, reason, .. } => {
+        AuditVerificationResult::Tampered {
+            sequence_num,
+            reason,
+            ..
+        } => {
             assert_eq!(sequence_num, 3);
-            println!("Malicious tampering successfully detected at sequence 3: {}", reason);
+            println!(
+                "Malicious tampering successfully detected at sequence 3: {}",
+                reason
+            );
             assert!(reason.contains("hash mismatch"));
         }
-        other => panic!("Audit verifier failed to detect tampering! Got: {:?}", other),
+        other => panic!(
+            "Audit verifier failed to detect tampering! Got: {:?}",
+            other
+        ),
     }
 
     // 10. Clean up test database file

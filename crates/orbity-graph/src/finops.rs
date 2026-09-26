@@ -35,7 +35,11 @@ impl GraphFinOpsTracker {
     }
 
     /// Checks if a proposed node execution exceeds the global budget or node budget.
-    pub async fn check_budget(&self, node_id: &NodeId, node_limit_usd: Option<f64>) -> Result<(), String> {
+    pub async fn check_budget(
+        &self,
+        node_id: &NodeId,
+        node_limit_usd: Option<f64>,
+    ) -> Result<(), String> {
         let state = self.state.read().await;
 
         if let Some(global_limit) = state.global_budget_usd {

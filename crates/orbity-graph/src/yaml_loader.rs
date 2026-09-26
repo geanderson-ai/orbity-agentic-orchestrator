@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use thiserror::Error;
 
-
 #[derive(Debug, Error)]
 pub enum GraphYamlError {
     #[error("Failed to parse YAML: {0}")]
@@ -59,13 +58,190 @@ pub struct YamlGraphTeam {
     pub edges: Vec<YamlEdgeDef>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct YamlNestedGraphTeam {
+    pub team: YamlGraphTeam,
+}
+
 pub struct GraphYamlLoader;
 
 impl GraphYamlLoader {
     /// Loads and parses a YAML string into a GraphDefinition.
     pub fn parse_yaml(yaml_content: &str) -> Result<GraphDefinition, GraphYamlError> {
-        let team: YamlGraphTeam = serde_yaml::from_str(yaml_content)?;
+        // 1. Try direct YamlGraphTeam
+        if let Ok(team) = serde_yaml::from_str::<YamlGraphTeam>(yaml_content) {
+            return Self::build_from_yaml_team(team);
+        }
 
+        // 2. Try nested team wrapper { team: { name, start_node, ... } }
+        if let Ok(wrapper) = serde_yaml::from_str::<YamlNestedGraphTeam>(yaml_content) {
+            return Self::build_from_yaml_team(wrapper.team);
+        }
+
+        // 3. Try TeamFileDefinition (canonical forester.yaml format)
+        if let Ok(team_file) =
+            serde_yaml::from_str::<orbity_core::contracts::TeamFileDefinition>(yaml_content)
+        {
+            return Self::build_from_team_file_def(team_file);
+        }
+
+        // Fallback: return the original deserialization error from YamlGraphTeam
+        let err: Result<YamlGraphTeam, _> = serde_yaml::from_str(yaml_content);
+        Err(GraphYamlError::Yaml(err.unwrap_err()))
+    }
+
+    fn build_from_team_file_def(
+        def: orbity_core::contracts::TeamFileDefinition,
+    ) -> Result<GraphDefinition, GraphYamlError> {
+        let team_name = def.team.name.clone();
+        let description = def.team.description.clone();
+
+        // Extract steps from orchestrator plan default_pipeline or steps
+        let steps = def
+            .team
+            .orchestrator
+            .plan
+            .as_ref()
+            .and_then(|p| p.default_pipeline.clone().or_else(|| p.steps.clone()))
+            .unwrap_or_default();
+
+        if steps.is_empty() {
+            // Fallback: use workers as sequential nodes if available
+            if !def.team.workers.is_empty() {
+                let mut nodes = Vec::new();
+                let mut edges = Vec::new();
+
+                for (idx, w) in def.team.workers.iter().enumerate() {
+                    nodes.push(YamlNodeDef {
+                        id: w.id.clone(),
+                        node_type: "agent".to_string(),
+                        engine: None,
+                        cli: Some(w.runner.clone()),
+                        command: None,
+                        predicate_expr: None,
+                        prompt: w.prompt.as_ref().map(|p| p.system.clone()),
+                        timeout_secs: Some(300),
+                        quorum: None,
+                        retries: Some(1),
+                        budget_usd: Some(1.0),
+                        description: w.role.clone(),
+                    });
+
+                    if idx > 0 {
+                        edges.push(YamlEdgeDef {
+                            from: def.team.workers[idx - 1].id.clone(),
+                            to: w.id.clone(),
+                            edge_type: "direct".to_string(),
+                            predicate: None,
+                            max_iterations: None,
+                        });
+                    }
+                }
+
+                let start_node = def.team.workers[0].id.clone();
+                let terminal_nodes = vec![def.team.workers.last().unwrap().id.clone()];
+
+                let yaml_team = YamlGraphTeam {
+                    name: team_name,
+                    description,
+                    start_node,
+                    terminal_nodes,
+                    nodes,
+                    edges,
+                };
+                return Self::build_from_yaml_team(yaml_team);
+            }
+
+            return Err(GraphYamlError::InvalidTopology(format!(
+                "Team '{}' contains no pipeline steps or workers to form a graph",
+                team_name
+            )));
+        }
+
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+
+        for (idx, step) in steps.iter().enumerate() {
+            let step_id = step
+                .step_id
+                .clone()
+                .unwrap_or_else(|| format!("step_{}", idx));
+            let delegate = step.delegate_to.as_deref().unwrap_or("");
+
+            // Infer CLI from delegate_to or action
+            let cli = if delegate.contains("codex")
+                || step.action.as_deref().unwrap_or("").contains("codex")
+            {
+                "codex".to_string()
+            } else if delegate.contains("claude")
+                || step.action.as_deref().unwrap_or("").contains("claude")
+            {
+                "claude".to_string()
+            } else if delegate.contains("hermes")
+                || step.action.as_deref().unwrap_or("").contains("hermes")
+            {
+                "hermes".to_string()
+            } else if delegate.contains("pi") || step.action.as_deref().unwrap_or("").contains("pi")
+            {
+                "pi".to_string()
+            } else {
+                "agy".to_string()
+            };
+
+            nodes.push(YamlNodeDef {
+                id: step_id.clone(),
+                node_type: "agent".to_string(),
+                engine: None,
+                cli: Some(cli),
+                command: step.sandbox_action.clone(),
+                predicate_expr: None,
+                prompt: None,
+                timeout_secs: Some(180),
+                quorum: None,
+                retries: Some(1),
+                budget_usd: Some(0.50),
+                description: step.name.clone(),
+            });
+
+            if idx > 0 {
+                let prev_id = steps[idx - 1]
+                    .step_id
+                    .clone()
+                    .unwrap_or_else(|| format!("step_{}", idx - 1));
+                edges.push(YamlEdgeDef {
+                    from: prev_id,
+                    to: step_id.clone(),
+                    edge_type: "direct".to_string(),
+                    predicate: None,
+                    max_iterations: None,
+                });
+            }
+        }
+
+        let start_node = steps[0]
+            .step_id
+            .clone()
+            .unwrap_or_else(|| "step_0".to_string());
+        let terminal_nodes = vec![steps
+            .last()
+            .unwrap()
+            .step_id
+            .clone()
+            .unwrap_or_else(|| format!("step_{}", steps.len() - 1))];
+
+        let yaml_team = YamlGraphTeam {
+            name: team_name,
+            description,
+            start_node,
+            terminal_nodes,
+            nodes,
+            edges,
+        };
+
+        Self::build_from_yaml_team(yaml_team)
+    }
+
+    fn build_from_yaml_team(team: YamlGraphTeam) -> Result<GraphDefinition, GraphYamlError> {
         let mut builder = GraphDefinition::builder(
             GraphId::new(&team.name),
             &team.name,
@@ -145,7 +321,9 @@ impl GraphYamlLoader {
                 "parallel_fan_out" | "fan_out" => EdgeKind::ParallelFanOut,
                 "barrier_fan_in" | "fan_in" => EdgeKind::BarrierFanIn,
                 "conditional" => EdgeKind::Conditional {
-                    predicate: e.predicate.unwrap_or_else(|| "outcome == 'success'".to_string()),
+                    predicate: e
+                        .predicate
+                        .unwrap_or_else(|| "outcome == 'success'".to_string()),
                 },
                 "feedback_loop" | "loop" => EdgeKind::FeedbackLoop {
                     max_iterations: e.max_iterations.unwrap_or(3),

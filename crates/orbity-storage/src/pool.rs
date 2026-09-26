@@ -62,7 +62,9 @@ impl SqliteStoragePool {
         if url.contains(":memory:") {
             Self::connect_in_memory().await
         } else {
-            let path_str = url.trim_start_matches("sqlite://").trim_start_matches("sqlite:");
+            let path_str = url
+                .trim_start_matches("sqlite://")
+                .trim_start_matches("sqlite:");
             Self::connect_file(path_str).await
         }
     }
@@ -124,14 +126,19 @@ mod tests {
             .await
             .expect("Failed to connect in memory");
 
-        let status = pool.verify_pragmas().await.expect("Failed to check pragmas");
+        let status = pool
+            .verify_pragmas()
+            .await
+            .expect("Failed to check pragmas");
         assert!(status.foreign_keys_enabled);
 
         // Verify table exists
-        let row = sqlx::query("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='audit_events'")
-            .fetch_one(pool.inner())
-            .await
-            .expect("query master");
+        let row = sqlx::query(
+            "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='audit_events'",
+        )
+        .fetch_one(pool.inner())
+        .await
+        .expect("query master");
         let count: i64 = row.get(0);
         assert_eq!(count, 1);
     }

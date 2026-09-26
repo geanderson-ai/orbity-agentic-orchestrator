@@ -34,7 +34,10 @@ pub trait Sandbox: Send + Sync {
     async fn rollback(&self, snapshot: SnapshotId) -> Result<(), SandboxError>;
 
     /// Promotes verified changes from the isolated workspace to a target host directory.
-    async fn promote_changes(&self, target_host_path: &Path) -> Result<Vec<FileChangeSummary>, SandboxError>;
+    async fn promote_changes(
+        &self,
+        target_host_path: &Path,
+    ) -> Result<Vec<FileChangeSummary>, SandboxError>;
 
     /// Cleans up and destroys all ephemeral resources allocated for this sandbox.
     async fn cleanup(&mut self) -> Result<(), SandboxError>;

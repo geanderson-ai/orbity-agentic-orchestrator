@@ -56,5 +56,5 @@ lcov.info
 
 # Dependency lockfile
 # Note: For binary/CLI applications, committing Cargo.lock is standard practice
-# to guarantee reproducible builds across environments. Uncomment to ignore:
-Cargo.lock
+# to guarantee reproducible builds across environments.
+# Cargo.lock

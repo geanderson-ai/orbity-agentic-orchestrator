@@ -7,8 +7,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 
-
-
 /// Sandbox-backed runner executing the 5 native CLI tools inside isolated bubblewrap containers.
 pub struct SandboxCliNodeRunner {
     sandbox: Arc<Mutex<dyn Sandbox>>,
@@ -97,15 +95,18 @@ impl NodeRunner for SandboxCliNodeRunner {
         injected_context: &str,
         _blackboard: &Blackboard,
     ) -> Result<NodeOutput, String> {
-
         let (cmd, args, timeout_secs, cli_type) = match &node.kind {
             NodeKind::Agent { cli, config } => {
                 let prompt = config.prompt_system.as_deref().unwrap_or(&config.name);
-                let (c, a) = Self::build_cli_command(*cli, prompt, injected_context, &config.cli_args);
+                let (c, a) =
+                    Self::build_cli_command(*cli, prompt, injected_context, &config.cli_args);
                 let t = config.timeout_seconds.unwrap_or(60);
                 (c, a, t, *cli)
             }
-            NodeKind::Tool { command, timeout_secs } => {
+            NodeKind::Tool {
+                command,
+                timeout_secs,
+            } => {
                 let parts: Vec<&str> = command.split_whitespace().collect();
                 if parts.is_empty() {
                     return Err("Empty tool command".to_string());
@@ -178,7 +179,9 @@ impl NodeRunner for SandboxCliNodeRunner {
         let timeout = Duration::from_secs(timeout_secs);
 
         let sb = self.sandbox.lock().await;
-        let exec_res = sb.run_command(&cmd, &args, &env, timeout).await
+        let exec_res = sb
+            .run_command(&cmd, &args, &env, timeout)
+            .await
             .map_err(|e| format!("Sandbox execution error: {}", e))?;
 
         let token_report = TokenExtractor::extract(cli_type, &exec_res.stdout);

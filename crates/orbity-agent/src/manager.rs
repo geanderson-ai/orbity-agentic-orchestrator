@@ -32,20 +32,32 @@ impl AgentManager {
     }
 
     /// Retrieves an agent by its unique identifier.
-    pub async fn get_agent(&self, agent_id: &str) -> Result<Option<AgentDbRecord>, AgentManagerError> {
+    pub async fn get_agent(
+        &self,
+        agent_id: &str,
+    ) -> Result<Option<AgentDbRecord>, AgentManagerError> {
         let opt = self.agent_dao.get(agent_id).await?;
         Ok(opt)
     }
 
     /// Lists all agents belonging to a specific team.
-    pub async fn list_by_team(&self, team_name: &str) -> Result<Vec<AgentDbRecord>, AgentManagerError> {
+    pub async fn list_by_team(
+        &self,
+        team_name: &str,
+    ) -> Result<Vec<AgentDbRecord>, AgentManagerError> {
         let list = self.agent_dao.list_by_team(team_name).await?;
         Ok(list)
     }
 
     /// Updates agent lifecycle state (e.g. Draft -> Spawning -> Executing -> Completed).
-    pub async fn update_state(&self, agent_id: &str, state: AgentLifecycleState) -> Result<(), AgentManagerError> {
-        self.agent_dao.update_state(agent_id, &state.to_string()).await?;
+    pub async fn update_state(
+        &self,
+        agent_id: &str,
+        state: AgentLifecycleState,
+    ) -> Result<(), AgentManagerError> {
+        self.agent_dao
+            .update_state(agent_id, &state.to_string())
+            .await?;
         Ok(())
     }
 
@@ -55,4 +67,3 @@ impl AgentManager {
         Ok(())
     }
 }
-

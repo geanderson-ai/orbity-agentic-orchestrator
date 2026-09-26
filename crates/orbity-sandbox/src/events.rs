@@ -171,7 +171,9 @@ impl<S: Sandbox> Sandbox for InstrumentedSandbox<S> {
         timeout: Duration,
     ) -> Result<ExecutionResult, SandboxError> {
         let result = self.inner.run_command(cmd, args, env, timeout).await?;
-        let event = self.emitter.command_executed(None, "sandbox_agent", cmd, args, &result);
+        let event = self
+            .emitter
+            .command_executed(None, "sandbox_agent", cmd, args, &result);
         self.recorded_events.lock().await.push(event);
         Ok(result)
     }
@@ -181,14 +183,18 @@ impl<S: Sandbox> Sandbox for InstrumentedSandbox<S> {
         let mut hasher = sha2::Sha256::new();
         hasher.update(content);
         let hash = hex::encode(hasher.finalize());
-        let event = self.emitter.file_written(None, "sandbox_agent", relative_path, content.len(), &hash);
+        let event =
+            self.emitter
+                .file_written(None, "sandbox_agent", relative_path, content.len(), &hash);
         self.recorded_events.lock().await.push(event);
         Ok(())
     }
 
     async fn read_file(&self, relative_path: &Path) -> Result<Vec<u8>, SandboxError> {
         let bytes = self.inner.read_file(relative_path).await?;
-        let event = self.emitter.file_read(None, "sandbox_agent", relative_path, bytes.len());
+        let event = self
+            .emitter
+            .file_read(None, "sandbox_agent", relative_path, bytes.len());
         self.recorded_events.lock().await.push(event);
         Ok(bytes)
     }
@@ -201,7 +207,10 @@ impl<S: Sandbox> Sandbox for InstrumentedSandbox<S> {
         self.inner.rollback(snapshot).await
     }
 
-    async fn promote_changes(&self, target_host_path: &Path) -> Result<Vec<FileChangeSummary>, SandboxError> {
+    async fn promote_changes(
+        &self,
+        target_host_path: &Path,
+    ) -> Result<Vec<FileChangeSummary>, SandboxError> {
         self.inner.promote_changes(target_host_path).await
     }
 
@@ -234,8 +243,19 @@ mod tests {
         let mut sandbox = InstrumentedSandbox::new(mock, "run-ev-01", "sbx-01");
 
         sandbox.initialize().await.unwrap();
-        sandbox.write_file(Path::new("test.txt"), b"test content").await.unwrap();
-        sandbox.run_command("cargo", &["test".to_string()], &HashMap::new(), Duration::from_secs(5)).await.unwrap();
+        sandbox
+            .write_file(Path::new("test.txt"), b"test content")
+            .await
+            .unwrap();
+        sandbox
+            .run_command(
+                "cargo",
+                &["test".to_string()],
+                &HashMap::new(),
+                Duration::from_secs(5),
+            )
+            .await
+            .unwrap();
         sandbox.cleanup().await.unwrap();
 
         let events = sandbox.get_recorded_events().await;

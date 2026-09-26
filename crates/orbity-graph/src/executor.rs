@@ -16,7 +16,6 @@ use thiserror::Error;
 use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
 
-
 #[derive(Debug, Error)]
 pub enum ExecutionError {
     #[error("Topology validation error: {0}")]
@@ -57,10 +56,19 @@ impl NodeRunner for DefaultNodeRunner {
     ) -> Result<NodeOutput, String> {
         let stdout = match &node.kind {
             NodeKind::Orchestrator { engine } => {
-                format!("Topcoat Orchestrator [{}] plan generated with context len {}", engine, injected_context.len())
+                format!(
+                    "Topcoat Orchestrator [{}] plan generated with context len {}",
+                    engine,
+                    injected_context.len()
+                )
             }
             NodeKind::Agent { cli, config } => {
-                format!("Agent [{}] ({}) executed task. Context: {}", cli, config.name, injected_context.trim())
+                format!(
+                    "Agent [{}] ({}) executed task. Context: {}",
+                    cli,
+                    config.name,
+                    injected_context.trim()
+                )
             }
             NodeKind::Tool { command, .. } => {
                 format!("Tool command '{}' executed successfully.", command)
@@ -71,9 +79,7 @@ impl NodeRunner for DefaultNodeRunner {
             NodeKind::HumanGate { prompt, .. } => {
                 format!("Human Gate approved: {}", prompt)
             }
-            NodeKind::JoinBarrier { .. } => {
-                "Join barrier synchronization reached.".to_string()
-            }
+            NodeKind::JoinBarrier { .. } => "Join barrier synchronization reached.".to_string(),
         };
 
         Ok(NodeOutput {
@@ -172,9 +178,10 @@ impl GraphExecutor {
 
                 join_set.spawn(async move {
                     // Check FinOps
-                    finops.check_budget(&node_id, node.budget_limit_usd).await
+                    finops
+                        .check_budget(&node_id, node.budget_limit_usd)
+                        .await
                         .map_err(ExecutionError::BudgetExceeded)?;
-
 
                     // Inject context from predecessors
                     let injected_context = blackboard.inject_context(&preds).await;
@@ -216,7 +223,10 @@ impl GraphExecutor {
                             }
                             Err(e) => {
                                 last_err = e;
-                                tokio::time::sleep(tokio::time::Duration::from_millis(50 * (attempts as u64))).await;
+                                tokio::time::sleep(tokio::time::Duration::from_millis(
+                                    50 * (attempts as u64),
+                                ))
+                                .await;
                             }
                         }
                     }
@@ -229,10 +239,18 @@ impl GraphExecutor {
                     }
 
                     // Record FinOps spend
-                    finops.record_spend(&node_id, output.cost_usd, output.tokens_input + output.tokens_output).await;
+                    finops
+                        .record_spend(
+                            &node_id,
+                            output.cost_usd,
+                            output.tokens_input + output.tokens_output,
+                        )
+                        .await;
 
                     // Update blackboard
-                    blackboard.set_node_output(node_id.0.clone(), output.stdout.clone()).await;
+                    blackboard
+                        .set_node_output(node_id.0.clone(), output.stdout.clone())
+                        .await;
 
                     Ok((node_id, output))
                 });
@@ -269,7 +287,8 @@ impl GraphExecutor {
                 let mut step = self.step_counter.lock().await;
                 *step += 1;
                 let active = ready_nodes.clone();
-                let comp_vec: Vec<NodeId> = self.completed_nodes.read().await.iter().cloned().collect();
+                let comp_vec: Vec<NodeId> =
+                    self.completed_nodes.read().await.iter().cloned().collect();
                 let snapshot = self.blackboard.snapshot().await;
                 store
                     .save_checkpoint(self.execution_id, *step, active, comp_vec, snapshot)
@@ -281,7 +300,6 @@ impl GraphExecutor {
 
             for (node_id, output) in &completed_in_batch {
                 let edges = TopologyValidator::get_outgoing_edges(&self.graph, node_id);
-
 
                 for edge in edges {
                     match &edge.kind {
@@ -302,7 +320,8 @@ impl GraphExecutor {
                                 output,
                                 &self.blackboard,
                                 None,
-                            ).await;
+                            )
+                            .await;
 
                             if matches {
                                 next_candidates.insert(edge.to.clone());
@@ -355,4 +374,3 @@ impl GraphExecutor {
         Ok(())
     }
 }
-

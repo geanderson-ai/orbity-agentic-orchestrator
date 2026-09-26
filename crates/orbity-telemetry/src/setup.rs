@@ -12,8 +12,8 @@ pub enum TelemetryError {
 
 /// Initializes the global tracing subscriber with standard env filter and formatting.
 pub fn init_subscriber(json_format: bool) -> Result<(), TelemetryError> {
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info,orbity=debug"));
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,orbity=debug"));
 
     if json_format {
         let fmt_layer = fmt::layer().json().flatten_event(true);

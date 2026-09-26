@@ -40,11 +40,16 @@ async fn test_task_701_audit_tampering_detection() {
         store.append_event(&run_id, None, &event).await.unwrap();
     }
 
-
     // Initial check: must be valid
     let verifier = AuditVerifier::new(pool.clone());
     let valid_res = verifier.verify_run(&run_id).await.unwrap();
-    assert!(matches!(valid_res, AuditVerificationResult::Valid { total_events: 5, .. }));
+    assert!(matches!(
+        valid_res,
+        AuditVerificationResult::Valid {
+            total_events: 5,
+            ..
+        }
+    ));
 
     // Tamper test: Corrupt 1 byte in sequence_num = 3 payload
     sqlx::query(
@@ -58,7 +63,12 @@ async fn test_task_701_audit_tampering_detection() {
     // Verification must detect the tampering at sequence 3
     let tampered_res = verifier.verify_run(&run_id).await.unwrap();
     match tampered_res {
-        AuditVerificationResult::Tampered { sequence_num, expected_hash, actual_hash, .. } => {
+        AuditVerificationResult::Tampered {
+            sequence_num,
+            expected_hash,
+            actual_hash,
+            ..
+        } => {
             assert_eq!(sequence_num, 3);
             assert_ne!(expected_hash, actual_hash);
         }
@@ -69,7 +79,8 @@ async fn test_task_701_audit_tampering_detection() {
 /// TASK-702: Teste de Confinamento Estrito da Sandbox
 #[tokio::test]
 async fn test_task_702_sandbox_strict_confinement() {
-    let temp_base = std::env::temp_dir().join(format!("orbity_sandbox_confinement_{}", Uuid::new_v4()));
+    let temp_base =
+        std::env::temp_dir().join(format!("orbity_sandbox_confinement_{}", Uuid::new_v4()));
     let config = SandboxConfig {
         provider: "bwrap".into(),
         network: NetworkMode::Isolated,
@@ -90,11 +101,25 @@ async fn test_task_702_sandbox_strict_confinement() {
 
     // 1. Attempt to write to host root /bin/malicious_exec -> Must fail (Read-only file system)
     let res_write_root = sbx
-        .run_command("touch", &["/bin/malicious_exec".into()], &env, Duration::from_secs(5))
+        .run_command(
+            "touch",
+            &["/bin/malicious_exec".into()],
+            &env,
+            Duration::from_secs(5),
+        )
         .await
         .unwrap();
-    assert_ne!(res_write_root.exit_code, 0, "Writing to root /bin must fail");
-    assert!(res_write_root.stderr.to_lowercase().contains("read-only") || res_write_root.stderr.to_lowercase().contains("permission denied"));
+    assert_ne!(
+        res_write_root.exit_code, 0,
+        "Writing to root /bin must fail"
+    );
+    assert!(
+        res_write_root.stderr.to_lowercase().contains("read-only")
+            || res_write_root
+                .stderr
+                .to_lowercase()
+                .contains("permission denied")
+    );
 
     // 2. Attempt path traversal escape -> Must fail
     let res_traversal = sbx.read_file(Path::new("../../etc/shadow")).await;
@@ -106,8 +131,20 @@ async fn test_task_702_sandbox_strict_confinement() {
 /// TASK-703: Teste de Tripwire Orçamentário e FinOps
 #[tokio::test]
 async fn test_task_703_finops_tripwire_budget_cap() {
-    let node1 = GraphNode::new("node1", NodeKind::Tool { command: "echo 1".into(), timeout_secs: 5 });
-    let node2 = GraphNode::new("node2", NodeKind::Tool { command: "echo 2".into(), timeout_secs: 5 });
+    let node1 = GraphNode::new(
+        "node1",
+        NodeKind::Tool {
+            command: "echo 1".into(),
+            timeout_secs: 5,
+        },
+    );
+    let node2 = GraphNode::new(
+        "node2",
+        NodeKind::Tool {
+            command: "echo 2".into(),
+            timeout_secs: 5,
+        },
+    );
 
     let graph = GraphDefinition::builder("budget_cap_test", "Budget Cap Test", "node1")
         .add_node(node1)
@@ -124,11 +161,16 @@ async fn test_task_703_finops_tripwire_budget_cap() {
 
     // Run execution: Node 1 spends $0.0010 (ok), then Node 2 checks budget before running: $0.0010 spent, ok.
     // If we pre-record $0.0010, the total exceeds $0.0015 when Node 2 is about to run.
-    finops.record_spend(&NodeId::new("initial"), 0.0010, 100).await;
+    finops
+        .record_spend(&NodeId::new("initial"), 0.0010, 100)
+        .await;
 
     let res = executor.execute().await;
     assert!(res.is_err(), "Execution must abort due to budget tripwire");
-    assert!(matches!(res.err().unwrap(), ExecutionError::BudgetExceeded(_)));
+    assert!(matches!(
+        res.err().unwrap(),
+        ExecutionError::BudgetExceeded(_)
+    ));
 }
 
 /// TASK-704: Teste de Stress Multi-Agente Concorrente
@@ -143,18 +185,33 @@ async fn test_task_704_concurrent_multi_instance_stress() {
     for instance_idx in 0..4 {
         let pool_clone = pool.clone();
         let handle = tokio::spawn(async move {
-            let start = GraphNode::new("start", NodeKind::Orchestrator { engine: "topcoat".into() });
-            let worker = GraphNode::new("worker", NodeKind::Tool { command: "compute".into(), timeout_secs: 5 });
+            let start = GraphNode::new(
+                "start",
+                NodeKind::Orchestrator {
+                    engine: "topcoat".into(),
+                },
+            );
+            let worker = GraphNode::new(
+                "worker",
+                NodeKind::Tool {
+                    command: "compute".into(),
+                    timeout_secs: 5,
+                },
+            );
             let end = GraphNode::new("end", NodeKind::JoinBarrier { quorum: Some(1) });
 
-            let graph = GraphDefinition::builder(format!("graph_{}", instance_idx), "Stress Graph", "start")
-                .add_node(start)
-                .add_node(worker)
-                .add_node(end)
-                .add_edge(GraphEdge::direct("start", "worker"))
-                .add_edge(GraphEdge::direct("worker", "end"))
-                .add_terminal_node("end")
-                .build();
+            let graph = GraphDefinition::builder(
+                format!("graph_{}", instance_idx),
+                "Stress Graph",
+                "start",
+            )
+            .add_node(start)
+            .add_node(worker)
+            .add_node(end)
+            .add_edge(GraphEdge::direct("start", "worker"))
+            .add_edge(GraphEdge::direct("worker", "end"))
+            .add_terminal_node("end")
+            .build();
 
             let bb = Blackboard::new();
             let finops = GraphFinOpsTracker::new(Some(10.0), None);
@@ -163,8 +220,8 @@ async fn test_task_704_concurrent_multi_instance_stress() {
             let store = GraphCheckpointStore::new(pool_clone.inner().clone());
             store.init_schema().await.unwrap();
 
-            let executor = GraphExecutor::new(graph, bb.clone(), finops, runner)
-                .with_checkpoints(store);
+            let executor =
+                GraphExecutor::new(graph, bb.clone(), finops, runner).with_checkpoints(store);
 
             executor.execute().await.unwrap();
 

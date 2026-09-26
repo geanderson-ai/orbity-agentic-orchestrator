@@ -2,7 +2,6 @@ use crate::context::Cx;
 use crate::views::ViewHtml;
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HitlApprovalRequest {
     pub execution_id: String,
@@ -30,7 +29,10 @@ impl GovernanceConsole {
         let (decision, msg) = if req.approved {
             (
                 "approved",
-                format!("Approved step '{}' on execution {}", req.node_id, req.execution_id),
+                format!(
+                    "Approved step '{}' on execution {}",
+                    req.node_id, req.execution_id
+                ),
             )
         } else {
             (
@@ -39,7 +41,9 @@ impl GovernanceConsole {
                     "Rejected step '{}' on execution {}. Reason: {}",
                     req.node_id,
                     req.execution_id,
-                    req.reason.as_deref().unwrap_or("User rejected via Web Console")
+                    req.reason
+                        .as_deref()
+                        .unwrap_or("User rejected via Web Console")
                 ),
             )
         };

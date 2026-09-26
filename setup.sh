@@ -29,6 +29,7 @@ step()    { printf "\n${MAGENTA}${BOLD}==>${RESET} ${BOLD}%s${RESET}\n" "$*"; }
 # --- Flags & Defaults ---------------------------------------------------------
 AUTO_YES=false
 CHECK_ONLY=false
+NO_SHELL_EDIT=false
 INSTALL_DIR="${HOME}/.local/bin"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -39,6 +40,7 @@ ${BOLD}Usage:${RESET} $0 [OPTIONS]
 ${BOLD}Options:${RESET}
   -y, --yes          Non-interactive mode (automatically answer yes to prompts)
   --check-only       Only perform system checks and CLI discovery without building
+  --no-shell-edit    Do not modify shell profile files (.bashrc, .zshrc, .profile)
   --install-dir DIR  Custom directory to install the 'orbity' binary (default: ${HOME}/.local/bin)
   -h, --help         Show this help message
 
@@ -59,6 +61,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --check-only)
       CHECK_ONLY=true
+      shift
+      ;;
+    --no-shell-edit)
+      NO_SHELL_EDIT=true
       shift
       ;;
     --install-dir)
@@ -359,18 +365,36 @@ else
   EXPORT_HERMES=""
 fi
 
-for rc in "${SHELL_RC_FILES[@]}"; do
-  if ! grep -q "${INSTALL_DIR}" "$rc" 2>/dev/null; then
-    echo "" >> "$rc"
-    echo "# Orbity CLI Path" >> "$rc"
-    echo "$EXPORT_LINE" >> "$rc"
-    info "Added ${INSTALL_DIR} to $rc"
+if [[ "$NO_SHELL_EDIT" == true ]]; then
+  info "Skipping shell rc file modification (--no-shell-edit specified)."
+  info "To add orbity to your PATH manually, add this to your shell profile:"
+  info "  $EXPORT_LINE"
+else
+  DO_EDIT=true
+  if [[ "$AUTO_YES" == false ]]; then
+    printf "\n"
+    read -r -p "Add ${INSTALL_DIR} to your shell profile (.bashrc/.zshrc) for global PATH access? [Y/n]: " rc_confirm
+    if [[ "$rc_confirm" =~ ^[Nn]$ ]]; then
+      DO_EDIT=false
+      info "Skipping shell rc modification. You can add ${INSTALL_DIR} to your PATH manually."
+    fi
   fi
-  if [[ -n "$EXPORT_HERMES" ]] && ! grep -q ".hermes/node/bin" "$rc" 2>/dev/null; then
-    echo "$EXPORT_HERMES" >> "$rc"
-    info "Added ~/.hermes/node/bin to $rc (for Pi CLI)"
+
+  if [[ "$DO_EDIT" == true ]]; then
+    for rc in "${SHELL_RC_FILES[@]}"; do
+      if ! grep -q "${INSTALL_DIR}" "$rc" 2>/dev/null; then
+        echo "" >> "$rc"
+        echo "# Orbity CLI Path" >> "$rc"
+        echo "$EXPORT_LINE" >> "$rc"
+        info "Added ${INSTALL_DIR} to $rc"
+      fi
+      if [[ -n "$EXPORT_HERMES" ]] && ! grep -q ".hermes/node/bin" "$rc" 2>/dev/null; then
+        echo "$EXPORT_HERMES" >> "$rc"
+        info "Added ~/.hermes/node/bin to $rc (for Pi CLI)"
+      fi
+    done
   fi
-done
+fi
 
 # Export to current session as well
 export PATH="${INSTALL_DIR}:${PATH}"

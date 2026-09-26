@@ -121,7 +121,11 @@ impl Views {
     }
 
     pub fn finops_widget(budget_limit: f64, total_spent: f64, total_tokens: u64) -> ViewHtml {
-        let pct = if budget_limit > 0.0 { (total_spent / budget_limit) * 100.0 } else { 0.0 };
+        let pct = if budget_limit > 0.0 {
+            (total_spent / budget_limit) * 100.0
+        } else {
+            0.0
+        };
         let content = format!(
             "<div class=\"finops-header\"><h4>FinOps Real-Time Budget</h4></div>\
              <div class=\"progress-bar\"><div class=\"fill\" style=\"width: {:.1}%\"></div></div>\

@@ -313,7 +313,9 @@ pub fn compute_sha256(content: &str) -> String {
 pub fn parse_agent_yaml(content: &str) -> Result<AgentFileDefinition, ContractsError> {
     let def: AgentFileDefinition = serde_yaml::from_str(content)?;
     if def.agent.id.trim().is_empty() {
-        return Err(ContractsError::ValidationError("agent.id cannot be empty".to_string()));
+        return Err(ContractsError::ValidationError(
+            "agent.id cannot be empty".to_string(),
+        ));
     }
     Ok(def)
 }
@@ -322,7 +324,9 @@ pub fn parse_agent_yaml(content: &str) -> Result<AgentFileDefinition, ContractsE
 pub fn parse_team_yaml(content: &str) -> Result<TeamFileDefinition, ContractsError> {
     let def: TeamFileDefinition = serde_yaml::from_str(content)?;
     if def.team.name.trim().is_empty() {
-        return Err(ContractsError::ValidationError("team.name cannot be empty".to_string()));
+        return Err(ContractsError::ValidationError(
+            "team.name cannot be empty".to_string(),
+        ));
     }
     Ok(def)
 }
@@ -358,7 +362,10 @@ mod tests {
         assert!(def.agent.approval_policy.is_some());
         let pol = def.agent.approval_policy.unwrap();
         assert_eq!(pol.mode, ApprovalMode::Automatic);
-        assert_eq!(pol.evaluate_command("cargo test"), ApprovalDecision::Approved);
+        assert_eq!(
+            pol.evaluate_command("cargo test"),
+            ApprovalDecision::Approved
+        );
     }
 
     #[test]
@@ -385,12 +392,21 @@ mod tests {
         assert!(def.team.finops.is_some());
         let finops = def.team.finops.as_ref().unwrap();
         assert_eq!(finops.max_budget_usd, Some(2.00));
-        assert_eq!(finops.expensive_model_action, Some(ExpensiveModelAction::AutoApprove));
+        assert_eq!(
+            finops.expensive_model_action,
+            Some(ExpensiveModelAction::AutoApprove)
+        );
         assert!(def.team.approval_policy.is_some());
         let team_pol = def.team.approval_policy.as_ref().unwrap();
         assert_eq!(team_pol.mode, ApprovalMode::Automatic);
-        assert_eq!(team_pol.evaluate_command("cargo test"), ApprovalDecision::Approved);
-        assert_eq!(team_pol.evaluate_command("rm -rf /"), ApprovalDecision::Rejected);
+        assert_eq!(
+            team_pol.evaluate_command("cargo test"),
+            ApprovalDecision::Approved
+        );
+        assert_eq!(
+            team_pol.evaluate_command("rm -rf /"),
+            ApprovalDecision::Rejected
+        );
         assert!(def.team.graph_topology.is_some());
     }
 
@@ -404,34 +420,45 @@ mod tests {
     fn test_approval_policy_evaluation() {
         let policy = ApprovalPolicy {
             mode: ApprovalMode::Automatic,
-            auto_approve: vec![
-                AutoApprovalRule {
-                    rule: "safe_test_commands".to_string(),
-                    condition: None,
-                    tools: vec!["codex".to_string()],
-                    patterns: vec!["cargo test*".to_string(), "git status".to_string()],
-                },
-            ],
-            auto_reject: vec![
-                AutoRejectRule {
-                    rule: "forbidden_destructive".to_string(),
-                    condition: None,
-                    patterns: vec!["rm -rf /".to_string(), "*id_rsa*".to_string()],
-                },
-            ],
+            auto_approve: vec![AutoApprovalRule {
+                rule: "safe_test_commands".to_string(),
+                condition: None,
+                tools: vec!["codex".to_string()],
+                patterns: vec!["cargo test*".to_string(), "git status".to_string()],
+            }],
+            auto_reject: vec![AutoRejectRule {
+                rule: "forbidden_destructive".to_string(),
+                condition: None,
+                patterns: vec!["rm -rf /".to_string(), "*id_rsa*".to_string()],
+            }],
             fallback_action: FallbackAction::Reject,
         };
 
         // Auto-approve matches
-        assert_eq!(policy.evaluate_command("cargo test --workspace"), ApprovalDecision::Approved);
-        assert_eq!(policy.evaluate_command("git status"), ApprovalDecision::Approved);
+        assert_eq!(
+            policy.evaluate_command("cargo test --workspace"),
+            ApprovalDecision::Approved
+        );
+        assert_eq!(
+            policy.evaluate_command("git status"),
+            ApprovalDecision::Approved
+        );
 
         // Auto-reject matches
-        assert_eq!(policy.evaluate_command("rm -rf /"), ApprovalDecision::Rejected);
-        assert_eq!(policy.evaluate_command("cat ~/.ssh/id_rsa"), ApprovalDecision::Rejected);
+        assert_eq!(
+            policy.evaluate_command("rm -rf /"),
+            ApprovalDecision::Rejected
+        );
+        assert_eq!(
+            policy.evaluate_command("cat ~/.ssh/id_rsa"),
+            ApprovalDecision::Rejected
+        );
 
         // Fallback for unlisted command in Automatic mode
-        assert_eq!(policy.evaluate_command("python3 script.py"), ApprovalDecision::Rejected);
+        assert_eq!(
+            policy.evaluate_command("python3 script.py"),
+            ApprovalDecision::Rejected
+        );
     }
 
     #[test]
@@ -443,7 +470,10 @@ mod tests {
             fallback_action: FallbackAction::EscalateToHuman,
         };
         // In manual mode, always escalates to human
-        assert_eq!(policy.evaluate_command("cargo test"), ApprovalDecision::NeedsHuman);
+        assert_eq!(
+            policy.evaluate_command("cargo test"),
+            ApprovalDecision::NeedsHuman
+        );
 
         // In hybrid mode with escalate_to_human fallback
         policy.mode = ApprovalMode::Hybrid;
@@ -453,7 +483,13 @@ mod tests {
             tools: vec![],
             patterns: vec!["cargo test*".to_string()],
         });
-        assert_eq!(policy.evaluate_command("cargo test"), ApprovalDecision::Approved);
-        assert_eq!(policy.evaluate_command("unknown_tool --do-stuff"), ApprovalDecision::NeedsHuman);
+        assert_eq!(
+            policy.evaluate_command("cargo test"),
+            ApprovalDecision::Approved
+        );
+        assert_eq!(
+            policy.evaluate_command("unknown_tool --do-stuff"),
+            ApprovalDecision::NeedsHuman
+        );
     }
 }

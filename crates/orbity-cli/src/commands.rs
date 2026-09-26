@@ -4,7 +4,12 @@ use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
-#[command(name = "orbity", author = "Meza Agentic Team", version, about = "Orbity Multi Agentic Harness CLI")]
+#[command(
+    name = "orbity",
+    author = "Meza Agentic Team",
+    version,
+    about = "Orbity Multi Agentic Harness CLI"
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,

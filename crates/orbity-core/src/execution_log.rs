@@ -1,9 +1,9 @@
 //! Layer 2: Execution Logs - Operational actions (commands, tools, filesystem, network).
 
-use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::bus::{EventSink, EventSinkError};
@@ -329,10 +329,7 @@ impl ExecutionLogRecord {
                 success: status_code.map(|s| s < 400).unwrap_or(true),
             }),
             RuntimeEvent::SandboxCreated {
-                sandbox_id,
-                path,
-                provider: _,
-                ..
+                sandbox_id, path, ..
             } => Some(Self {
                 timestamp,
                 run_id,

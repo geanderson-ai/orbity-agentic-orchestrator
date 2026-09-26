@@ -172,10 +172,9 @@ impl Sandbox for BwrapSandbox {
         // 4. Environment variable filtering
         bwrap_cmd.arg("--clearenv");
         bwrap_cmd.arg("--setenv").arg("HOME").arg("/tmp/workspace");
-        bwrap_cmd
-            .arg("--setenv")
-            .arg("PATH")
-            .arg(std::env::var("PATH").unwrap_or_else(|_| "/usr/local/bin:/usr/bin:/bin".to_string()));
+        bwrap_cmd.arg("--setenv").arg("PATH").arg(
+            std::env::var("PATH").unwrap_or_else(|_| "/usr/local/bin:/usr/bin:/bin".to_string()),
+        );
         bwrap_cmd.arg("--setenv").arg("LANG").arg("C.UTF-8");
         bwrap_cmd.arg("--setenv").arg("TERM").arg("xterm-256color");
 
@@ -244,7 +243,10 @@ impl Sandbox for BwrapSandbox {
                 Ok(ExecutionResult {
                     exit_code: -1,
                     stdout: String::new(),
-                    stderr: format!("Process killed: execution timed out after {}ms", timeout.as_millis()),
+                    stderr: format!(
+                        "Process killed: execution timed out after {}ms",
+                        timeout.as_millis()
+                    ),
                     duration_ms,
                     timed_out: true,
                 })
@@ -294,7 +296,10 @@ impl Sandbox for BwrapSandbox {
         Ok(())
     }
 
-    async fn promote_changes(&self, target_host_path: &Path) -> Result<Vec<FileChangeSummary>, SandboxError> {
+    async fn promote_changes(
+        &self,
+        target_host_path: &Path,
+    ) -> Result<Vec<FileChangeSummary>, SandboxError> {
         tokio::fs::create_dir_all(target_host_path).await?;
         let mut summaries = Vec::new();
 
@@ -409,17 +414,29 @@ mod tests {
     #[tokio::test]
     async fn test_bwrap_detection() {
         let bwrap = BwrapSandbox::detect_bwrap();
-        assert!(bwrap.is_ok(), "Bubblewrap should be detected on Linux: {:?}", bwrap);
+        assert!(
+            bwrap.is_ok(),
+            "Bubblewrap should be detected on Linux: {:?}",
+            bwrap
+        );
     }
 
     #[tokio::test]
     async fn test_bwrap_basic_command_execution() {
         let config = SandboxConfig::default();
         let mut sandbox = BwrapSandbox::new(config);
-        sandbox.initialize().await.expect("initialize bwrap sandbox");
+        sandbox
+            .initialize()
+            .await
+            .expect("initialize bwrap sandbox");
 
         let res = sandbox
-            .run_command("echo", &["Hello Sandbox".to_string()], &HashMap::new(), Duration::from_secs(5))
+            .run_command(
+                "echo",
+                &["Hello Sandbox".to_string()],
+                &HashMap::new(),
+                Duration::from_secs(5),
+            )
             .await
             .expect("run echo");
 
@@ -435,7 +452,12 @@ mod tests {
 
         // Attempting to write to /etc/ must fail with Read-only file system
         let res = sandbox
-            .run_command("touch", &["/etc/malicious_probe".to_string()], &HashMap::new(), Duration::from_secs(5))
+            .run_command(
+                "touch",
+                &["/etc/malicious_probe".to_string()],
+                &HashMap::new(),
+                Duration::from_secs(5),
+            )
             .await
             .unwrap();
 
@@ -454,7 +476,12 @@ mod tests {
 
         // Check network interfaces with ip link: only loopback lo must exist
         let res = sandbox
-            .run_command("ip", &["link".to_string()], &HashMap::new(), Duration::from_secs(5))
+            .run_command(
+                "ip",
+                &["link".to_string()],
+                &HashMap::new(),
+                Duration::from_secs(5),
+            )
             .await
             .unwrap();
 
@@ -472,7 +499,12 @@ mod tests {
 
         // Run a command that takes 5 seconds, but set timeout to 100 milliseconds
         let res = sandbox
-            .run_command("sleep", &["5".to_string()], &HashMap::new(), Duration::from_millis(150))
+            .run_command(
+                "sleep",
+                &["5".to_string()],
+                &HashMap::new(),
+                Duration::from_millis(150),
+            )
             .await
             .unwrap();
 
@@ -493,7 +525,10 @@ mod tests {
         let snap1 = sandbox.snapshot().await.unwrap();
 
         // Overwrite file
-        sandbox.write_file(file_path, b"Version 2 Corrupted").await.unwrap();
+        sandbox
+            .write_file(file_path, b"Version 2 Corrupted")
+            .await
+            .unwrap();
         let v2 = sandbox.read_file(file_path).await.unwrap();
         assert_eq!(v2, b"Version 2 Corrupted");
 
@@ -509,7 +544,13 @@ mod tests {
         let mut sandbox = BwrapSandbox::new(config);
         sandbox.initialize().await.unwrap();
 
-        sandbox.write_file(Path::new("code/lib.rs"), b"pub fn add(a: i32, b: i32) -> i32 { a + b }").await.unwrap();
+        sandbox
+            .write_file(
+                Path::new("code/lib.rs"),
+                b"pub fn add(a: i32, b: i32) -> i32 { a + b }",
+            )
+            .await
+            .unwrap();
 
         let temp_target = std::env::temp_dir().join(format!("target_repo_{}", Uuid::new_v4()));
         let changes = sandbox.promote_changes(&temp_target).await.unwrap();

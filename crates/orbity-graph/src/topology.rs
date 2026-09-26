@@ -35,10 +35,16 @@ impl TopologyValidator {
         // 2. Check all edge nodes exist
         for edge in &graph.edges {
             if !graph.nodes.contains_key(&edge.from) {
-                return Err(TopologyError::EdgeNodeNotFound(edge.from.clone(), edge.to.clone()));
+                return Err(TopologyError::EdgeNodeNotFound(
+                    edge.from.clone(),
+                    edge.to.clone(),
+                ));
             }
             if !graph.nodes.contains_key(&edge.to) {
-                return Err(TopologyError::EdgeNodeNotFound(edge.from.clone(), edge.to.clone()));
+                return Err(TopologyError::EdgeNodeNotFound(
+                    edge.from.clone(),
+                    edge.to.clone(),
+                ));
             }
         }
 
@@ -148,11 +154,10 @@ impl TopologyValidator {
     }
 
     /// Finds all successor edges departing from a given node.
-    pub fn get_outgoing_edges<'a>(graph: &'a GraphDefinition, source: &NodeId) -> Vec<&'a crate::types::GraphEdge> {
-        graph
-            .edges
-            .iter()
-            .filter(|e| &e.from == source)
-            .collect()
+    pub fn get_outgoing_edges<'a>(
+        graph: &'a GraphDefinition,
+        source: &NodeId,
+    ) -> Vec<&'a crate::types::GraphEdge> {
+        graph.edges.iter().filter(|e| &e.from == source).collect()
     }
 }

@@ -126,7 +126,10 @@ impl AuditStore {
                 Ok(_) => {
                     if let Err(e) = tx.commit().await {
                         if attempts < MAX_ATTEMPTS {
-                            tokio::time::sleep(tokio::time::Duration::from_millis(attempts as u64 * 3)).await;
+                            tokio::time::sleep(tokio::time::Duration::from_millis(
+                                attempts as u64 * 3,
+                            ))
+                            .await;
                             continue;
                         }
                         return Err(StorageError::DatabaseError(e));
@@ -143,10 +146,13 @@ impl AuditStore {
                         recorded_at,
                     });
                 }
-                Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() || db_err.message().contains("UNIQUE") => {
+                Err(sqlx::Error::Database(db_err))
+                    if db_err.is_unique_violation() || db_err.message().contains("UNIQUE") =>
+                {
                     let _ = tx.rollback().await;
                     if attempts < MAX_ATTEMPTS {
-                        tokio::time::sleep(tokio::time::Duration::from_millis(attempts as u64 * 3)).await;
+                        tokio::time::sleep(tokio::time::Duration::from_millis(attempts as u64 * 3))
+                            .await;
                         continue;
                     }
                     return Err(StorageError::Conflict(format!(
@@ -157,7 +163,8 @@ impl AuditStore {
                 Err(e) => {
                     let _ = tx.rollback().await;
                     if attempts < MAX_ATTEMPTS {
-                        tokio::time::sleep(tokio::time::Duration::from_millis(attempts as u64 * 3)).await;
+                        tokio::time::sleep(tokio::time::Duration::from_millis(attempts as u64 * 3))
+                            .await;
                         continue;
                     }
                     return Err(StorageError::DatabaseError(e));
@@ -292,7 +299,10 @@ impl AuditStore {
     }
 
     /// Fetches the latest audit record of a run if available.
-    pub async fn get_latest_record(&self, run_id: &str) -> Result<Option<AuditRecord>, StorageError> {
+    pub async fn get_latest_record(
+        &self,
+        run_id: &str,
+    ) -> Result<Option<AuditRecord>, StorageError> {
         let row = sqlx::query(
             r#"
             SELECT id, run_id, task_id, sequence_num, event_type, payload_json, previous_hash, current_hash, recorded_at
@@ -390,6 +400,12 @@ mod tests {
         };
 
         let result = store.append_record(&bad_record).await;
-        assert!(matches!(result, Err(StorageError::InvalidSequence { expected: 0, actual: 1 })));
+        assert!(matches!(
+            result,
+            Err(StorageError::InvalidSequence {
+                expected: 0,
+                actual: 1
+            })
+        ));
     }
 }

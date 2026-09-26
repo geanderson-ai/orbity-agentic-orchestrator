@@ -39,7 +39,11 @@ impl SecretMasker {
     }
 
     /// Registers a sensitive key/value pair to be scrubbed.
-    pub fn register_secret(&mut self, secret_id: impl Into<String>, secret_value: impl Into<String>) {
+    pub fn register_secret(
+        &mut self,
+        secret_id: impl Into<String>,
+        secret_value: impl Into<String>,
+    ) {
         let val = secret_value.into();
         if !val.trim().is_empty() {
             self.registered_secrets.insert(secret_id.into(), val);
@@ -102,7 +106,9 @@ impl SecretMasker {
             RuntimeEvent::AgentFailed { error, .. } => {
                 *error = self.mask_str(error);
             }
-            RuntimeEvent::AgentFinished { summary: Some(s), .. } => {
+            RuntimeEvent::AgentFinished {
+                summary: Some(s), ..
+            } => {
                 *s = self.mask_str(s);
             }
             RuntimeEvent::CommandExecuted {
@@ -146,7 +152,15 @@ fn mask_pattern(text: &str, prefix: &str, min_len: usize) -> String {
         let token_slice = &rest[start_idx..];
         // find token boundary (whitespace, quotes, punctuation)
         let end_idx = token_slice
-            .find(|c: char| c.is_whitespace() || c == '"' || c == '\'' || c == ',' || c == ';' || c == ')' || c == '}')
+            .find(|c: char| {
+                c.is_whitespace()
+                    || c == '"'
+                    || c == '\''
+                    || c == ','
+                    || c == ';'
+                    || c == ')'
+                    || c == '}'
+            })
             .unwrap_or(token_slice.len());
 
         let candidate = &token_slice[..end_idx];
@@ -173,7 +187,10 @@ mod tests {
         assert_eq!(meta.secret_id, "github_token");
         assert!(!meta.value_logged);
         assert!(!meta.sha256_fingerprint.is_empty());
-        assert_ne!(meta.sha256_fingerprint, "ghp_1234567890abcdef1234567890abcdef");
+        assert_ne!(
+            meta.sha256_fingerprint,
+            "ghp_1234567890abcdef1234567890abcdef"
+        );
     }
 
     #[test]
@@ -205,7 +222,10 @@ mod tests {
             task_id: Some("t-1".to_string()),
             agent_name: "codex".to_string(),
             command: "curl".to_string(),
-            args: vec!["-H".to_string(), "Authorization: Bearer hf_xyz9876543210token".to_string()],
+            args: vec![
+                "-H".to_string(),
+                "Authorization: Bearer hf_xyz9876543210token".to_string(),
+            ],
             exit_code: 0,
             duration_ms: 120,
             stdout_preview: Some("Using token sk-proj-abcdef1234567890987654321".to_string()),
@@ -215,7 +235,12 @@ mod tests {
 
         masker.mask_event(&mut event);
 
-        if let RuntimeEvent::CommandExecuted { args, stdout_preview, .. } = event {
+        if let RuntimeEvent::CommandExecuted {
+            args,
+            stdout_preview,
+            ..
+        } = event
+        {
             assert!(args[1].contains("[REDACTED:hf_token]"));
             assert!(!stdout_preview.unwrap().contains("sk-proj-"));
         } else {

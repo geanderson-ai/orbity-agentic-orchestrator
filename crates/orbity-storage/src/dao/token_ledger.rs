@@ -79,7 +79,7 @@ impl TokenLedgerDao {
                 COUNT(*)
             FROM token_ledger
             WHERE run_id = ?
-            "#
+            "#,
         )
         .bind(run_id)
         .fetch_one(self.pool.inner())
@@ -121,7 +121,7 @@ impl TokenLedgerDao {
                 COUNT(*)
             FROM token_ledger
             WHERE run_id = ? AND agent_name = ?
-            "#
+            "#,
         )
         .bind(run_id)
         .bind(agent_name)

@@ -1,9 +1,9 @@
 //! Event Bus & Multi-Sink Dispatcher for structured runtime events.
 
+use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
-use async_trait::async_trait;
 use tokio::sync::{broadcast, mpsc, Mutex, RwLock};
 
 use crate::events::{EventEnvelope, RuntimeEvent};

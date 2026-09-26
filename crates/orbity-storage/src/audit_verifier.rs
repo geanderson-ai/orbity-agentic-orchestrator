@@ -72,8 +72,9 @@ impl AuditVerifier {
                     sequence_num: record.sequence_num,
                     expected_hash: expected_previous_hash,
                     actual_hash: record.previous_hash.clone(),
-                    reason: "Broken hash chain: previous_hash does not match earlier block current_hash"
-                        .to_string(),
+                    reason:
+                        "Broken hash chain: previous_hash does not match earlier block current_hash"
+                            .to_string(),
                 });
             }
 
@@ -136,7 +137,10 @@ mod tests {
                 stderr_preview: None,
                 sandbox_id: None,
             };
-            store.append_event(run_id, Some(&format!("task-{}", i)), &event).await.unwrap();
+            store
+                .append_event(run_id, Some(&format!("task-{}", i)), &event)
+                .await
+                .unwrap();
         }
 
         let result = verifier.verify_run(run_id).await.unwrap();
@@ -183,7 +187,11 @@ mod tests {
 
         let result = verifier.verify_run(run_id).await.unwrap();
         match result {
-            AuditVerificationResult::Tampered { sequence_num, reason, .. } => {
+            AuditVerificationResult::Tampered {
+                sequence_num,
+                reason,
+                ..
+            } => {
                 assert_eq!(sequence_num, 1);
                 assert!(reason.contains("hash mismatch"));
             }

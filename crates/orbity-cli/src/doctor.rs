@@ -28,7 +28,13 @@ impl PreflightReport {
         let mut out = String::new();
         out.push_str("=== Orbity Preflight Health Check ===\n");
         let bwrap_status = if self.bwrap_available {
-            format!("✅ Available ({})", self.bwrap_path.as_ref().map(|p| p.display().to_string()).unwrap_or_default())
+            format!(
+                "✅ Available ({})",
+                self.bwrap_path
+                    .as_ref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_default()
+            )
         } else {
             "❌ Missing (Bubblewrap /usr/bin/bwrap not found)".to_string()
         };
@@ -37,7 +43,15 @@ impl PreflightReport {
         out.push_str("CLI Agents Detection:\n");
         for agent in &self.agents {
             let status = if agent.installed {
-                format!("✅ Installed ({}) - Version: {}", agent.path.as_ref().map(|p| p.display().to_string()).unwrap_or_default(), agent.version.as_deref().unwrap_or("unknown"))
+                format!(
+                    "✅ Installed ({}) - Version: {}",
+                    agent
+                        .path
+                        .as_ref()
+                        .map(|p| p.display().to_string())
+                        .unwrap_or_default(),
+                    agent.version.as_deref().unwrap_or("unknown")
+                )
             } else {
                 "⚠️ Not found in PATH".to_string()
             };

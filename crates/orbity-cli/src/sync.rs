@@ -29,7 +29,10 @@ pub struct DeclarativeSync;
 
 impl DeclarativeSync {
     /// Scans a directory of team YAML files (e.g. `examples/teams/`) and syncs to SQLite.
-    pub async fn sync_teams(pool: &SqliteStoragePool, teams_dir: impl AsRef<Path>) -> Result<SyncSummary, SyncError> {
+    pub async fn sync_teams(
+        pool: &SqliteStoragePool,
+        teams_dir: impl AsRef<Path>,
+    ) -> Result<SyncSummary, SyncError> {
         let mut summary = SyncSummary::default();
         let team_dao = TeamDao::new(pool.clone());
         let dir = teams_dir.as_ref();
@@ -41,7 +44,11 @@ impl DeclarativeSync {
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.is_file() && (path.extension().is_some_and(|ext| ext == "yaml" || ext == "yml")) {
+            if path.is_file()
+                && (path
+                    .extension()
+                    .is_some_and(|ext| ext == "yaml" || ext == "yml"))
+            {
                 let content = std::fs::read_to_string(&path)?;
 
                 let hash = compute_sha256(&content);
@@ -76,7 +83,6 @@ impl DeclarativeSync {
                     team_dao.upsert(&new_team).await?;
                     summary.teams_created += 1;
                 }
-
             }
         }
 
@@ -84,7 +90,10 @@ impl DeclarativeSync {
     }
 
     /// Scans a directory of agent YAML files (e.g. `examples/agents/`) and syncs to SQLite.
-    pub async fn sync_agents(pool: &SqliteStoragePool, agents_dir: impl AsRef<Path>) -> Result<SyncSummary, SyncError> {
+    pub async fn sync_agents(
+        pool: &SqliteStoragePool,
+        agents_dir: impl AsRef<Path>,
+    ) -> Result<SyncSummary, SyncError> {
         let mut summary = SyncSummary::default();
         let agent_dao = AgentDao::new(pool.clone());
         let dir = agents_dir.as_ref();
@@ -96,7 +105,11 @@ impl DeclarativeSync {
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.is_file() && (path.extension().is_some_and(|ext| ext == "yaml" || ext == "yml")) {
+            if path.is_file()
+                && (path
+                    .extension()
+                    .is_some_and(|ext| ext == "yaml" || ext == "yml"))
+            {
                 let content = std::fs::read_to_string(&path)?;
 
                 let hash = compute_sha256(&content);

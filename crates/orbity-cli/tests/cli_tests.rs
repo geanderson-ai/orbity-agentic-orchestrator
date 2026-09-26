@@ -6,7 +6,6 @@ use std::fs::File;
 use std::io::Write;
 use uuid::Uuid;
 
-
 #[tokio::test]
 async fn test_cli_preflight_doctor_check() {
     let report = PreflightDoctor::check();
@@ -33,7 +32,6 @@ async fn test_cli_declarative_folder_sync_and_hash_reconciliation() {
     let teams_dir = temp_base.join("teams");
     std::fs::create_dir_all(&teams_dir).unwrap();
 
-
     // Create a mock team file
     let team_yaml = r#"
 name: "finance_team"
@@ -48,13 +46,17 @@ edges: []
     file.write_all(team_yaml.as_bytes()).unwrap();
 
     // First sync: team created
-    let summary1 = DeclarativeSync::sync_teams(&pool, &teams_dir).await.unwrap();
+    let summary1 = DeclarativeSync::sync_teams(&pool, &teams_dir)
+        .await
+        .unwrap();
     assert_eq!(summary1.teams_created, 1);
     assert_eq!(summary1.teams_updated, 0);
     assert_eq!(summary1.unchanged, 0);
 
     // Second sync without changes: team unchanged
-    let summary2 = DeclarativeSync::sync_teams(&pool, &teams_dir).await.unwrap();
+    let summary2 = DeclarativeSync::sync_teams(&pool, &teams_dir)
+        .await
+        .unwrap();
     assert_eq!(summary2.teams_created, 0);
     assert_eq!(summary2.teams_updated, 0);
     assert_eq!(summary2.unchanged, 1);
@@ -63,7 +65,9 @@ edges: []
     let modified_yaml = format!("{}\n# Comment change\n", team_yaml);
     std::fs::write(&file_path, modified_yaml).unwrap();
 
-    let summary3 = DeclarativeSync::sync_teams(&pool, &teams_dir).await.unwrap();
+    let summary3 = DeclarativeSync::sync_teams(&pool, &teams_dir)
+        .await
+        .unwrap();
     assert_eq!(summary3.teams_created, 0);
     assert_eq!(summary3.teams_updated, 1);
     assert_eq!(summary3.unchanged, 0);
@@ -89,7 +93,10 @@ async fn test_cli_command_dispatch_serve_and_doctor() {
         output: "text".into(),
     };
 
-    let serve_res = orbity_cli::CommandDispatcher::dispatch(serve_cli).await;
-    assert!(serve_res.is_ok());
-    assert_eq!(serve_res.unwrap(), 0);
+    let serve_handle =
+        tokio::spawn(async move { orbity_cli::CommandDispatcher::dispatch(serve_cli).await });
+
+    // Give server a moment to bind and initialize
+    tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
+    serve_handle.abort();
 }

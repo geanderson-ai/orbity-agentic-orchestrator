@@ -13,17 +13,18 @@ pub struct WorkspaceInit;
 impl WorkspaceInit {
     /// Initializes an Orbity workspace in `target_dir`.
     /// Creates `orbity.yaml`, `teams/dev_team.yaml`, `agents/coder.yaml`, `agents/reviewer.yaml`, and `.gitignore`.
-    pub fn init_project(target_dir: &Path, project_name: Option<&str>) -> Result<Vec<PathBuf>, InitError> {
-        let name = project_name
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| {
-                target_dir
-                    .canonicalize()
-                    .ok()
-                    .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
-                    .filter(|s| !s.is_empty() && s != ".")
-                    .unwrap_or_else(|| "orbity-workspace".to_string())
-            });
+    pub fn init_project(
+        target_dir: &Path,
+        project_name: Option<&str>,
+    ) -> Result<Vec<PathBuf>, InitError> {
+        let name = project_name.map(|s| s.to_string()).unwrap_or_else(|| {
+            target_dir
+                .canonicalize()
+                .ok()
+                .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+                .filter(|s| !s.is_empty() && s != ".")
+                .unwrap_or_else(|| "orbity-workspace".to_string())
+        });
 
         let mut created_files = Vec::new();
 

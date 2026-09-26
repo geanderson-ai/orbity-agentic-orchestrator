@@ -28,9 +28,12 @@ impl ServerPushManager {
     /// Formats an event envelope as a Server-Sent Event (SSE) or WebSocket text payload.
     pub fn format_sse(event: &EventEnvelope) -> String {
         let json = serde_json::to_string(event).unwrap_or_default();
-        format!("event: {}\ndata: {}\n\n", event.event.event_type_name(), json)
+        format!(
+            "event: {}\ndata: {}\n\n",
+            event.event.event_type_name(),
+            json
+        )
     }
-
 
     /// Spawns a background loop broadcasting from the EventBus to an active connection sink.
     pub fn spawn_push_loop<F>(&self, mut sender_fn: F) -> tokio::task::JoinHandle<()>

@@ -85,10 +85,12 @@ impl Sandbox for MockSandbox {
 
     async fn read_file(&self, relative_path: &Path) -> Result<Vec<u8>, SandboxError> {
         let files = self.files.lock().unwrap();
-        files
-            .get(relative_path)
-            .cloned()
-            .ok_or_else(|| SandboxError::IoError(std::io::Error::new(std::io::ErrorKind::NotFound, "File not found in mock sandbox")))
+        files.get(relative_path).cloned().ok_or_else(|| {
+            SandboxError::IoError(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "File not found in mock sandbox",
+            ))
+        })
     }
 
     async fn snapshot(&self) -> Result<SnapshotId, SandboxError> {
@@ -106,11 +108,17 @@ impl Sandbox for MockSandbox {
             *files = saved.clone();
             Ok(())
         } else {
-            Err(SandboxError::RollbackError(format!("Snapshot {} not found", snapshot)))
+            Err(SandboxError::RollbackError(format!(
+                "Snapshot {} not found",
+                snapshot
+            )))
         }
     }
 
-    async fn promote_changes(&self, _target_host_path: &Path) -> Result<Vec<FileChangeSummary>, SandboxError> {
+    async fn promote_changes(
+        &self,
+        _target_host_path: &Path,
+    ) -> Result<Vec<FileChangeSummary>, SandboxError> {
         let files = self.files.lock().unwrap();
         let mut summaries = Vec::new();
         for (path, content) in files.iter() {
@@ -148,11 +156,17 @@ mod tests {
 
         // Write file and snapshot
         let file_path = Path::new("src/main.rs");
-        sandbox.write_file(file_path, b"fn main() {}").await.unwrap();
+        sandbox
+            .write_file(file_path, b"fn main() {}")
+            .await
+            .unwrap();
         let snap1 = sandbox.snapshot().await.unwrap();
 
         // Mutate file
-        sandbox.write_file(file_path, b"fn main() { panic!(); }").await.unwrap();
+        sandbox
+            .write_file(file_path, b"fn main() { panic!(); }")
+            .await
+            .unwrap();
         let read1 = sandbox.read_file(file_path).await.unwrap();
         assert_eq!(read1, b"fn main() { panic!(); }");
 

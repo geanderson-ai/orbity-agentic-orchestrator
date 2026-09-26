@@ -1,8 +1,8 @@
 //! Hierarchical tracing spans for multi-agent execution trees.
 
-use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 /// Execution status of a tracing span.
@@ -96,7 +96,8 @@ impl SpanTree {
     pub fn start_run_span(&mut self, run_id: &str) -> String {
         let span = SpanRecord::new(format!("run:{}", run_id), run_id, None, None, None);
         let span_id = span.span_id.clone();
-        self.run_root_spans.insert(run_id.to_string(), span_id.clone());
+        self.run_root_spans
+            .insert(run_id.to_string(), span_id.clone());
         self.spans.insert(span_id.clone(), span);
         span_id
     }
@@ -125,8 +126,7 @@ impl SpanTree {
         task_id: Option<String>,
         parent_span_id: Option<String>,
     ) -> String {
-        let parent = parent_span_id
-            .or_else(|| self.run_root_spans.get(run_id).cloned());
+        let parent = parent_span_id.or_else(|| self.run_root_spans.get(run_id).cloned());
 
         let mut span = SpanRecord::new(
             format!("worker:{}", agent_name),
@@ -138,15 +138,20 @@ impl SpanTree {
         span.set_attribute("role", "worker");
         let span_id = span.span_id.clone();
 
-        self.active_agent_spans
-            .insert((run_id.to_string(), agent_name.to_string()), span_id.clone());
+        self.active_agent_spans.insert(
+            (run_id.to_string(), agent_name.to_string()),
+            span_id.clone(),
+        );
         self.spans.insert(span_id.clone(), span);
         span_id
     }
 
     /// Closes an active agent span.
     pub fn close_agent_span(&mut self, run_id: &str, agent_name: &str, status: SpanStatus) {
-        if let Some(span_id) = self.active_agent_spans.remove(&(run_id.to_string(), agent_name.to_string())) {
+        if let Some(span_id) = self
+            .active_agent_spans
+            .remove(&(run_id.to_string(), agent_name.to_string()))
+        {
             if let Some(span) = self.spans.get_mut(&span_id) {
                 span.close(status);
             }
@@ -211,10 +216,18 @@ mod tests {
 
         let root_id = tree.start_run_span(run_id);
         let supervisor_id = tree.start_supervisor_span(run_id, "topcoat");
-        let worker_id = tree.start_agent_span(run_id, "codex", Some("task-01".to_string()), Some(supervisor_id.clone()));
+        let worker_id = tree.start_agent_span(
+            run_id,
+            "codex",
+            Some("task-01".to_string()),
+            Some(supervisor_id.clone()),
+        );
 
         let worker_span = tree.get_span(&worker_id).expect("worker span exists");
-        assert_eq!(worker_span.parent_span_id.as_deref(), Some(supervisor_id.as_str()));
+        assert_eq!(
+            worker_span.parent_span_id.as_deref(),
+            Some(supervisor_id.as_str())
+        );
         assert_eq!(worker_span.agent_name.as_deref(), Some("codex"));
         assert_eq!(worker_span.status, SpanStatus::Running);
 

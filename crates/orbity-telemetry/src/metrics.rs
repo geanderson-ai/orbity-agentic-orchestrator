@@ -1,8 +1,8 @@
 //! Telemetry metrics and FinOps token aggregation.
 
-use std::collections::HashMap;
 use orbity_core::events::RuntimeEvent;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Aggregated metrics across runs and multi-agent sessions.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]

@@ -24,7 +24,6 @@ impl From<CliTokenReport> for TokenUsage {
     }
 }
 
-
 pub struct TokenExtractor;
 
 impl TokenExtractor {
@@ -33,10 +32,24 @@ impl TokenExtractor {
         // Attempt to parse JSON envelope if available
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(output_text) {
             if let Some(usage) = val.get("usage") {
-                let input = usage.get("input_tokens").or_else(|| usage.get("prompt_tokens")).and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-                let output = usage.get("output_tokens").or_else(|| usage.get("completion_tokens")).and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-                let cached = usage.get("cached_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-                let reasoning = usage.get("reasoning_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                let input = usage
+                    .get("input_tokens")
+                    .or_else(|| usage.get("prompt_tokens"))
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as u32;
+                let output = usage
+                    .get("output_tokens")
+                    .or_else(|| usage.get("completion_tokens"))
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as u32;
+                let cached = usage
+                    .get("cached_tokens")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as u32;
+                let reasoning = usage
+                    .get("reasoning_tokens")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as u32;
                 let cost = val.get("cost_usd").and_then(|v| v.as_f64()).unwrap_or(0.0);
 
                 let calc_cost = if cost > 0.0 {
@@ -73,11 +86,11 @@ impl TokenExtractor {
     /// Estimates cost based on model/CLI tier pricing per 1M tokens.
     pub fn estimate_cost(cli: orbity_graph::CliType, input: u32, output: u32) -> f64 {
         let (in_rate_per_1m, out_rate_per_1m) = match cli {
-            orbity_graph::CliType::Codex => (2.50, 10.00),     // Codex / GPT-4o style
-            orbity_graph::CliType::Claude => (3.00, 15.00),    // Claude 3.5 Sonnet
-            orbity_graph::CliType::Agy => (1.25, 5.00),        // Antigravity Flash / Pro
-            orbity_graph::CliType::Hermes => (0.50, 1.50),     // Hermes open weights
-            orbity_graph::CliType::Pi => (0.15, 0.60),         // Pi / lightweight assistant
+            orbity_graph::CliType::Codex => (2.50, 10.00), // Codex / GPT-4o style
+            orbity_graph::CliType::Claude => (3.00, 15.00), // Claude 3.5 Sonnet
+            orbity_graph::CliType::Agy => (1.25, 5.00),    // Antigravity Flash / Pro
+            orbity_graph::CliType::Hermes => (0.50, 1.50), // Hermes open weights
+            orbity_graph::CliType::Pi => (0.15, 0.60),     // Pi / lightweight assistant
             orbity_graph::CliType::Custom => (1.00, 3.00),
         };
 

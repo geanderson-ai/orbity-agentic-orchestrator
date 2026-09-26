@@ -4,7 +4,9 @@
 use crate::runners::SandboxCliNodeRunner;
 use orbity_core::bus::EventBus;
 use orbity_core::contracts::ApprovalPolicy;
-use orbity_graph::{Blackboard, GraphCheckpointStore, GraphDefinition, GraphExecutor, GraphFinOpsTracker};
+use orbity_graph::{
+    Blackboard, GraphCheckpointStore, GraphDefinition, GraphExecutor, GraphFinOpsTracker,
+};
 use orbity_sandbox::traits::Sandbox;
 use sqlx::SqlitePool;
 use std::sync::Arc;
@@ -61,7 +63,11 @@ impl MultiAgentOrchestrator {
     }
 
     /// Executes the multi-agent graph with automatic checkpoints and FinOps monitoring.
-    pub async fn run_graph(&self, graph: GraphDefinition, execution_id: Option<Uuid>) -> Result<Blackboard, OrchestratorError> {
+    pub async fn run_graph(
+        &self,
+        graph: GraphDefinition,
+        execution_id: Option<Uuid>,
+    ) -> Result<Blackboard, OrchestratorError> {
         let blackboard = Blackboard::new();
         let finops = GraphFinOpsTracker::new(self.global_budget_usd, self.approval_policy.clone());
         let runner = Arc::new(SandboxCliNodeRunner::new(self.sandbox.clone()));

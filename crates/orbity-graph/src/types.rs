@@ -216,11 +216,25 @@ impl GraphEdge {
         Self::new(from, to, EdgeKind::BarrierFanIn)
     }
 
-    pub fn conditional(from: impl Into<NodeId>, to: impl Into<NodeId>, predicate: impl Into<String>) -> Self {
-        Self::new(from, to, EdgeKind::Conditional { predicate: predicate.into() })
+    pub fn conditional(
+        from: impl Into<NodeId>,
+        to: impl Into<NodeId>,
+        predicate: impl Into<String>,
+    ) -> Self {
+        Self::new(
+            from,
+            to,
+            EdgeKind::Conditional {
+                predicate: predicate.into(),
+            },
+        )
     }
 
-    pub fn feedback_loop(from: impl Into<NodeId>, to: impl Into<NodeId>, max_iterations: u32) -> Self {
+    pub fn feedback_loop(
+        from: impl Into<NodeId>,
+        to: impl Into<NodeId>,
+        max_iterations: u32,
+    ) -> Self {
         Self::new(from, to, EdgeKind::FeedbackLoop { max_iterations })
     }
 }
@@ -239,7 +253,11 @@ pub struct GraphDefinition {
 }
 
 impl GraphDefinition {
-    pub fn builder(id: impl Into<GraphId>, name: impl Into<String>, start_node: impl Into<NodeId>) -> GraphBuilder {
+    pub fn builder(
+        id: impl Into<GraphId>,
+        name: impl Into<String>,
+        start_node: impl Into<NodeId>,
+    ) -> GraphBuilder {
         GraphBuilder::new(id, name, start_node)
     }
 }
@@ -256,7 +274,11 @@ pub struct GraphBuilder {
 }
 
 impl GraphBuilder {
-    pub fn new(id: impl Into<GraphId>, name: impl Into<String>, start_node: impl Into<NodeId>) -> Self {
+    pub fn new(
+        id: impl Into<GraphId>,
+        name: impl Into<String>,
+        start_node: impl Into<NodeId>,
+    ) -> Self {
         let start = start_node.into();
         Self {
             id: id.into(),

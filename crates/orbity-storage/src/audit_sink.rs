@@ -1,10 +1,10 @@
 //! Layer 3: Audit Logs - Asynchronous EventSink bridge to SQLite SHA-256 hash-chain ledger.
 
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
 use async_trait::async_trait;
 use orbity_core::bus::{EventSink, EventSinkError};
 use orbity_core::events::EventEnvelope;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use crate::audit_chain::AuditStore;
 use crate::audit_verifier::{AuditVerificationResult, AuditVerifier};
@@ -90,7 +90,9 @@ impl EventSink for AuditLogSink {
         self.audit_store
             .append_event(&event.run_id, event.task_id.as_deref(), &event.event)
             .await
-            .map_err(|e| EventSinkError::Delivery(format!("Failed to record audit event: {}", e)))?;
+            .map_err(|e| {
+                EventSinkError::Delivery(format!("Failed to record audit event: {}", e))
+            })?;
 
         self.audited_count.fetch_add(1, Ordering::Relaxed);
         Ok(())
@@ -184,7 +186,11 @@ mod tests {
             .expect("Verification failed");
 
         match result {
-            AuditVerificationResult::Valid { total_events, final_hash, .. } => {
+            AuditVerificationResult::Valid {
+                total_events,
+                final_hash,
+                ..
+            } => {
                 assert_eq!(total_events, 4);
                 assert!(!final_hash.is_empty());
             }

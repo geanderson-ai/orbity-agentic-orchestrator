@@ -1,7 +1,5 @@
 //! Gate 3 Integration Test: Four-Layer Observability Pipeline and 5,000+ ev/s High-Throughput Load Test.
 
-use std::sync::Arc;
-use std::time::{Duration, Instant};
 use orbity_core::bus::{EventBus, EventBusConfig, JsonLinesSink};
 use orbity_core::events::RuntimeEvent;
 use orbity_core::execution_log::ExecutionLogSink;
@@ -11,6 +9,8 @@ use orbity_storage::audit_sink::AuditLogSink;
 use orbity_storage::audit_verifier::AuditVerificationResult;
 use orbity_storage::pool::SqliteStoragePool;
 use orbity_telemetry::sink::TelemetrySink;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::time::sleep;
 use uuid::Uuid;
 
@@ -200,7 +200,10 @@ async fn test_four_layer_observability_simultaneous_pipeline() {
     while let Ok(_evt) = broadcast_rx.try_recv() {
         broadcast_count += 1;
     }
-    assert_eq!(broadcast_count, 10, "Broadcast stream must receive all 10 events");
+    assert_eq!(
+        broadcast_count, 10,
+        "Broadcast stream must receive all 10 events"
+    );
 
     // --- ASSERTION 2: Layer 1 Runtime Logs ---
     let runtime_records = runtime_sink.records().await;
@@ -233,8 +236,15 @@ async fn test_four_layer_observability_simultaneous_pipeline() {
         .expect("Audit verification failed");
 
     match audit_verification {
-        AuditVerificationResult::Valid { total_events, final_hash, .. } => {
-            assert_eq!(total_events, 10, "All 10 events must be chained into SQLite ledger");
+        AuditVerificationResult::Valid {
+            total_events,
+            final_hash,
+            ..
+        } => {
+            assert_eq!(
+                total_events, 10,
+                "All 10 events must be chained into SQLite ledger"
+            );
             assert!(!final_hash.is_empty(), "Cryptographic head hash must exist");
         }
         _ => panic!("Expected Valid audit chain, got {:?}", audit_verification),
@@ -250,15 +260,23 @@ async fn test_four_layer_observability_simultaneous_pipeline() {
     assert_eq!(metrics.commands_count, 1);
     assert_eq!(metrics.avg_command_duration_ms(), 850.0);
 
-    let otlp_json = telemetry_sink.export_otlp_json("orbity-agentic-runtime").await;
+    let otlp_json = telemetry_sink
+        .export_otlp_json("orbity-agentic-runtime")
+        .await;
     assert!(otlp_json["resourceSpans"].is_array());
     assert_eq!(otlp_json["metricsSummary"]["tokens"]["input"], 3500);
-    assert_eq!(otlp_json["metricsSummary"]["tokens"]["estimated_cost_usd"], 0.0215);
+    assert_eq!(
+        otlp_json["metricsSummary"]["tokens"]["estimated_cost_usd"],
+        0.0215
+    );
 
     // --- ASSERTION 6: JSONL File Sink ---
     let file_content = tokio::fs::read_to_string(&jsonl_path).await.unwrap();
     let lines_count = file_content.lines().count();
-    assert_eq!(lines_count, 10, "JSONL file on disk must have exactly 10 recorded lines");
+    assert_eq!(
+        lines_count, 10,
+        "JSONL file on disk must have exactly 10 recorded lines"
+    );
 
     let _ = tokio::fs::remove_dir_all(&temp_dir).await;
 }

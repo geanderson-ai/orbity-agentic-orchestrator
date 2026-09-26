@@ -84,7 +84,6 @@ async fn test_gate_4_multi_agent_workflow_e2e() {
         },
     );
 
-
     let sandbox = Arc::new(Mutex::new(mock_sb));
 
     // 3. Define declarative YAML workflow connecting Codex, Claude, Agy, Hermes, and Pi
@@ -160,7 +159,6 @@ edges:
         ..Default::default()
     };
 
-
     let exec_id = Uuid::new_v4();
 
     // 5. Initialize MultiAgentOrchestrator
@@ -170,7 +168,9 @@ edges:
         .with_budget(25.0);
 
     // 6. Execute multi-agent graph
-    let blackboard = orchestrator.run_graph(graph, Some(exec_id)).await
+    let blackboard = orchestrator
+        .run_graph(graph, Some(exec_id))
+        .await
         .expect("Multi-agent graph orchestration should succeed without errors");
 
     // 7. Verify all 5 agent CLI outputs are recorded on Blackboard
@@ -184,7 +184,9 @@ edges:
 
     let agy_out = blackboard.get_node_output("researcher_agy").await;
     assert!(agy_out.is_some());
-    assert!(agy_out.unwrap().contains("No security vulnerabilities detected"));
+    assert!(agy_out
+        .unwrap()
+        .contains("No security vulnerabilities detected"));
 
     let pi_out = blackboard.get_node_output("refactor_pi").await;
     assert!(pi_out.is_some());
@@ -196,7 +198,9 @@ edges:
 
     // 8. Verify SQLite checkpoints were created and hash chain is valid
     let ckpt_store = GraphCheckpointStore::new(pool);
-    let latest_ckpt = ckpt_store.load_latest_checkpoint(exec_id).await
+    let latest_ckpt = ckpt_store
+        .load_latest_checkpoint(exec_id)
+        .await
         .expect("Should load latest checkpoint from SQLite");
 
     assert!(latest_ckpt.is_some());

@@ -4,10 +4,10 @@
   <p><strong>High-Performance Autonomous Multi-Agent Orchestrator in Rust</strong></p>
 
   [![Made in Brazil](https://img.shields.io/badge/Made%20in-Brazil%20%F0%9F%87%A7%F0%9F%87%B7-009c3b?style=for-the-badge&logoColor=white)](https://github.com/geanderson/meza-agentic-orchestrator)
-  [![Rust](https://img.shields.io/badge/Rust-2024_Edition-orange?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
+  [![Rust](https://img.shields.io/badge/Rust-2021_%2F_2024_Compatible-orange?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
   [![SQLite](https://img.shields.io/badge/SQLite-WAL_%2B_SHA--256-blue?style=for-the-badge&logo=sqlite)](https://sqlite.org)
   [![Sandbox](https://img.shields.io/badge/Sandbox-Bubblewrap-cyan?style=for-the-badge)](https://github.com/containers/bubblewrap)
-  [![Tokio Topcoat](https://img.shields.io/badge/Tokio-Topcoat_0.9-blueviolet?style=for-the-badge)](https://tokio.rs)
+  [![Tokio Topcoat](https://img.shields.io/badge/Tokio-Topcoat_Engine-blueviolet?style=for-the-badge)](https://tokio.rs)
   [![Tests](https://img.shields.io/badge/Tests-52%20Passed%20(100%25)-brightgreen?style=for-the-badge)](docs/IMPLEMENTATION_PLAN.md)
   [![GitHub Pages](https://img.shields.io/badge/GitHub_Pages-Online-indigo?style=for-the-badge&logo=github)](docs/index.html)
 </div>
@@ -234,6 +234,9 @@ cd meza-agentic-orchestrator
 
 # Check-only mode (audits environment & CLIs without installing or compiling):
 ./setup.sh --check-only
+
+# Non-intrusive mode (does not modify shell profiles like .bashrc or .zshrc):
+./setup.sh --no-shell-edit
 ```
 
 #### Declarative Visual Output Preview:
@@ -521,16 +524,20 @@ Options:
 
 ## Web Application
 
-Orbity includes a built-in, production-ready reactive web console powered by **Tokio Topcoat (v0.9+)**, the official full-stack reactive framework for high-concurrency Rust server applications.
+Orbity includes a built-in reactive web console powered by Tokio Topcoat architecture implemented natively in `crates/orbity-server`, combining the high-concurrency async Tokio runtime with server-rendered views (`Views`), live progress streams, and interactive governance controls.
 
-Unlike legacy web architectures that depend on polling or heavy JavaScript client frameworks, Orbity's web application leverages **server-rendered reactive views (`view!`)**, **client-side signals (`signal`)**, **DOM-morphing shard components (`#[shard]`)**, and **persistent WebSockets server-push** to deliver a smooth 60 FPS monitoring and governance experience with sub-25MB RAM usage.
+With zero external runtime bloat and sub-25MB RAM usage, the web application delivers real-time monitoring and governance directly from the Rust binary.
 
 ### Starting the Web Console
 ```bash
-# Launch the web application on port 8080 (or custom port via --port)
-orbity serve --port 8080
+# Launch the web application on default port 3000 (or custom port via --port)
+orbity serve --port 3000
 ```
-Open **`http://localhost:8080`** in your browser to access the console.
+Open **`http://localhost:3000`** in your browser to access the console. Endpoints include:
+- `http://localhost:3000/`: Real-time Multi-Agent Network Dashboard
+- `http://localhost:3000/health`: JSON health check (`{"status":"ok"}`)
+- `http://localhost:3000/governance`: Human-in-the-Loop approval console
+- `http://localhost:3000/finops`: Tokenomics & Budget tracking console
 
 ### Key Web Console Capabilities
 

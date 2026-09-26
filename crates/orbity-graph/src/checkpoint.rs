@@ -7,7 +7,8 @@ use sqlx::SqlitePool;
 use thiserror::Error;
 use uuid::Uuid;
 
-pub const GENESIS_PARENT_HASH: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+pub const GENESIS_PARENT_HASH: &str =
+    "0000000000000000000000000000000000000000000000000000000000000000";
 
 #[derive(Debug, Error)]
 pub enum CheckpointError {
@@ -15,7 +16,9 @@ pub enum CheckpointError {
     Database(#[from] sqlx::Error),
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
-    #[error("Corrupted checkpoint hash chain at step {step}: expected {expected}, actual {actual}")]
+    #[error(
+        "Corrupted checkpoint hash chain at step {step}: expected {expected}, actual {actual}"
+    )]
     HashMismatch {
         step: u32,
         expected: String,
@@ -31,7 +34,6 @@ pub struct GraphCheckpointStore {
 }
 
 impl GraphCheckpointStore {
-
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
@@ -72,8 +74,16 @@ impl GraphCheckpointStore {
         let mut hasher = Sha256::new();
         hasher.update(execution_id.as_bytes());
         hasher.update(step.to_be_bytes());
-        hasher.update(serde_json::to_string(active_nodes).unwrap_or_default().as_bytes());
-        hasher.update(serde_json::to_string(completed_nodes).unwrap_or_default().as_bytes());
+        hasher.update(
+            serde_json::to_string(active_nodes)
+                .unwrap_or_default()
+                .as_bytes(),
+        );
+        hasher.update(
+            serde_json::to_string(completed_nodes)
+                .unwrap_or_default()
+                .as_bytes(),
+        );
         hasher.update(snapshot.to_string().as_bytes());
         hasher.update(prev_hash.as_bytes());
         hex::encode(hasher.finalize())
@@ -169,7 +179,17 @@ impl GraphCheckpointStore {
         .fetch_optional(&self.pool)
         .await?;
 
-        if let Some((_, step, active_json, completed_json, snapshot_str, prev_hash, state_hash, rec_at)) = row {
+        if let Some((
+            _,
+            step,
+            active_json,
+            completed_json,
+            snapshot_str,
+            prev_hash,
+            state_hash,
+            rec_at,
+        )) = row
+        {
             let active_nodes: Vec<NodeId> = serde_json::from_str(&active_json)?;
             let completed_nodes: Vec<NodeId> = serde_json::from_str(&completed_json)?;
             let blackboard_snapshot: serde_json::Value = serde_json::from_str(&snapshot_str)?;

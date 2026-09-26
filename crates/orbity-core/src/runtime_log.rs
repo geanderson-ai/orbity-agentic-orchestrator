@@ -1,9 +1,9 @@
 //! Layer 1: Runtime Logs - Agent and Process Lifecycle Observability.
 
-use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::bus::{EventSink, EventSinkError};
@@ -226,9 +226,7 @@ impl RuntimeLogRecord {
                 raw_event_type: "ApprovalGranted".to_string(),
             }),
             RuntimeEvent::ApprovalRejected {
-                rejecter,
-                reason,
-                ..
+                rejecter, reason, ..
             } => Some(Self {
                 timestamp,
                 level: RuntimeLogLevel::Warn,

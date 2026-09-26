@@ -58,11 +58,18 @@ mod tests {
             updated_at: Utc::now(),
         };
         agent_dao.upsert(&agent).await.unwrap();
-        let loaded_agent = agent_dao.get("agt_01h89x2k").await.unwrap().expect("agent found");
+        let loaded_agent = agent_dao
+            .get("agt_01h89x2k")
+            .await
+            .unwrap()
+            .expect("agent found");
         assert_eq!(loaded_agent.name, "Agente01");
         assert_eq!(loaded_agent.state, "Idle");
 
-        agent_dao.update_state("agt_01h89x2k", "Executing").await.unwrap();
+        agent_dao
+            .update_state("agt_01h89x2k", "Executing")
+            .await
+            .unwrap();
         let updated_agent = agent_dao.get("agt_01h89x2k").await.unwrap().unwrap();
         assert_eq!(updated_agent.state, "Executing");
 
@@ -95,7 +102,10 @@ mod tests {
             created_at: Utc::now(),
         };
         task_dao.create(&task).await.unwrap();
-        task_dao.update_status(&task_id, "Completed", Some("Success"), Some(250)).await.unwrap();
+        task_dao
+            .update_status(&task_id, "Completed", Some("Success"), Some(250))
+            .await
+            .unwrap();
         let loaded_task = task_dao.get(&task_id).await.unwrap().expect("task found");
         assert_eq!(loaded_task.status, "Completed");
         assert_eq!(loaded_task.duration_ms, Some(250));
@@ -133,13 +143,26 @@ mod tests {
         assert_eq!(run_summary.total_tokens, 530);
         assert!((run_summary.total_cost_usd - 0.015).abs() < 1e-6);
 
-        let codex_summary = ledger_dao.get_agent_summary(&run_id, "codex").await.unwrap();
+        let codex_summary = ledger_dao
+            .get_agent_summary(&run_id, "codex")
+            .await
+            .unwrap();
         assert_eq!(codex_summary.records_count, 1);
         assert_eq!(codex_summary.total_tokens, 180);
 
         // Update run with final tokens and cost
-        run_dao.update_tokens_and_cost(&run_id, run_summary.total_tokens, run_summary.total_cost_usd).await.unwrap();
-        run_dao.update_status(&run_id, "Completed", Some(Utc::now())).await.unwrap();
+        run_dao
+            .update_tokens_and_cost(
+                &run_id,
+                run_summary.total_tokens,
+                run_summary.total_cost_usd,
+            )
+            .await
+            .unwrap();
+        run_dao
+            .update_status(&run_id, "Completed", Some(Utc::now()))
+            .await
+            .unwrap();
 
         let completed_run = run_dao.get(&run_id).await.unwrap().unwrap();
         assert_eq!(completed_run.status, "Completed");

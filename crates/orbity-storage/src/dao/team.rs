@@ -58,7 +58,7 @@ impl TeamDao {
             r#"
             SELECT name, description, config_yaml, config_hash, created_at, updated_at
             FROM teams WHERE name = ?
-            "#
+            "#,
         )
         .bind(name)
         .fetch_optional(self.pool.inner())
@@ -94,7 +94,7 @@ impl TeamDao {
             r#"
             SELECT name, description, config_yaml, config_hash, created_at, updated_at
             FROM teams ORDER BY name ASC
-            "#
+            "#,
         )
         .fetch_all(self.pool.inner())
         .await?;

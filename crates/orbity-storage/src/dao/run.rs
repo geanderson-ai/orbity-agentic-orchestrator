@@ -56,7 +56,7 @@ impl RunDao {
             r#"
             SELECT id, status, initiated_at, completed_at, total_tokens, total_cost_usd, metadata
             FROM runs WHERE id = ?
-            "#
+            "#,
         )
         .bind(id)
         .fetch_optional(self.pool.inner())
@@ -132,7 +132,7 @@ impl RunDao {
             FROM runs
             ORDER BY initiated_at DESC
             LIMIT ?
-            "#
+            "#,
         )
         .bind(limit as i64)
         .fetch_all(self.pool.inner())

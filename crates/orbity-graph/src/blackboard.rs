@@ -87,7 +87,10 @@ impl Blackboard {
     /// Increments loop count for an edge/node and returns current count.
     pub async fn increment_loop_count(&self, loop_key: &str) -> u32 {
         let mut state = self.data.write().await;
-        let count = state.loop_iteration_counts.entry(loop_key.to_string()).or_insert(0);
+        let count = state
+            .loop_iteration_counts
+            .entry(loop_key.to_string())
+            .or_insert(0);
         *count += 1;
         *count
     }
@@ -95,7 +98,11 @@ impl Blackboard {
     /// Gets the current iteration count for a loop key.
     pub async fn get_loop_count(&self, loop_key: &str) -> u32 {
         let state = self.data.read().await;
-        state.loop_iteration_counts.get(loop_key).copied().unwrap_or(0)
+        state
+            .loop_iteration_counts
+            .get(loop_key)
+            .copied()
+            .unwrap_or(0)
     }
 
     /// Captures a complete serializable snapshot of the blackboard state for SQLite checkpointing.
@@ -105,7 +112,10 @@ impl Blackboard {
     }
 
     /// Restores the blackboard state from a serialized snapshot.
-    pub async fn restore_snapshot(&self, snapshot: serde_json::Value) -> Result<(), serde_json::Error> {
+    pub async fn restore_snapshot(
+        &self,
+        snapshot: serde_json::Value,
+    ) -> Result<(), serde_json::Error> {
         let restored_state: BlackboardState = serde_json::from_value(snapshot)?;
         let mut state = self.data.write().await;
         *state = restored_state;
@@ -119,7 +129,10 @@ impl Blackboard {
 
         for pred in predecessor_ids {
             if let Some(out) = state.node_outputs.get(&pred.0) {
-                context_builder.push_str(&format!("--- Output from Node [{}] ---\n{}\n\n", pred.0, out));
+                context_builder.push_str(&format!(
+                    "--- Output from Node [{}] ---\n{}\n\n",
+                    pred.0, out
+                ));
             }
         }
 

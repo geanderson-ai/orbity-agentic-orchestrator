@@ -82,7 +82,10 @@ async fn test_topcoat_server_push_websocket_stream() {
 
     // Wait briefly for server-push dispatch
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-    assert!(received.load(Ordering::SeqCst), "Server-push should deliver real-time event");
+    assert!(
+        received.load(Ordering::SeqCst),
+        "Server-push should deliver real-time event"
+    );
     assert!(server.push_manager().total_pushed_count() > 0);
 }
 

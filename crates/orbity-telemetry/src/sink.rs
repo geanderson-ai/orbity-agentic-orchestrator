@@ -1,9 +1,9 @@
 //! Layer 4: Telemetry Sink - OpenTelemetry spans and metrics collector.
 
-use std::sync::Arc;
 use async_trait::async_trait;
 use orbity_core::bus::{EventSink, EventSinkError};
 use orbity_core::events::{EventEnvelope, RuntimeEvent};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::metrics::TelemetryMetrics;

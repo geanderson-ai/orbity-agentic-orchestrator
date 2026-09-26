@@ -6,7 +6,6 @@ use orbity_core::contracts::{ApprovalMode, ApprovalPolicy, AutoApprovalRule};
 use orbity_graph::*;
 use std::sync::Arc;
 
-
 #[tokio::test]
 async fn test_kahns_topological_sort_diamond() {
     // Diamond DAG:
@@ -15,9 +14,26 @@ async fn test_kahns_topological_sort_diamond() {
     //   NodeA   NodeB
     //     \     /
     //      Join
-    let start = GraphNode::new("start", NodeKind::Orchestrator { engine: "topcoat".into() });
-    let a = GraphNode::new("node_a", NodeKind::Tool { command: "echo A".into(), timeout_secs: 10 });
-    let b = GraphNode::new("node_b", NodeKind::Tool { command: "echo B".into(), timeout_secs: 10 });
+    let start = GraphNode::new(
+        "start",
+        NodeKind::Orchestrator {
+            engine: "topcoat".into(),
+        },
+    );
+    let a = GraphNode::new(
+        "node_a",
+        NodeKind::Tool {
+            command: "echo A".into(),
+            timeout_secs: 10,
+        },
+    );
+    let b = GraphNode::new(
+        "node_b",
+        NodeKind::Tool {
+            command: "echo B".into(),
+            timeout_secs: 10,
+        },
+    );
     let join = GraphNode::new("join", NodeKind::JoinBarrier { quorum: Some(2) });
 
     let graph = GraphDefinition::builder("diamond", "Diamond Graph", "start")
@@ -43,8 +59,20 @@ async fn test_kahns_topological_sort_diamond() {
 #[tokio::test]
 async fn test_uncontrolled_cycle_detection() {
     // Illegal cycle without feedback_loop edge
-    let a = GraphNode::new("a", NodeKind::Tool { command: "echo A".into(), timeout_secs: 5 });
-    let b = GraphNode::new("b", NodeKind::Tool { command: "echo B".into(), timeout_secs: 5 });
+    let a = GraphNode::new(
+        "a",
+        NodeKind::Tool {
+            command: "echo A".into(),
+            timeout_secs: 5,
+        },
+    );
+    let b = GraphNode::new(
+        "b",
+        NodeKind::Tool {
+            command: "echo B".into(),
+            timeout_secs: 5,
+        },
+    );
 
     let graph = GraphDefinition::builder("cyclic", "Cyclic Graph", "a")
         .add_node(a)
@@ -60,10 +88,14 @@ async fn test_uncontrolled_cycle_detection() {
 #[tokio::test]
 async fn test_blackboard_context_injection() {
     let bb = Blackboard::new();
-    bb.set_node_output("step_1", "Analysis: Code looks mostly clean.").await;
-    bb.set_node_output("step_2", "Tests: 2 unit tests failed.").await;
+    bb.set_node_output("step_1", "Analysis: Code looks mostly clean.")
+        .await;
+    bb.set_node_output("step_2", "Tests: 2 unit tests failed.")
+        .await;
 
-    let injected = bb.inject_context(&[NodeId::new("step_1"), NodeId::new("step_2")]).await;
+    let injected = bb
+        .inject_context(&[NodeId::new("step_1"), NodeId::new("step_2")])
+        .await;
 
     assert!(injected.contains("Analysis: Code looks mostly clean."));
     assert!(injected.contains("Tests: 2 unit tests failed."));
@@ -71,15 +103,32 @@ async fn test_blackboard_context_injection() {
 
 #[tokio::test]
 async fn test_graph_executor_fan_out_fan_in() {
-    let start = GraphNode::new("start", NodeKind::Orchestrator { engine: "topcoat".into() });
-    let worker1 = GraphNode::new("worker1", NodeKind::Agent {
-        cli: CliType::Codex,
-        config: AgentNodeSpec { name: "codex_worker".into(), ..Default::default() },
-    });
-    let worker2 = GraphNode::new("worker2", NodeKind::Agent {
-        cli: CliType::Claude,
-        config: AgentNodeSpec { name: "claude_worker".into(), ..Default::default() },
-    });
+    let start = GraphNode::new(
+        "start",
+        NodeKind::Orchestrator {
+            engine: "topcoat".into(),
+        },
+    );
+    let worker1 = GraphNode::new(
+        "worker1",
+        NodeKind::Agent {
+            cli: CliType::Codex,
+            config: AgentNodeSpec {
+                name: "codex_worker".into(),
+                ..Default::default()
+            },
+        },
+    );
+    let worker2 = GraphNode::new(
+        "worker2",
+        NodeKind::Agent {
+            cli: CliType::Claude,
+            config: AgentNodeSpec {
+                name: "claude_worker".into(),
+                ..Default::default()
+            },
+        },
+    );
     let aggregator = GraphNode::new("aggregator", NodeKind::JoinBarrier { quorum: Some(2) });
 
     let graph = GraphDefinition::builder("fan_out_in", "Fan-out Fan-in", "start")
@@ -101,7 +150,11 @@ async fn test_graph_executor_fan_out_fan_in() {
     let executor = GraphExecutor::new(graph, bb.clone(), finops.clone(), runner);
     let result = executor.execute().await;
 
-    assert!(result.is_ok(), "Graph execution should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Graph execution should succeed: {:?}",
+        result.err()
+    );
     assert!(bb.get_node_output("start").await.is_some());
     assert!(bb.get_node_output("worker1").await.is_some());
     assert!(bb.get_node_output("worker2").await.is_some());
@@ -112,8 +165,20 @@ async fn test_graph_executor_fan_out_fan_in() {
 
 #[tokio::test]
 async fn test_feedback_loop_retry_and_limit() {
-    let coder = GraphNode::new("coder", NodeKind::Tool { command: "write_code".into(), timeout_secs: 5 });
-    let tester = GraphNode::new("tester", NodeKind::Tool { command: "run_tests".into(), timeout_secs: 5 });
+    let coder = GraphNode::new(
+        "coder",
+        NodeKind::Tool {
+            command: "write_code".into(),
+            timeout_secs: 5,
+        },
+    );
+    let tester = GraphNode::new(
+        "tester",
+        NodeKind::Tool {
+            command: "run_tests".into(),
+            timeout_secs: 5,
+        },
+    );
 
     let graph = GraphDefinition::builder("feedback", "Self-healing Loop", "coder")
         .add_node(coder)
@@ -132,14 +197,23 @@ async fn test_feedback_loop_retry_and_limit() {
     println!("DEBUG: res = {:?}", res);
 
     // After 2 loop iterations, it will hit LoopBudgetExceeded
-    assert!(matches!(res, Err(ExecutionError::LoopBudgetExceeded { limit: 2, .. })));
+    assert!(matches!(
+        res,
+        Err(ExecutionError::LoopBudgetExceeded { limit: 2, .. })
+    ));
 
     assert_eq!(bb.get_loop_count("tester_to_coder").await, 3);
 }
 
 #[tokio::test]
 async fn test_finops_tripwire_limit() {
-    let node1 = GraphNode::new("node1", NodeKind::Tool { command: "echo 1".into(), timeout_secs: 5 });
+    let node1 = GraphNode::new(
+        "node1",
+        NodeKind::Tool {
+            command: "echo 1".into(),
+            timeout_secs: 5,
+        },
+    );
 
     let graph = GraphDefinition::builder("budget_test", "Budget Test", "node1")
         .add_node(node1)
@@ -201,7 +275,6 @@ edges:
         ..Default::default()
     };
 
-
     let bb = Blackboard::new();
     let finops = GraphFinOpsTracker::new(Some(5.0), Some(policy));
     let runner = Arc::new(DefaultNodeRunner);
@@ -209,5 +282,22 @@ edges:
     let executor = GraphExecutor::new(graph, bb.clone(), finops, runner);
     let res = executor.execute().await;
 
-    assert!(res.is_ok(), "Declarative auto-approval should allow reviewer node without pausing: {:?}", res.err());
+    assert!(
+        res.is_ok(),
+        "Declarative auto-approval should allow reviewer node without pausing: {:?}",
+        res.err()
+    );
+}
+
+#[tokio::test]
+async fn test_yaml_loader_forester_canonical_file() {
+    let path = std::path::Path::new("../../examples/teams/forester.yaml");
+    let fallback = std::path::Path::new("examples/teams/forester.yaml");
+    let target = if path.exists() { path } else { fallback };
+
+    let graph = GraphYamlLoader::load_file(target).expect("Must parse forester.yaml");
+    assert_eq!(graph.name, "forester");
+    assert_eq!(graph.start_node.0.as_str(), "deep_research");
+    assert_eq!(graph.nodes.len(), 4);
+    assert_eq!(graph.edges.len(), 3);
 }

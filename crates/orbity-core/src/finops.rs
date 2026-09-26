@@ -38,7 +38,8 @@ impl TokenUsage {
         self.output_tokens += other.output_tokens;
         self.cached_tokens += other.cached_tokens;
         self.reasoning_tokens += other.reasoning_tokens;
-        self.total_tokens = self.input_tokens + self.output_tokens + self.cached_tokens + self.reasoning_tokens;
+        self.total_tokens =
+            self.input_tokens + self.output_tokens + self.cached_tokens + self.reasoning_tokens;
 
         match (self.estimated_cost_usd, other.estimated_cost_usd) {
             (Some(c1), Some(c2)) => self.estimated_cost_usd = Some(c1 + c2),
@@ -213,10 +214,7 @@ mod tests {
         };
 
         // Normal usage
-        assert_eq!(
-            policy.check_limits(1.0, 5_000, 3),
-            BudgetStatus::Ok
-        );
+        assert_eq!(policy.check_limits(1.0, 5_000, 3), BudgetStatus::Ok);
 
         // Threshold warning (75% of $2.0 = $1.50)
         assert_eq!(

@@ -10,16 +10,18 @@ use std::net::SocketAddr;
 use std::path::Path;
 use uuid::Uuid;
 
-
 pub struct CommandDispatcher;
 
 impl CommandDispatcher {
-    pub async fn dispatch(cli: Cli) -> Result<i32, Box<dyn std::error::Error>> {
+    pub async fn dispatch(cli: Cli) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
         match cli.command {
             Commands::Init(args) => {
                 let target_dir = &args.path;
-                let created = crate::init::WorkspaceInit::init_project(target_dir, args.name.as_deref())?;
-                let canonical = target_dir.canonicalize().unwrap_or_else(|_| target_dir.clone());
+                let created =
+                    crate::init::WorkspaceInit::init_project(target_dir, args.name.as_deref())?;
+                let canonical = target_dir
+                    .canonicalize()
+                    .unwrap_or_else(|_| target_dir.clone());
                 println!("✨ Initialized Orbity workspace in {}", canonical.display());
                 if created.is_empty() {
                     println!("ℹ️  Workspace already contains configuration files. Nothing was overwritten.");
@@ -70,12 +72,16 @@ impl CommandDispatcher {
                 println!(
                     "Teams  ({}): {} created, {} updated, {} unchanged",
                     teams_path.display(),
-                    teams_summary.teams_created, teams_summary.teams_updated, teams_summary.unchanged
+                    teams_summary.teams_created,
+                    teams_summary.teams_updated,
+                    teams_summary.unchanged
                 );
                 println!(
                     "Agents ({}): {} created, {} updated, {} unchanged",
                     agents_path.display(),
-                    agents_summary.agents_created, agents_summary.agents_updated, agents_summary.unchanged
+                    agents_summary.agents_created,
+                    agents_summary.agents_updated,
+                    agents_summary.unchanged
                 );
                 Ok(0)
             }
@@ -90,40 +96,45 @@ impl CommandDispatcher {
                 let cx = Cx::new(bus, None, config);
                 let server = TopcoatServer::new(cx);
 
-                println!("🚀 Starting Orbity Tokio Topcoat server on http://{}", addr);
-                let rendered_len = server.render_dashboard().len();
-                println!("Dashboard initialized ({} bytes). Server ready.", rendered_len);
+                server.run_server(addr).await?;
                 Ok(0)
             }
 
-            Commands::Audit(args) => match args.subcmd {
-                AuditSubcommand::Verify { run_id } => {
-                    let pool = SqliteStoragePool::connect_file(&cli.db_path).await?;
-                    pool.run_migrations().await?;
+            Commands::Audit(args) => {
+                match args.subcmd {
+                    AuditSubcommand::Verify { run_id } => {
+                        let pool = SqliteStoragePool::connect_file(&cli.db_path).await?;
+                        pool.run_migrations().await?;
 
-                    let verifier = AuditVerifier::new(pool.clone());
-                    let res = verifier.verify_run(&run_id).await?;
+                        let verifier = AuditVerifier::new(pool.clone());
+                        let res = verifier.verify_run(&run_id).await?;
 
-                    match res {
-                        AuditVerificationResult::Valid { total_events, .. } => {
-                            println!("✅ Audit Chain Verified: {} sequential events intact (SHA-256).", total_events);
-                            Ok(0)
-                        }
-                        AuditVerificationResult::Tampered { event_id, sequence_num, expected_hash, actual_hash, .. } => {
-                            eprintln!(
+                        match res {
+                            AuditVerificationResult::Valid { total_events, .. } => {
+                                println!("✅ Audit Chain Verified: {} sequential events intact (SHA-256).", total_events);
+                                Ok(0)
+                            }
+                            AuditVerificationResult::Tampered {
+                                event_id,
+                                sequence_num,
+                                expected_hash,
+                                actual_hash,
+                                ..
+                            } => {
+                                eprintln!(
                                 "❌ AUDIT INTEGRITY VIOLATION! Tampered block seq {} (id: {}).\nExpected: {}\nActual:   {}",
                                 sequence_num, event_id, expected_hash, actual_hash
                             );
-                            Ok(1)
-                        }
-                        AuditVerificationResult::Empty { .. } => {
-                            println!("⚠️ No audit events found for run_id: {}", run_id);
-                            Ok(0)
+                                Ok(1)
+                            }
+                            AuditVerificationResult::Empty { .. } => {
+                                println!("⚠️ No audit events found for run_id: {}", run_id);
+                                Ok(0)
+                            }
                         }
                     }
                 }
-            },
-
+            }
 
             Commands::Run(args) => {
                 let exec_id = Uuid::new_v4();
@@ -140,32 +151,72 @@ impl CommandDispatcher {
                     format!("examples/teams/{}.yml", team_name),
                 ];
 
-                let mut loaded = false;
+                let mut loaded_graph = None;
                 for team_path in &search_paths {
                     if Path::new(team_path).exists() {
                         match GraphYamlLoader::load_file(team_path) {
                             Ok(graph) => {
-                                println!("Loaded team graph definition from {} (nodes: {})", team_path, graph.nodes.len());
-                                loaded = true;
+                                println!(
+                                    "Loaded team graph definition from {} (nodes: {})",
+                                    team_path,
+                                    graph.nodes.len()
+                                );
+                                loaded_graph = Some(graph);
                                 break;
                             }
                             Err(e) => {
-                                eprintln!("⚠️ Found {} but failed to parse: {}", team_path, e);
+                                eprintln!(
+                                    "❌ Failed to parse team graph from {}: {}",
+                                    team_path, e
+                                );
+                                return Ok(1);
                             }
                         }
                     }
                 }
 
-                if !loaded && args.team.is_some() {
-                    eprintln!("⚠️ Warning: team '{}' was not found in ./teams/ or ./examples/teams/. Running with dynamic router.", team_name);
-                }
+                let graph = match loaded_graph {
+                    Some(g) => g,
+                    None => {
+                        eprintln!(
+                            "❌ Error: Team '{}' was not found in ./teams/ or ./examples/teams/.",
+                            team_name
+                        );
+                        return Ok(1);
+                    }
+                };
 
-                println!("Execution finished successfully for run {}", exec_id);
-                Ok(0)
+                let blackboard = orbity_graph::blackboard::Blackboard::new();
+                blackboard
+                    .set_context(
+                        "user_prompt",
+                        serde_json::Value::String(args.prompt.clone()),
+                    )
+                    .await;
+                let finops = orbity_graph::finops::GraphFinOpsTracker::new(args.budget_usd, None);
+                let runner = std::sync::Arc::new(orbity_graph::executor::DefaultNodeRunner);
+
+                let executor =
+                    orbity_graph::executor::GraphExecutor::new(graph, blackboard, finops, runner)
+                        .with_execution_id(exec_id);
+
+                match executor.execute().await {
+                    Ok(()) => {
+                        println!("✅ Execution {} finished successfully!", exec_id);
+                        Ok(0)
+                    }
+                    Err(e) => {
+                        eprintln!("❌ Execution {} failed: {}", exec_id, e);
+                        Ok(1)
+                    }
+                }
             }
 
             Commands::Resume(args) => {
-                println!("Resuming execution {} with approve={}, reject={}", args.run_id, args.approve, args.reject);
+                println!(
+                    "Resuming execution {} with approve={}, reject={}",
+                    args.run_id, args.approve, args.reject
+                );
                 Ok(0)
             }
 
