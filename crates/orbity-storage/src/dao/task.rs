@@ -53,36 +53,38 @@ impl TaskDao {
         Ok(())
     }
 
+    fn map_row(row: &sqlx::sqlite::SqliteRow) -> Result<TaskRecord, StorageError> {
+        let created_at_str: String = row.get(8);
+        let created_at = DateTime::parse_from_rfc3339(&created_at_str)
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(|_| Utc::now());
+
+        Ok(TaskRecord {
+            id: row.get(0),
+            run_id: row.get(1),
+            parent_task_id: row.get(2),
+            agent_name: row.get(3),
+            status: row.get(4),
+            input_prompt: row.get(5),
+            output_result: row.get(6),
+            duration_ms: row.get(7),
+            created_at,
+        })
+    }
+
     pub async fn get(&self, id: &str) -> Result<Option<TaskRecord>, StorageError> {
         let row = sqlx::query(
             r#"
             SELECT id, run_id, parent_task_id, agent_name, status, input_prompt, output_result, duration_ms, created_at
             FROM tasks WHERE id = ?
-            "#
+            "#,
         )
         .bind(id)
         .fetch_optional(self.pool.inner())
         .await?;
 
         match row {
-            Some(row) => {
-                let created_at_str: String = row.get(8);
-                let created_at = DateTime::parse_from_rfc3339(&created_at_str)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now());
-
-                Ok(Some(TaskRecord {
-                    id: row.get(0),
-                    run_id: row.get(1),
-                    parent_task_id: row.get(2),
-                    agent_name: row.get(3),
-                    status: row.get(4),
-                    input_prompt: row.get(5),
-                    output_result: row.get(6),
-                    duration_ms: row.get(7),
-                    created_at,
-                }))
-            }
+            Some(row) => Ok(Some(Self::map_row(&row)?)),
             None => Ok(None),
         }
     }
@@ -99,7 +101,7 @@ impl TaskDao {
             UPDATE tasks
             SET status = ?, output_result = COALESCE(?, output_result), duration_ms = COALESCE(?, duration_ms)
             WHERE id = ?
-            "#
+            "#,
         )
         .bind(status)
         .bind(output_result)
@@ -118,7 +120,7 @@ impl TaskDao {
             FROM tasks
             WHERE run_id = ?
             ORDER BY created_at ASC
-            "#
+            "#,
         )
         .bind(run_id)
         .fetch_all(self.pool.inner())
@@ -126,22 +128,7 @@ impl TaskDao {
 
         let mut list = Vec::with_capacity(rows.len());
         for row in rows {
-            let created_at_str: String = row.get(8);
-            let created_at = DateTime::parse_from_rfc3339(&created_at_str)
-                .map(|dt| dt.with_timezone(&Utc))
-                .unwrap_or_else(|_| Utc::now());
-
-            list.push(TaskRecord {
-                id: row.get(0),
-                run_id: row.get(1),
-                parent_task_id: row.get(2),
-                agent_name: row.get(3),
-                status: row.get(4),
-                input_prompt: row.get(5),
-                output_result: row.get(6),
-                duration_ms: row.get(7),
-                created_at,
-            });
+            list.push(Self::map_row(&row)?);
         }
 
         Ok(list)

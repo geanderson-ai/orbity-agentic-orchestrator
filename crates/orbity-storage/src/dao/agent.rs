@@ -32,6 +32,33 @@ impl AgentDao {
         Self { pool }
     }
 
+    fn map_row(row: &sqlx::sqlite::SqliteRow) -> Result<AgentDbRecord, StorageError> {
+        let created_at_str: String = row.get(10);
+        let created_at = DateTime::parse_from_rfc3339(&created_at_str)
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(|_| Utc::now());
+
+        let updated_at_str: String = row.get(11);
+        let updated_at = DateTime::parse_from_rfc3339(&updated_at_str)
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(|_| Utc::now());
+
+        Ok(AgentDbRecord {
+            id: row.get(0),
+            name: row.get(1),
+            team_name: row.get(2),
+            state: row.get(3),
+            orchestrator_model: row.get(4),
+            prompt_system: row.get(5),
+            plan_strategy: row.get(6),
+            plan_json: row.get(7),
+            finops_budget_usd: row.get(8),
+            config_hash: row.get(9),
+            created_at,
+            updated_at,
+        })
+    }
+
     pub async fn upsert(&self, agent: &AgentDbRecord) -> Result<(), StorageError> {
         let created_at_str = agent.created_at.to_rfc3339();
         let updated_at_str = agent.updated_at.to_rfc3339();
@@ -84,32 +111,7 @@ impl AgentDao {
         .await?;
 
         match row {
-            Some(row) => {
-                let created_at_str: String = row.get(10);
-                let created_at = DateTime::parse_from_rfc3339(&created_at_str)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now());
-
-                let updated_at_str: String = row.get(11);
-                let updated_at = DateTime::parse_from_rfc3339(&updated_at_str)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now());
-
-                Ok(Some(AgentDbRecord {
-                    id: row.get(0),
-                    name: row.get(1),
-                    team_name: row.get(2),
-                    state: row.get(3),
-                    orchestrator_model: row.get(4),
-                    prompt_system: row.get(5),
-                    plan_strategy: row.get(6),
-                    plan_json: row.get(7),
-                    finops_budget_usd: row.get(8),
-                    config_hash: row.get(9),
-                    created_at,
-                    updated_at,
-                }))
-            }
+            Some(row) => Ok(Some(Self::map_row(&row)?)),
             None => Ok(None),
         }
     }
@@ -139,30 +141,7 @@ impl AgentDao {
 
         let mut list = Vec::with_capacity(rows.len());
         for row in rows {
-            let created_at_str: String = row.get(10);
-            let created_at = DateTime::parse_from_rfc3339(&created_at_str)
-                .map(|dt| dt.with_timezone(&Utc))
-                .unwrap_or_else(|_| Utc::now());
-
-            let updated_at_str: String = row.get(11);
-            let updated_at = DateTime::parse_from_rfc3339(&updated_at_str)
-                .map(|dt| dt.with_timezone(&Utc))
-                .unwrap_or_else(|_| Utc::now());
-
-            list.push(AgentDbRecord {
-                id: row.get(0),
-                name: row.get(1),
-                team_name: row.get(2),
-                state: row.get(3),
-                orchestrator_model: row.get(4),
-                prompt_system: row.get(5),
-                plan_strategy: row.get(6),
-                plan_json: row.get(7),
-                finops_budget_usd: row.get(8),
-                config_hash: row.get(9),
-                created_at,
-                updated_at,
-            });
+            list.push(Self::map_row(&row)?);
         }
 
         Ok(list)
@@ -180,30 +159,7 @@ impl AgentDao {
 
         let mut list = Vec::with_capacity(rows.len());
         for row in rows {
-            let created_at_str: String = row.get(10);
-            let created_at = DateTime::parse_from_rfc3339(&created_at_str)
-                .map(|dt| dt.with_timezone(&Utc))
-                .unwrap_or_else(|_| Utc::now());
-
-            let updated_at_str: String = row.get(11);
-            let updated_at = DateTime::parse_from_rfc3339(&updated_at_str)
-                .map(|dt| dt.with_timezone(&Utc))
-                .unwrap_or_else(|_| Utc::now());
-
-            list.push(AgentDbRecord {
-                id: row.get(0),
-                name: row.get(1),
-                team_name: row.get(2),
-                state: row.get(3),
-                orchestrator_model: row.get(4),
-                prompt_system: row.get(5),
-                plan_strategy: row.get(6),
-                plan_json: row.get(7),
-                finops_budget_usd: row.get(8),
-                config_hash: row.get(9),
-                created_at,
-                updated_at,
-            });
+            list.push(Self::map_row(&row)?);
         }
 
         Ok(list)

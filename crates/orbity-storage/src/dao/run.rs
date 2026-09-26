@@ -51,6 +51,34 @@ impl RunDao {
         Ok(())
     }
 
+    fn map_row(row: &sqlx::sqlite::SqliteRow) -> Result<RunRecord, StorageError> {
+        let initiated_at_str: String = row.get(2);
+        let initiated_at = DateTime::parse_from_rfc3339(&initiated_at_str)
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(|_| Utc::now());
+
+        let completed_at_str: Option<String> = row.get(3);
+        let completed_at = completed_at_str.and_then(|s| {
+            DateTime::parse_from_rfc3339(&s)
+                .map(|dt| dt.with_timezone(&Utc))
+                .ok()
+        });
+
+        let total_tokens_i64: i64 = row.get(4);
+        let total_cost_usd: f64 = row.get(5);
+        let metadata: Option<String> = row.get(6);
+
+        Ok(RunRecord {
+            id: row.get(0),
+            status: row.get(1),
+            initiated_at,
+            completed_at,
+            total_tokens: total_tokens_i64 as u64,
+            total_cost_usd,
+            metadata,
+        })
+    }
+
     pub async fn get(&self, id: &str) -> Result<Option<RunRecord>, StorageError> {
         let row = sqlx::query(
             r#"
@@ -63,33 +91,7 @@ impl RunDao {
         .await?;
 
         match row {
-            Some(row) => {
-                let initiated_at_str: String = row.get(2);
-                let initiated_at = DateTime::parse_from_rfc3339(&initiated_at_str)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now());
-
-                let completed_at_str: Option<String> = row.get(3);
-                let completed_at = completed_at_str.and_then(|s| {
-                    DateTime::parse_from_rfc3339(&s)
-                        .map(|dt| dt.with_timezone(&Utc))
-                        .ok()
-                });
-
-                let total_tokens_i64: i64 = row.get(4);
-                let total_cost_usd: f64 = row.get(5);
-                let metadata: Option<String> = row.get(6);
-
-                Ok(Some(RunRecord {
-                    id: row.get(0),
-                    status: row.get(1),
-                    initiated_at,
-                    completed_at,
-                    total_tokens: total_tokens_i64 as u64,
-                    total_cost_usd,
-                    metadata,
-                }))
-            }
+            Some(row) => Ok(Some(Self::map_row(&row)?)),
             None => Ok(None),
         }
     }
@@ -140,31 +142,7 @@ impl RunDao {
 
         let mut list = Vec::with_capacity(rows.len());
         for row in rows {
-            let initiated_at_str: String = row.get(2);
-            let initiated_at = DateTime::parse_from_rfc3339(&initiated_at_str)
-                .map(|dt| dt.with_timezone(&Utc))
-                .unwrap_or_else(|_| Utc::now());
-
-            let completed_at_str: Option<String> = row.get(3);
-            let completed_at = completed_at_str.and_then(|s| {
-                DateTime::parse_from_rfc3339(&s)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .ok()
-            });
-
-            let total_tokens_i64: i64 = row.get(4);
-            let total_cost_usd: f64 = row.get(5);
-            let metadata: Option<String> = row.get(6);
-
-            list.push(RunRecord {
-                id: row.get(0),
-                status: row.get(1),
-                initiated_at,
-                completed_at,
-                total_tokens: total_tokens_i64 as u64,
-                total_cost_usd,
-                metadata,
-            });
+            list.push(Self::map_row(&row)?);
         }
 
         Ok(list)
