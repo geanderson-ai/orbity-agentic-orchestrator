@@ -484,6 +484,8 @@ orbity resume <RUN_ID> --reject
 ## API / CLI Reference
 
 ```text
+Orbity Multi Agentic Harness CLI
+
 Usage: orbity [OPTIONS] <COMMAND>
 
 Commands:

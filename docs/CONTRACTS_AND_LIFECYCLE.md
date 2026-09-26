@@ -1,6 +1,6 @@
 # 📜 Contratos, Ciclo de Vida e Setup Declarativo (YAML)
 
-> **Orbity Agentic Platform**  
+> **Orbity Multi Agentic Harness**  
 > **Linguagem Base:** Rust (2021/2024 edition)  
 > **Crates Principais:** `orbity-core`, `orbity-agent`, `orbity-storage`, `orbity-cli`
 
@@ -352,7 +352,7 @@ pub struct CliToolCheck {
 #### Exemplo Visual do Check na Inicialização da CLI:
 
 ```text
-⚡ Orbity Agentic Platform - Pre-flight Health Check
+⚡ Orbity Multi Agentic Harness - Pre-flight Health Check
 ─────────────────────────────────────────────────────────────────────────────
 [✓] Sandbox Runtime: Bubblewrap (/usr/bin/bwrap) 0.8.0
 [✓] Storage Engine: SQLite 3.45.1 (WAL mode + SHA-256 Audit Store)

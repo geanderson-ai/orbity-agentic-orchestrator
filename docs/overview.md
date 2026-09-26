@@ -229,7 +229,7 @@ Antes de iniciar qualquer orquestração, valide seu ambiente com o comando de p
 ```
 **Exemplo de Saída Esperada:**
 ```
-⚡ Orbity Agentic Platform - Pre-flight Health Check
+⚡ Orbity Multi Agentic Harness - Pre-flight Health Check
 ─────────────────────────────────────────────────────────────────────────────
 [✓] Sandbox Runtime: Bubblewrap (/usr/bin/bwrap) 0.8.0
 [✓] Storage Engine: SQLite 3.45.1 (WAL mode + SHA-256 Audit Store)

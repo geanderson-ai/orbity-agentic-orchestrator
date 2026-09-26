@@ -1,6 +1,6 @@
 # 🗺️ Varredura Completa da Jornada Multi-Agente com Orquestrador
 
-> **Orbity Agentic Platform**  
+> **Orbity Multi Agentic Harness**  
 > **Status da Auditoria:** 100% Contemplado e Mapeado  
 > **Pilares:** Rust Core • Orquestrador Tokio Topcoat • Sandbox Bubblewrap • Trilha SQLite SHA-256 • 5 CLIs (`codex`, `claude`, `agy`, `hermes`, `pi`)
 
