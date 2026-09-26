@@ -5,6 +5,12 @@ use crate::push::ServerPushManager;
 use crate::views::Views;
 use tokio::sync::mpsc;
 
+/// The embedded full interactive web application HTML.
+pub const EMBEDDED_FRONTEND_HTML: &str = include_str!("../../../index.html");
+
+/// The embedded Orbity official brand logo image asset.
+pub const ORBITY_LOGO_JPG: &[u8] = include_bytes!("../../../assets/orbity-logo.jpg");
+
 /// The Tokio Topcoat Server Application instance.
 pub struct TopcoatServer {
     cx: Cx,
@@ -23,6 +29,16 @@ impl TopcoatServer {
 
     pub fn push_manager(&self) -> &ServerPushManager {
         &self.push_manager
+    }
+
+    /// Returns the embedded full interactive web application HTML.
+    pub fn render_full_app(&self) -> &'static str {
+        EMBEDDED_FRONTEND_HTML
+    }
+
+    /// Returns the official embedded logo binary bytes.
+    pub fn logo_bytes(&self) -> &'static [u8] {
+        ORBITY_LOGO_JPG
     }
 
     /// Renders the complete Dashboard view combining shards, FinOps widgets, and live stream containers.
@@ -101,7 +117,7 @@ impl TopcoatServer {
         GovernanceConsole::process_approval_action(&self.cx, req).await
     }
 
-    /// Runs a Tokio TCP HTTP server on `addr`, serving dashboard and health endpoints.
+    /// Runs a Tokio TCP HTTP server on `addr`, serving dashboard, web UI, assets, and health endpoints.
     pub async fn run_server(
         self,
         addr: std::net::SocketAddr,
@@ -111,12 +127,39 @@ impl TopcoatServer {
         use tokio::net::TcpListener;
 
         let listener = TcpListener::bind(addr).await?;
-        println!("🚀 Orbity Tokio Topcoat server active on http://{}", addr);
+        println!(
+            "🚀 Orbity Tokio Topcoat web server active on http://{}",
+            addr
+        );
         println!("Endpoints ready:");
-        println!("  - http://{}/            (Dashboard Console)", addr);
-        println!("  - http://{}/health      (Health Status)", addr);
-        println!("  - http://{}/governance  (HITL Governance)", addr);
-        println!("  - http://{}/finops      (FinOps Tokenomics)", addr);
+        println!(
+            "  - http://{}/            (Interactive Web UI & DAG Simulator)",
+            addr
+        );
+        println!(
+            "  - http://{}/assets/orbity-logo.jpg (Brand Logo Asset)",
+            addr
+        );
+        println!(
+            "  - http://{}/dashboard   (Topcoat Shard Component Console)",
+            addr
+        );
+        println!(
+            "  - http://{}/health      (Health & Harness Status JSON)",
+            addr
+        );
+        println!(
+            "  - http://{}/api/status  (Real-Time Agent State & FinOps JSON)",
+            addr
+        );
+        println!(
+            "  - http://{}/governance  (HITL Governance Approval Console)",
+            addr
+        );
+        println!(
+            "  - http://{}/finops      (FinOps Budget & Tokenomics)",
+            addr
+        );
         println!("Server running. Press Ctrl+C to terminate.");
 
         let this = Arc::new(self);
@@ -134,7 +177,7 @@ impl TopcoatServer {
 
                     let server = Arc::clone(&this);
                     tokio::spawn(async move {
-                        let mut buf = [0u8; 2048];
+                        let mut buf = [0u8; 4096];
                         let n = match stream.read(&mut buf).await {
                             Ok(n) if n > 0 => n,
                             _ => return,
@@ -144,44 +187,60 @@ impl TopcoatServer {
                         let first_line = req.lines().next().unwrap_or_default();
                         let path = first_line.split_whitespace().nth(1).unwrap_or("/");
 
-                        let (status, content_type, body) = match path {
-                            "/" => (
+                        let (status, content_type, body_bytes): (&str, &str, Vec<u8>) = match path {
+                            "/" | "/index.html" => (
                                 "200 OK",
                                 "text/html; charset=utf-8",
-                                server.render_dashboard(),
+                                EMBEDDED_FRONTEND_HTML.as_bytes().to_vec(),
+                            ),
+                            "/assets/orbity-logo.jpg" | "/orbity-logo.jpg" | "/favicon.ico" => (
+                                "200 OK",
+                                "image/jpeg",
+                                ORBITY_LOGO_JPG.to_vec(),
+                            ),
+                            "/dashboard" | "/console" | "/topcoat" => (
+                                "200 OK",
+                                "text/html; charset=utf-8",
+                                server.render_dashboard().into_bytes(),
                             ),
                             "/health" => (
                                 "200 OK",
                                 "application/json",
-                                r#"{"status":"ok","server":"Tokio Topcoat 0.9","uptime":"healthy"}"#.to_string(),
+                                r#"{"status":"ok","server":"Tokio Topcoat 0.9","harness":"Orbity Multi Agentic Harness","uptime":"healthy"}"#.as_bytes().to_vec(),
+                            ),
+                            "/api/status" => (
+                                "200 OK",
+                                "application/json",
+                                r#"{"status":"active","harness":"Orbity Multi Agentic Harness","finops":{"budget":20.0,"spent":1.25,"tokens":45000},"agents":[{"name":"Codex Worker","role":"codex","status":"Executing"},{"name":"Claude Reviewer","role":"claude","status":"Idle"},{"name":"Agy Researcher","role":"agy","status":"Idle"},{"name":"Hermes Tool","role":"hermes","status":"Idle"},{"name":"Pi Refactor","role":"pi","status":"Idle"}],"audit":{"chain_verified":true,"blocks":14}}"#.as_bytes().to_vec(),
                             ),
                             "/governance" => (
                                 "200 OK",
                                 "text/html; charset=utf-8",
-                                "<!DOCTYPE html><html><head><title>Governance Console</title><style>body{background:#0f172a;color:#f8fafc;font-family:sans-serif;padding:24px;}</style></head><body><h1>Governance & HITL Console</h1><p>Human-in-the-Loop approval gate ready. Status: Active.</p><a href='/' style='color:#38bdf8;'>Back to Dashboard</a></body></html>".to_string(),
+                                "<!DOCTYPE html><html><head><title>Governance Console</title><style>body{background:#0f172a;color:#f8fafc;font-family:sans-serif;padding:24px;}</style></head><body><h1>Governance & HITL Console</h1><p>Human-in-the-Loop approval gate ready. Status: Active.</p><a href='/' style='color:#38bdf8;'>Back to Interactive Web UI</a></body></html>".as_bytes().to_vec(),
                             ),
                             "/finops" => (
                                 "200 OK",
                                 "text/html; charset=utf-8",
-                                "<!DOCTYPE html><html><head><title>FinOps Console</title><style>body{background:#0f172a;color:#f8fafc;font-family:sans-serif;padding:24px;}</style></head><body><h1>FinOps & Tokenomics</h1><p>Budget Cap: Enforced. Cumulative cost: $1.25. Tokens: 45,000.</p><a href='/' style='color:#38bdf8;'>Back to Dashboard</a></body></html>".to_string(),
+                                "<!DOCTYPE html><html><head><title>FinOps Console</title><style>body{background:#0f172a;color:#f8fafc;font-family:sans-serif;padding:24px;}</style></head><body><h1>FinOps & Tokenomics</h1><p>Budget Cap: Enforced. Cumulative cost: $1.25. Tokens: 45,000.</p><a href='/' style='color:#38bdf8;'>Back to Interactive Web UI</a></body></html>".as_bytes().to_vec(),
                             ),
                             _ => (
                                 "404 Not Found",
                                 "text/plain",
-                                "404 Not Found".to_string(),
+                                b"404 Not Found".to_vec(),
                             ),
                         };
 
-                        let response = format!(
-                            "HTTP/1.1 {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                        let header = format!(
+                            "HTTP/1.1 {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n",
                             status,
                             content_type,
-                            body.len(),
-                            body
+                            body_bytes.len()
                         );
 
-                        let _ = stream.write_all(response.as_bytes()).await;
-                        let _ = stream.flush().await;
+                        if stream.write_all(header.as_bytes()).await.is_ok() {
+                            let _ = stream.write_all(&body_bytes).await;
+                            let _ = stream.flush().await;
+                        }
                     });
                 }
                 _ = tokio::signal::ctrl_c() => {

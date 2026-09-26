@@ -121,3 +121,21 @@ async fn test_topcoat_hitl_approval_interaction() {
     assert_eq!(resp_rej.decision, "rejected");
     assert!(resp_rej.message.contains("High security risk"));
 }
+
+#[tokio::test]
+async fn test_topcoat_embedded_frontend_and_assets() {
+    let bus = EventBus::new(EventBusConfig::default());
+    let config = ServerConfig::default();
+    let cx = Cx::new(bus, None, config);
+    let server = TopcoatServer::new(cx);
+
+    let html = server.render_full_app();
+    assert!(html.contains("Orbity Multi Agentic Harness"));
+    assert!(html.contains("simulador"));
+    assert!(html.contains("assets/orbity-logo.jpg"));
+
+    let logo = server.logo_bytes();
+    assert!(!logo.is_empty());
+    // JPEG magic bytes: 0xFF, 0xD8, 0xFF
+    assert_eq!(&logo[0..3], &[0xFF, 0xD8, 0xFF]);
+}
