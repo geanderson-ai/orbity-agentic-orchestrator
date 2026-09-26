@@ -3,28 +3,39 @@
 # Nome inferido a partir do arquivo: forester.yaml
 # Descrição: Equipe de engenharia orquestrada usando Codex CLI, Claude Code e Agy Antigravity
 # ==============================================================================
+# Versão do contrato declarativo. Use a versão suportada pelo runtime.
 version: "1.0"
 team:
+  # Identificador estável usado pela CLI: `orbity team run forester ...`.
   name: "forester"
+  # Texto exibido em listas, logs e documentação da equipe.
   description: "Equipe de engenharia de software e segurança com Codex CLI, Claude Code e Agy Antigravity"
+  # Rótulos livres para organização, busca e classificação.
   tags:
     - "refactoring"
     - "security"
     - "rust"
     - "cli-triad"
 
-  # Orçamento e Guardrails FinOps da equipe
+  # FinOps: todos os limites são opcionais; juntos formam os guardrails de custo.
   finops:
+    # Interrompe ou impede novas chamadas quando o custo acumulado atingir este teto.
     max_budget_usd: 2.00
+    # Limite total de tokens (entrada + saída, conforme a telemetria do runtime).
     max_total_tokens: 300000
+    # A partir deste custo, uma chamada de modelo caro usa a ação abaixo.
     expensive_model_approval_threshold_usd: 0.80
-    expensive_model_action: "auto_approve" # Aprovação declarativa no YAML: modelos caros rodam sem pausa interativa
+    # Opções: auto_approve, auto_reject ou ask_human.
+    expensive_model_action: "auto_approve"
+    # Percentual do orçamento que dispara um alerta preventivo.
     alert_at_budget_percentage: 75
 
-  # Política Declarativa de Aprovação e Rejeição (elimina validações manuais desnecessárias)
+  # Política declarativa de aprovação/rejeição para comandos e ações.
   approval_policy:
-    mode: "automatic" # "automatic" | "hybrid" | "manual"
+    # automatic = decide sozinho; hybrid = permite escalonamento; manual = sempre pede humano.
+    mode: "automatic"
     auto_approve:
+      # Cada regra pode usar condition, tools e/ou patterns.
       - rule: "sandbox_tests_passed"
         condition: "outcome.exit_code == 0"
       - rule: "cost_within_budget"
@@ -40,15 +51,21 @@ team:
         condition: "cumulative_cost_usd > max_budget_usd"
       - rule: "sandbox_timeout_violation"
         condition: "duration_seconds > timeout_seconds"
+    # Opções: approve, reject ou escalate_to_human.
     fallback_action: "approve"
 
-  # Configurações padrão de Sandbox para todo o time
+  # Defaults herdados pelos workers que não definirem uma política própria.
   sandbox_defaults:
+    # Provider de isolamento. O runtime atual usa Bubblewrap (`bwrap`).
     provider: "bwrap"
+    # root_mode: ro-bind protege a raiz; workspace_mode: tmpfs usa workspace efêmero.
+    # Outras chaves de filesystem podem ser adicionadas conforme o provider.
     filesystem:
       root_mode: "ro-bind"
       workspace_mode: "tmpfs"
-    network: "isolated" # ou "egress_allowlist"
+    # Opções: isolated (sem rede) ou egress_allowlist (saídas permitidas).
+    network: "isolated"
+    # Limite de tempo por execução e memória máxima por sandbox.
     timeout_seconds: 90
     memory_limit_mb: 4096
 
@@ -57,12 +74,18 @@ team:
   # Toda equipe possui obrigatoriamente um agente orquestrador
   # ============================================================================
   orchestrator:
+    # Campos de identidade e seleção do motor do orquestrador.
     id: "forester-lead"
     name: "Forester Lead Orchestrator"
     provider: "agy"
+    # Opções semânticas: fast, balanced, reasoning ou latest.
     tier: "reasoning"
     role: "Lead Architect & Security Officer"
-    runner: "agy" # Executa via Antigravity CLI com planning mode
+    # CLI responsável por executar este orquestrador.
+    runner: "agy"
+    # Para orquestradores embutidos de agentes, também é possível usar type: embedded.
+    # type: "embedded"
+    # Opções livres repassadas ao runner (ex.: mode, effort e output_format).
     cli_options:
       mode: "plan"
       effort: "high"
@@ -76,12 +99,20 @@ team:
         - Claude Code (revisão de segurança, conformidade e invariantes)
         - Agy Antigravity (pesquisa profunda, planejamento e síntese de entregas)
         Supervisione a integridade criptográfica no SQLite e emita relatório FinOps com métricas de tokens.
+      # Campos opcionais adicionais do prompt:
+      # guidelines: ["Nunca exponha segredos", "Sempre reporte custos"]
+      # context_variables: { repository: "meza-agentic-orchestrator" }
 
     plan:
+      # Estratégia declarada do plano. O runtime também aceita uma lista simples em `steps`.
       strategy: "PlanAndExecuteDAG"
+      # Quantidade máxima de iterações do plano/loops.
       max_iterations: 10
+      # Se true, exige uma etapa de síntese antes de concluir.
       require_synthesis: true
+      # Comportamento em falha: aqui o pipeline para e reporta.
       on_worker_failure: "HaltAndReport"
+      # Pipeline nomeado usado pelo loader canônico. Alternativamente, use `steps`.
       default_pipeline:
         - step_id: "deep_research"
           name: "Pesquisa e Análise de Contexto"
@@ -102,6 +133,11 @@ team:
         - step_id: "final_synthesis"
           name: "Consolidação e Relatório FinOps"
           action: "orchestrator.synthesize"
+      # Exemplo da forma alternativa (não use junto com default_pipeline):
+      # steps:
+      #   - name: "Etapa simples"
+      #     delegate_to: "codex-worker"
+      #     action: "codex.exec"
 
   # ============================================================================
   # Time de Agentes em Volta do Orquestrador (Tríade de CLIs Nativas)
@@ -109,13 +145,18 @@ team:
   workers:
     # 1. Codex CLI (OpenAI Codex CLI)
     - id: "codex-worker"
+      # id é a referência usada por delegate_to, nodes.worker_ref e edges.
       name: "Codex CLI Worker"
+      # provider/runner identificam o engine e o executável local.
       provider: "codex"
       tier: "balanced"
       role: "Especialista em Implementação de Código e Testes Unitários"
       runner: "codex"
+      # model é opcional; prefira tiers para não acoplar o YAML a versões de modelo.
+      # model: "latest"
       cli_command: "codex"
       cli_subcommand: "exec"
+      # Argumentos adicionais e ferramentas permitidas para este worker.
       allowed_tools:
         - "sandbox.run_command"
         - "sandbox.read_file"
@@ -124,6 +165,9 @@ team:
         system: |
           Você é o construtor de código da equipe Forester via Codex CLI.
           Escreva código Rust seguro, idiomático, com tratamento estrito de erros e testes unitários.
+        # guidelines e context_variables são opcionais dentro de prompt.
+        # guidelines: ["Execute testes antes de entregar"]
+        # context_variables: { language: "rust" }
 
     # 2. Claude Code (Anthropic Claude CLI)
     - id: "claude-code-worker"
@@ -132,6 +176,7 @@ team:
       tier: "reasoning"
       role: "Auditor de Arquitetura, Segurança e Invariantes de Memória"
       runner: "claude"
+      # model: "latest"
       cli_command: "claude"
       cli_args:
         - "--print"
@@ -153,6 +198,7 @@ team:
       tier: "fast"
       role: "Especialista em Raciocínio Profundo, Pesquisa e Planejamento"
       runner: "agy"
+      # model: "latest"
       cli_command: "agy"
       cli_args:
         - "--print"
@@ -177,6 +223,7 @@ team:
       tier: "fast"
       role: "Especialista em Execução de Ferramentas, Busca e Automação"
       runner: "hermes"
+      # model: "latest"
       cli_command: "hermes"
       cli_args:
         - "run"
@@ -197,6 +244,7 @@ team:
       tier: "fast"
       role: "Especialista em Transformações Ágeis de Código e Refatoração"
       runner: "pi"
+      # model: "latest"
       cli_command: "pi"
       cli_args:
         - "--print"
@@ -214,11 +262,13 @@ team:
   # ============================================================================
   # Topologia de Grafo do Time (Graph Engineering: Nodes & Edges)
   # ============================================================================
+  # Nó inicial do DAG compilado e nós que encerram a execução.
   graph_topology:
     entrypoint_node: "forester-lead"
     terminal_nodes: ["forester-lead"]
 
-    # Definição dos Nós da Topologia
+    # Cada node pode ser supervisor, agent, tool ou human_gate.
+    # agent usa worker_ref; tool usa command/timeout_seconds; human_gate usa prompt/approval_rule.
     nodes:
       - id: "forester-lead"
         kind: "supervisor"
@@ -238,7 +288,9 @@ team:
 
       - id: "test-verifier"
         kind: "tool"
+        # Comando executado pelo nó de ferramenta.
         command: "cargo test --workspace"
+        # Timeout específico do nó, sobrescrevendo defaults quando aplicável.
         timeout_seconds: 60
 
       - id: "quick-fixer"
@@ -247,15 +299,20 @@ team:
 
       - id: "release-approval"
         kind: "human_gate"
+        # Prompt apresentado para a decisão de aprovação.
         prompt: "Aprovar deploy e merge do código testado em sandbox?"
         timeout_seconds: 86400
         approval_rule:
-          mode: "automatic" # Avaliado diretamente pelas regras declarativas do YAML sem solicitar validação interativa
+          # Opções: automatic, hybrid ou manual.
+          mode: "automatic"
+          # Expressões opcionais avaliadas para aprovar ou rejeitar o gate.
           auto_approve_when: "outcome.exit_code == 0 && test_verifier.status == 'passed'"
           auto_reject_when: "outcome.exit_code != 0 || budget_hard_cap_exceeded == true"
+          # Opções: approve ou reject quando o gate expirar.
           timeout_action: "reject"
 
-    # Definição das Arestas de Execução (Edges)
+    # Arestas ligam nós. Tipos ilustrados: direct, parallel_fan_out,
+    # barrier_fan_in, conditional e feedback_loop.
     edges:
       # 1. Planejamento inicial para pesquisa e codificação em paralelo (Fan-out)
       - from: "forester-lead"
@@ -276,6 +333,7 @@ team:
       - from: "test-verifier"
         to: "release-approval"
         type: "conditional"
+        # Arestas condicionais só avançam quando a expressão for verdadeira.
         condition: "outcome.exit_code == 0"
 
       # 5. Feedback Loop: Falha nos testes aciona Pi Coder para correção imediata (máx 3 retries)
@@ -283,11 +341,13 @@ team:
         to: "quick-fixer"
         type: "conditional"
         condition: "outcome.exit_code != 0 && loop_iterations < 3"
+        # Valores do contexto copiados para o worker de correção.
         inject_context: ["sandbox.stderr", "test_report"]
 
       - from: "quick-fixer"
         to: "test-verifier"
         type: "feedback_loop"
+        # Limite de repetições para evitar loops infinitos.
         max_iterations: 3
 
       # 6. Aprovação humana aceita retorna ao orquestrador para síntese e arquivamento
@@ -295,4 +355,3 @@ team:
         to: "forester-lead"
         type: "conditional"
         condition: "approval.status == 'approved'"
-
