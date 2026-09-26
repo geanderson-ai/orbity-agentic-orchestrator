@@ -20,6 +20,9 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    /// Inicializa um novo projeto ou workspace do Orbity no diretório atual
+    Init(InitArgs),
+
     /// Inicia uma nova orquestração multi-agente
     Run(RunArgs),
 
@@ -97,6 +100,17 @@ pub enum AuditSubcommand {
 }
 
 #[derive(Debug, Args)]
+pub struct InitArgs {
+    /// Diretório onde o workspace será inicializado [padrão: .]
+    #[arg(default_value = ".")]
+    pub path: PathBuf,
+
+    /// Nome personalizado do projeto (padrão: inferido a partir do diretório)
+    #[arg(short, long)]
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Args)]
 pub struct ServeArgs {
     /// Porta TCP de binding
     #[arg(short, long, default_value = "3000")]
@@ -109,11 +123,11 @@ pub struct ServeArgs {
 
 #[derive(Debug, Args)]
 pub struct SyncArgs {
-    /// Diretório de arquivos de equipes YAML
-    #[arg(long, default_value = "examples/teams")]
-    pub teams_dir: PathBuf,
+    /// Diretório de arquivos de equipes YAML (padrão: ./teams ou ./examples/teams)
+    #[arg(long)]
+    pub teams_dir: Option<PathBuf>,
 
-    /// Diretório de arquivos de agentes YAML
-    #[arg(long, default_value = "examples/agents")]
-    pub agents_dir: PathBuf,
+    /// Diretório de arquivos de agentes YAML (padrão: ./agents ou ./examples/agents)
+    #[arg(long)]
+    pub agents_dir: Option<PathBuf>,
 }

@@ -16,6 +16,27 @@ pub struct CommandDispatcher;
 impl CommandDispatcher {
     pub async fn dispatch(cli: Cli) -> Result<i32, Box<dyn std::error::Error>> {
         match cli.command {
+            Commands::Init(args) => {
+                let target_dir = &args.path;
+                let created = crate::init::WorkspaceInit::init_project(target_dir, args.name.as_deref())?;
+                let canonical = target_dir.canonicalize().unwrap_or_else(|_| target_dir.clone());
+                println!("✨ Initialized Orbity workspace in {}", canonical.display());
+                if created.is_empty() {
+                    println!("ℹ️  Workspace already contains configuration files. Nothing was overwritten.");
+                } else {
+                    println!("Created files:");
+                    for f in created {
+                        println!("  - {}", f.display());
+                    }
+                }
+                println!("\nNext steps:");
+                println!("  1. Run `orbity doctor` to check your environment and AI CLIs");
+                println!("  2. Run `orbity sync` to synchronize declarative teams into SQLite");
+                println!("  3. Run `orbity run \"your task description\"` to launch multi-agent orchestration");
+                println!("  4. Run `orbity serve` to start the full-stack Web Dashboard");
+                Ok(0)
+            }
+
             Commands::Doctor => {
                 let report = PreflightDoctor::check();
                 println!("{}", report.summary_text());
@@ -23,19 +44,37 @@ impl CommandDispatcher {
             }
 
             Commands::Sync(args) => {
-                let pool = SqliteStoragePool::connect_in_memory().await?;
+                let pool = SqliteStoragePool::connect_file(&cli.db_path).await?;
                 pool.run_migrations().await?;
 
-                let teams_summary = DeclarativeSync::sync_teams(&pool, &args.teams_dir).await?;
-                let agents_summary = DeclarativeSync::sync_agents(&pool, &args.agents_dir).await?;
+                let teams_path = args.teams_dir.unwrap_or_else(|| {
+                    if Path::new("teams").exists() {
+                        std::path::PathBuf::from("teams")
+                    } else {
+                        std::path::PathBuf::from("examples/teams")
+                    }
+                });
+
+                let agents_path = args.agents_dir.unwrap_or_else(|| {
+                    if Path::new("agents").exists() {
+                        std::path::PathBuf::from("agents")
+                    } else {
+                        std::path::PathBuf::from("examples/agents")
+                    }
+                });
+
+                let teams_summary = DeclarativeSync::sync_teams(&pool, &teams_path).await?;
+                let agents_summary = DeclarativeSync::sync_agents(&pool, &agents_path).await?;
 
                 println!("=== Declarative Sync Completed ===");
                 println!(
-                    "Teams:  {} created, {} updated, {} unchanged",
+                    "Teams  ({}): {} created, {} updated, {} unchanged",
+                    teams_path.display(),
                     teams_summary.teams_created, teams_summary.teams_updated, teams_summary.unchanged
                 );
                 println!(
-                    "Agents: {} created, {} updated, {} unchanged",
+                    "Agents ({}): {} created, {} updated, {} unchanged",
+                    agents_path.display(),
                     agents_summary.agents_created, agents_summary.agents_updated, agents_summary.unchanged
                 );
                 Ok(0)
@@ -91,13 +130,34 @@ impl CommandDispatcher {
                 println!("🚀 Initiating run {}...", exec_id);
                 println!("Prompt: {}", args.prompt);
 
-                // Load team or pipeline if specified
-                if let Some(team_name) = &args.team {
-                    let team_path = format!("examples/teams/{}.yaml", team_name);
-                    if Path::new(&team_path).exists() {
-                        let _graph = GraphYamlLoader::load_file(&team_path)?;
-                        println!("Loaded team graph definition from {}", team_path);
+                // Load team or pipeline if specified, or search in teams/ or examples/teams/
+                let team_name = args.team.as_deref().unwrap_or("dev_team");
+                let search_paths = [
+                    format!("teams/{}.yaml", team_name),
+                    format!("teams/{}.yml", team_name),
+                    format!("{}.yaml", team_name),
+                    format!("examples/teams/{}.yaml", team_name),
+                    format!("examples/teams/{}.yml", team_name),
+                ];
+
+                let mut loaded = false;
+                for team_path in &search_paths {
+                    if Path::new(team_path).exists() {
+                        match GraphYamlLoader::load_file(team_path) {
+                            Ok(graph) => {
+                                println!("Loaded team graph definition from {} (nodes: {})", team_path, graph.nodes.len());
+                                loaded = true;
+                                break;
+                            }
+                            Err(e) => {
+                                eprintln!("⚠️ Found {} but failed to parse: {}", team_path, e);
+                            }
+                        }
                     }
+                }
+
+                if !loaded && args.team.is_some() {
+                    eprintln!("⚠️ Warning: team '{}' was not found in ./teams/ or ./examples/teams/. Running with dynamic router.", team_name);
                 }
 
                 println!("Execution finished successfully for run {}", exec_id);

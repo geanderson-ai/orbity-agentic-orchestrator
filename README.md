@@ -257,10 +257,9 @@ cargo build --release
 # Install globally to your user bin
 mkdir -p ~/.local/bin
 cp target/release/orbity ~/.local/bin/
-```
 
 # Verify installation
-./target/release/orbity --help
+orbity --help
 ```
 
 ---
@@ -304,48 +303,76 @@ team:
 
 ## Quick Start
 
-### 1. Run Preflight Health Check
-Verify your environment, Bubblewrap installation, and CLI availability:
+### Working in Any Directory or New Project (e.g., `alfa`)
+
+Once `orbity` is installed in your `$PATH`, you can use it in **any directory or existing repository** on your system:
+
+#### 1. Navigate to Your Directory
+```bash
+# Enter any existing project, or create a new workspace
+mkdir -p ~/alfa && cd ~/alfa
+```
+
+#### 2. Run Preflight Health Check
+Verify your environment, Bubblewrap isolation, SQLite engine, and the 5 AI coding CLIs:
 ```bash
 orbity doctor
 ```
 ```text
-⚡ Orbity Agentic Platform - Pre-flight Health Check
-─────────────────────────────────────────────────────────────────────────────
-[✓] Sandbox Runtime: Bubblewrap (/usr/bin/bwrap) 0.8.0
-[✓] Storage Engine: SQLite 3.45.1 (WAL mode + SHA-256 Audit Store)
+=== Orbity Preflight Health Check ===
+Sandbox Provider (bwrap): ✅ Available (/usr/bin/bwrap)
 
-Detected CLI Agent Suite:
-  [✓] codex   v0.154.0        -> /home/user/.local/bin/codex
-  [✓] claude  v2.1.239        -> /home/user/.local/bin/claude
-  [✓] agy     v1.2.11         -> /home/user/.local/bin/agy
-  [✓] hermes  v0.21.0         -> /home/user/.local/bin/hermes
-  [✓] pi      v0.78.1         -> /home/user/.hermes/node/bin/pi
-
-✓ 5 of 5 CLIs operational. Environment ready for multi-agent orchestration!
+CLI Agents Detection:
+  - codex   : ✅ Installed (/home/user/.local/bin/codex) - Version: codex-cli 0.154.0
+  - claude  : ✅ Installed (/home/user/.local/bin/claude) - Version: 2.1.239 (Claude Code)
+  - agy     : ✅ Installed (/home/user/.local/bin/agy) - Version: 1.2.11
+  - hermes  : ✅ Installed (/home/user/.local/bin/hermes) - Version: Hermes Agent v0.21.0
+  - pi      : ✅ Installed (/home/user/.hermes/node/bin/pi)
 ```
 
-### 2. Load Team Definition
-Reconcile the YAML definition and register its SHA-256 configuration hash into SQLite:
+#### 3. Initialize the Orbity Workspace
+Scaffold a complete multi-agent project structure in the current folder:
 ```bash
-orbity team load ./examples/teams/forester.yaml
+orbity init
+```
+This generates:
+```text
+alfa/
+├── orbity.yaml          # Project configuration & FinOps budget defaults
+├── teams/
+│   └── dev_team.yaml    # Pre-configured team DAG (coder -> reviewer)
+├── agents/
+│   ├── coder.yaml       # Implementation agent spec (e.g., Claude Code)
+│   └── reviewer.yaml    # Review & security agent spec (e.g., Codex CLI)
+└── .gitignore          # Excludes local SQLite database and cache artifacts
 ```
 
-### 3. Execute an Autonomous Objective
-Run a multi-agent task with an explicit budget cap:
+#### 4. Synchronize Declarative Definitions into SQLite
+Ingest the declarative YAML configurations into your local SQLite store (`orbity.db`):
 ```bash
-orbity team run forester "Audit and refactor SQLite database pooling in orbity-storage" --budget-usd 1.50
+orbity sync
+```
+```text
+=== Declarative Sync Completed ===
+Teams  (teams): 1 created, 0 updated, 0 unchanged
+Agents (agents): 2 created, 0 updated, 0 unchanged
 ```
 
-### 4. Start the Reactive Web Console
-Launch the full-stack Tokio Topcoat server application:
+#### 5. Execute an Autonomous Multi-Agent Objective
+Launch an autonomous task orchestrated across your team:
 ```bash
-orbity serve --port 8080
-# Open http://127.0.0.1:8080 in your browser
+orbity run "Build a REST API in Rust using axum with health checks and unit tests" --team dev_team
 ```
 
-### 5. Verify Cryptographic Audit Integrity
-Confirm that zero database rows have been altered:
+#### 6. Start the Reactive Web Console
+Monitor live node execution, tokenomics, and human gates in real time:
+```bash
+orbity serve --port 3000
+# Open http://localhost:3000 in your browser
+```
+
+#### 7. Verify Cryptographic Audit Integrity
+Audit the cryptographic SHA-256 hash chain of the execution:
 ```bash
 orbity audit verify <RUN_ID>
 ```
@@ -356,7 +383,8 @@ orbity audit verify <RUN_ID>
 
 ### Example 1: Autonomous Code Refactor with TDD in Sandbox
 ```bash
-orbity team run forester "Add JWT authentication middleware and unit tests" \
+orbity run "Add JWT authentication middleware and unit tests" \
+  --team dev_team \
   --budget-usd 2.00 \
   --sandbox isolated
 ```
@@ -370,10 +398,10 @@ orbity team run forester "Add JWT authentication middleware and unit tests" \
 If a step triggers an exception requiring manual authorization:
 ```bash
 # Approve step and resume execution
-orbity resume run_74f9c --approve
+orbity resume <RUN_ID> --approve
 
 # Or reject and initiate rollback
-orbity resume run_74f9c --reject
+orbity resume <RUN_ID> --reject
 ```
 
 ---
@@ -381,31 +409,36 @@ orbity resume run_74f9c --reject
 ## API / CLI Reference
 
 ```text
-Usage: orbity <COMMAND>
+Usage: orbity [OPTIONS] <COMMAND>
 
 Commands:
-  run          Start an orchestration directly from prompt
-  resume       Resume a paused execution (HITL approval/rejection)
-  status       Inspect the live status, active nodes, and token metrics of a run
-  logs         Stream and filter logs across the 4 observability layers
-  audit        Verify the SHA-256 cryptographic integrity of an execution trail
-  finops       Display consolidated token and USD cost summaries
-  serve        Launch the reactive Tokio Topcoat server application
-  doctor       Execute preflight health check for sandbox, SQLite, and 5 CLIs
-  agent        Manage agent definitions (create, list, get, update, delete)
-  team         Manage multi-agent teams (load, list, run)
-  help         Print this message or the help of the given subcommand(s)
+  init    Inicializa um novo projeto ou workspace do Orbity no diretório atual
+  doctor  Executa preflight health check de ferramentas do sistema e agentes
+  sync    Sincroniza arquivos YAML declarativos nas pastas teams/ e agents/
+  run     Inicia uma nova orquestração multi-agente
+  resume  Retoma uma execução de grafo a partir do último checkpoint no SQLite
+  status  Exibe o status de uma execução
+  audit   Consulta a trilha de auditoria e verifica integridade criptográfica
+  serve   Inicia o servidor Tokio Topcoat full-stack
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+      --db-path <DB_PATH>  Database SQLite path [default: orbity.db]
+      --output <OUTPUT>    Output format (text or json) [default: text]
+  -h, --help               Print help
+  -V, --version            Print version
 ```
 
-| Subcommand | Options | Description |
+| Subcommand | Arguments & Flags | Description |
 |---|---|---|
-| `orbity doctor` | `--json` | Validates sandbox, SQLite, and 5 CLIs. |
-| `orbity team load <PATH>` | `-f, --force` | Ingests a team YAML, computing its SHA-256 hash. |
-| `orbity team run <TEAM> <PROMPT>` | `--budget-usd <VAL>`, `--sandbox <MODE>` | Launches DAG execution with an assigned team. |
-| `orbity serve` | `--port <PORT>` | Starts Tokio Topcoat web server (default: `8080`). |
-| `orbity audit verify <RUN_ID>` | `--verbose` | Recomputes SHA-256 hash chain to verify audit trail. |
-| `orbity resume <RUN_ID>` | `--approve`, `--reject` | Resolves Human-in-the-Loop approval gate. |
-| `orbity finops summary` | `--since <DATE>` | Aggregates token usage and USD costs by tool. |
+| `orbity init [PATH]` | `--name <NAME>` | Scaffolds a new workspace with `orbity.yaml`, `teams/`, `agents/`, and `.gitignore`. |
+| `orbity doctor` | _None_ | Preflight diagnostic checking Bubblewrap sandbox, SQLite engine, and the 5 AI CLIs. |
+| `orbity sync` | `--teams-dir <DIR>`, `--agents-dir <DIR>` | Reconciles YAML definitions into local SQLite with SHA-256 hash detection. |
+| `orbity run "<PROMPT>"` | `--team <TEAM>`, `--budget-usd <USD>`, `--sandbox <isolated\|allowlist\|direct>`, `--auto-approve` | Initiates multi-agent DAG pipeline with FinOps budget guardrails. |
+| `orbity resume <RUN_ID>` | `--approve`, `--reject` | Resumes a paused execution at a Human-in-the-Loop approval gate. |
+| `orbity status <RUN_ID>` | _None_ | Inspects execution status, active topological node, and token metrics. |
+| `orbity audit verify <RUN_ID>` | _None_ | Validates SHA-256 cryptographic tamper-evident hash chain across all state transitions. |
+| `orbity serve` | `--port <PORT>` (default `3000`), `--host <HOST>` (default `127.0.0.1`) | Starts the Tokio Topcoat reactive full-stack server and Web Dashboard. |
 
 ---
 
