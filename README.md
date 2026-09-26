@@ -209,7 +209,26 @@ The workspace is organized into clean, modular crates adhering to single-respons
 
 ## Installation
 
-### System Prerequisites (Linux)
+### Automated Setup Script (Recommended)
+Orbity provides an automated bootstrap script that detects your OS (Linux, macOS, Windows WSL2), installs missing system dependencies, audits the 5 AI CLIs (`claude`, `codex`, `pi`, `hermes`, `agy`), compiles in release mode, and installs the `orbity` binary globally into your `$PATH`:
+
+```bash
+# Clone the repository
+git clone https://github.com/geanderson/meza-agentic-orchestrator.git
+cd meza-agentic-orchestrator
+
+# Run the automated installer
+./setup.sh
+
+# Or in unattended / non-interactive mode:
+./setup.sh -y
+```
+
+---
+
+### Manual Installation
+
+#### 1. System Prerequisites (Linux)
 - **Linux Kernel:** Version $\ge 5.15$ with unprivileged user namespaces enabled:
   ```bash
   sudo sysctl -w kernel.unprivileged_userns_clone=1
@@ -230,13 +249,15 @@ The workspace is organized into clean, modular crates adhering to single-respons
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
   ```
 
-### Building from Source
+#### 2. Building from Source
 ```bash
-git clone https://github.com/geanderson/meza-agentic-orchestrator.git
-cd meza-agentic-orchestrator
-
 # Build release binary with full optimizations
 cargo build --release
+
+# Install globally to your user bin
+mkdir -p ~/.local/bin
+cp target/release/orbity ~/.local/bin/
+```
 
 # Verify installation
 ./target/release/orbity --help
