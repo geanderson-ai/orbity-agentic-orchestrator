@@ -1,22 +1,60 @@
+# Rust build artifacts
 /target
 **/*.rs.bk
 *.bk
-Cargo.lock
 
-# SQLite
+# Environment variables & Secrets (CRITICAL for AI / CLI keys)
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.cert
+
+# SQLite Databases & WAL journaling files
 *.db
 *.db-wal
 *.db-shm
 *.sqlite
 *.sqlite3
+data/
 
-# IDE and OS
+# Orbity Runtime, Runs & Sandbox artifacts
+runs/
+sandbox_workspaces/
+.sandbox/
+tmp/
+temp/
+.tmp/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE, Editors & OS files
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
 .DS_Store
+Thumbs.db
 
-# Logs
-*.log
-runs/*.jsonl
+# Node / Frontend / Remotion (if applicable)
+node_modules/
+dist/
+build/
+.cache/
+
+# Test Coverage & Profiling
+*.profraw
+*.profdata
+coverage/
+lcov.info
+
+# Dependency lockfile
+# Note: For binary/CLI applications, committing Cargo.lock is standard practice
+# to guarantee reproducible builds across environments. Uncomment to ignore:
+Cargo.lock
