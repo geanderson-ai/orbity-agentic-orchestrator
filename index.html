@@ -900,6 +900,312 @@
       flex-wrap: wrap;
       gap: 1rem;
     }
+
+    /* Light identity polish */
+    :root {
+      --bg-dark: #f4f6f9;
+      --bg-card: rgba(255, 255, 255, 0.84);
+      --bg-card-hover: rgba(255, 255, 255, 0.96);
+      --border-color: rgba(15, 23, 42, 0.1);
+      --border-highlight: rgba(8, 145, 178, 0.34);
+      --text-main: #111827;
+      --text-muted: #526071;
+      --code-bg: #10141d;
+      --surface-shadow: 0 22px 70px rgba(15, 23, 42, 0.11);
+    }
+
+    html {
+      color-scheme: light;
+    }
+
+    body {
+      background-color: #f4f6f9;
+      background-image:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.06) 0%, transparent 30%, rgba(8, 145, 178, 0.06) 62%, transparent 100%),
+        linear-gradient(rgba(15, 23, 42, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15, 23, 42, 0.045) 1px, transparent 1px),
+        linear-gradient(180deg, #ffffff 0%, #f4f6f9 52%, #e9edf3 100%);
+      background-size: auto, 76px 76px, 76px 76px, auto;
+    }
+
+    body::before {
+      opacity: 0.5;
+      filter: invert(1) contrast(0.74) saturate(0);
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.8), rgba(0,0,0,0.54) 52%, rgba(0,0,0,0.18));
+    }
+
+    body::after {
+      background:
+        linear-gradient(90deg, rgba(244, 246, 249, 0.94), transparent 18%, transparent 82%, rgba(244, 246, 249, 0.94)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(244, 246, 249, 0.82));
+    }
+
+    header {
+      background: rgba(255, 255, 255, 0.82);
+      border-bottom-color: rgba(15, 23, 42, 0.09);
+      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.08);
+    }
+
+    .logo,
+    .nav-links a:hover,
+    .footer-col h4 {
+      color: #111827;
+    }
+
+    .logo img {
+      border-color: rgba(8, 145, 178, 0.28) !important;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12) !important;
+    }
+
+    .hero img {
+      border-color: rgba(8, 145, 178, 0.26) !important;
+      box-shadow: 0 22px 58px rgba(15, 23, 42, 0.16) !important;
+    }
+
+    .tagline {
+      background: rgba(255, 255, 255, 0.74);
+      border-color: rgba(15, 23, 42, 0.12);
+      color: #334155;
+      box-shadow: 0 14px 42px rgba(15, 23, 42, 0.1);
+    }
+
+    .hero-title,
+    .section-title,
+    .gate-title-large,
+    .task-name,
+    .pillar-title,
+    .stat-val,
+    table.layers-table th,
+    .sim-header h2,
+    .footer-col h4 {
+      color: #111827 !important;
+    }
+
+    .text-gradient,
+    .text-gradient-accent {
+      color: #0f172a;
+      text-shadow: none;
+    }
+
+    .text-gradient-accent {
+      color: #0e7490;
+    }
+
+    .hero-desc,
+    .section-subtitle,
+    .pillar-desc,
+    .stat-label,
+    .task-desc,
+    .cmd-explanation,
+    table.layers-table td,
+    .footer-col a,
+    footer,
+    .nav-links a {
+      color: var(--text-muted);
+    }
+
+    .stat-card,
+    .pillar-card,
+    .gate-detail-panel,
+    .cli-section,
+    .simulator-section {
+      background: rgba(255, 255, 255, 0.82);
+      border-color: rgba(15, 23, 42, 0.09);
+      box-shadow: var(--surface-shadow);
+    }
+
+    .simulator-section {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 250, 252, 0.82));
+    }
+
+    .btn-outline {
+      background: rgba(255, 255, 255, 0.74);
+      color: #1f2937;
+      border-color: rgba(15, 23, 42, 0.12);
+    }
+
+    .btn-outline:hover {
+      background: #fff;
+      border-color: rgba(8, 145, 178, 0.28);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0f172a, #155e75 58%, #0e7490);
+      box-shadow: 0 14px 32px rgba(8, 145, 178, 0.22);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #111827, #164e63 58%, #155e75);
+      box-shadow: 0 18px 38px rgba(8, 145, 178, 0.28);
+    }
+
+    .pillar-icon,
+    .pillar-tag,
+    .gate-tab-btn,
+    .task-item,
+    .chain-container,
+    .chain-block,
+    .cli-cmd-item {
+      background: rgba(248, 250, 252, 0.92);
+      border-color: rgba(15, 23, 42, 0.1);
+      color: #334155;
+    }
+
+    .gate-tab-btn:hover,
+    .cli-cmd-item:hover,
+    .cli-cmd-item.active {
+      background: rgba(236, 254, 255, 0.84);
+      border-color: rgba(8, 145, 178, 0.28);
+      color: #0f172a;
+    }
+
+    .gate-tab-btn.active {
+      background: #0e7490;
+      border-color: #0e7490;
+      color: #fff;
+      box-shadow: 0 12px 28px rgba(8, 145, 178, 0.22);
+    }
+
+    table.layers-table th {
+      background: rgba(241, 245, 249, 0.95);
+    }
+
+    table.layers-table tr:hover td {
+      background: rgba(241, 245, 249, 0.72);
+    }
+
+    footer {
+      background: rgba(255, 255, 255, 0.76);
+      border-top-color: rgba(15, 23, 42, 0.1);
+    }
+
+    .footer-bottom {
+      border-top-color: rgba(15, 23, 42, 0.08);
+    }
+
+    @media (max-width: 860px) {
+      .nav-container {
+        height: auto;
+        min-height: 4.5rem;
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        gap: 0.75rem;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .nav-actions {
+        gap: 0.5rem;
+      }
+
+      .nav-actions .btn-sm {
+        padding: 0.5rem 0.7rem;
+        font-size: 0.78rem;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .container {
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+      }
+
+      .nav-actions .btn-outline {
+        display: none;
+      }
+
+      .logo {
+        gap: 0.55rem;
+        font-size: 1.15rem;
+      }
+
+      .hero {
+        padding-top: 4.25rem;
+      }
+
+      .hero-title {
+        font-size: clamp(2.35rem, 12vw, 3.15rem);
+        line-height: 1.08;
+      }
+
+      .hero-desc {
+        font-size: 1.02rem;
+      }
+
+      .tagline {
+        font-size: 0.8rem;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .terminal-box,
+    .graph-canvas,
+    .terminal-interactive {
+      border-color: rgba(15, 23, 42, 0.16);
+      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.16);
+    }
+
+    .graph-canvas > div:first-child,
+    .terminal-header {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    #btnTamper {
+      border-color: rgba(190, 18, 60, 0.28) !important;
+      color: #9f1239 !important;
+    }
+
+    #btnTamper:hover {
+      background: rgba(255, 241, 242, 0.96);
+      color: #881337 !important;
+    }
+
+    #btnVerify {
+      border-color: rgba(4, 120, 87, 0.28) !important;
+      color: #047857 !important;
+    }
+
+    #btnVerify:hover {
+      background: rgba(236, 253, 245, 0.96);
+      color: #065f46 !important;
+    }
+
+    .graph-canvas [style*="#cbd5e1"],
+    .chain-container [style*="#cbd5e1"] {
+      color: #cbd5e1 !important;
+    }
+
+    .graph-canvas [style*="#94a3b8"],
+    .chain-container [style*="#94a3b8"] {
+      color: #94a3b8 !important;
+    }
+
+    .cmd-line,
+    .chain-hash {
+      color: #0369a1;
+    }
+
+    .terminal-interactive [style*="#38bdf8"],
+    .terminal-body [style*="#38bdf8"] {
+      color: #7dd3fc !important;
+    }
+
+    .terminal-interactive [style*="#cbd5e1"],
+    .terminal-body [style*="#cbd5e1"],
+    .terminal-interactive [style*="#e2e8f0"],
+    .terminal-body [style*="#e2e8f0"] {
+      color: #e2e8f0 !important;
+    }
+
+    ::selection {
+      background: rgba(8, 145, 178, 0.18);
+      color: #0f172a;
+    }
   </style>
 </head>
 <body>
@@ -936,12 +1242,12 @@
       </div>
 
       <div class="tagline">
-        <span>🇧🇷 Feito no Brasil • Rust 2024 • SQLite Append-Only • Sandbox Confinada</span>
+        <span>Orbity • Runtime open source para orquestração segura de agentes em Rust</span>
       </div>
 
       <h1 class="hero-title">
-        Orquestração de Agentes IA com <br>
-        <span class="text-gradient-accent">Segurança Criptográfica & FinOps</span>
+        Orbity<br>
+        <span class="text-gradient-accent">Agentes IA com auditoria criptográfica, sandbox e FinOps</span>
       </h1>
 
       <p class="hero-desc">
