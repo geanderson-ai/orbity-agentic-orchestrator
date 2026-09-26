@@ -183,8 +183,32 @@ impl GraphExecutor {
 
     /// Validates topology and runs the graph to completion.
     pub async fn execute(&self) -> Result<(), ExecutionError> {
-        // Validate graph topology (excluding permitted feedback loop edges)
+        let start_time = std::time::Instant::now();
+        let run_id_str = self.execution_id.to_string();
+
+        // 1. Validate graph topology
         let _plan = TopologyValidator::validate_and_plan(&self.graph)?;
+
+        // 2. Publish RunInitiated event
+        if let Some(bus) = &self.event_bus {
+            let prompt = self
+                .blackboard
+                .get_context("user_prompt")
+                .await
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                .unwrap_or_else(|| self.graph.name.clone());
+
+            let _ = bus
+                .emit(
+                    &run_id_str,
+                    orbity_core::events::RuntimeEvent::RunInitiated {
+                        run_id: run_id_str.clone(),
+                        prompt,
+                        team_name: Some(self.graph.name.clone()),
+                    },
+                )
+                .await;
+        }
 
         let mut ready_nodes = {
             let comp = self.completed_nodes.read().await;
@@ -223,6 +247,8 @@ impl GraphExecutor {
                 let runner = self.runner.clone();
                 let preds = TopologyValidator::get_predecessors(&self.graph, &node_id);
                 let sem = self.concurrency_semaphore.clone();
+                let bus = self.event_bus.clone();
+                let run_id = run_id_str.clone();
 
                 join_set.spawn(async move {
                     let _permit = match &sem {
@@ -233,14 +259,30 @@ impl GraphExecutor {
                         None => None,
                     };
 
-                    // Check FinOps
+                    // Check & Reserve FinOps budget atomically
+                    let estimated_cost = node.budget_limit_usd.unwrap_or(0.05);
                     finops
-                        .check_budget(&node_id, node.budget_limit_usd)
+                        .reserve_budget(&node_id, estimated_cost, node.budget_limit_usd)
                         .await
                         .map_err(ExecutionError::BudgetExceeded)?;
 
                     // Inject context from predecessors
                     let injected_context = blackboard.inject_context(&preds).await;
+
+                    // Publish AgentStarted event
+                    if let Some(b) = &bus {
+                        let _ = b
+                            .emit(
+                                &run_id,
+                                orbity_core::events::RuntimeEvent::AgentStarted {
+                                    run_id: run_id.clone(),
+                                    task_id: Some(node_id.0.clone()),
+                                    agent_id: node_id.0.clone(),
+                                    agent_name: node.name().to_string(),
+                                },
+                            )
+                            .await;
+                    }
 
                     // Check declarative Human Gate / YAML policy
                     if let NodeKind::HumanGate { prompt, .. } = &node.kind {
@@ -250,12 +292,27 @@ impl GraphExecutor {
                                 // Auto approved via YAML policy
                             }
                             ApprovalDecision::Rejected => {
+                                if let Some(b) = &bus {
+                                    let _ = b.emit(&run_id, orbity_core::events::RuntimeEvent::ApprovalRejected {
+                                        run_id: run_id.clone(),
+                                        rejecter: "PolicyEngine".to_string(),
+                                        reason: Some(format!("Policy rejected gate: {}", prompt)),
+                                    }).await;
+                                }
                                 return Err(ExecutionError::NodeFailed {
                                     node_id: node_id.0,
                                     message: format!("Policy rejected human gate: {}", prompt),
                                 });
                             }
                             ApprovalDecision::NeedsHuman => {
+                                if let Some(b) = &bus {
+                                    let _ = b.emit(&run_id, orbity_core::events::RuntimeEvent::ApprovalRequired {
+                                        run_id: run_id.clone(),
+                                        prompt: prompt.clone(),
+                                        proposed_cost_usd: Some(estimated_cost),
+                                        timeout_seconds: Some(300),
+                                    }).await;
+                                }
                                 return Err(ExecutionError::WaitingHumanApproval {
                                     node_id: node_id.0,
                                     prompt: prompt.clone(),
@@ -264,15 +321,25 @@ impl GraphExecutor {
                         }
                     }
 
-                    // Run node with retries
+                    // Run node with intelligent retries and error context injection
                     let mut attempts = 0;
-                    let max_attempts = node.retries_limit.max(1);
+                    let max_attempts = 1 + node.retries_limit;
                     let mut last_err = String::new();
                     let mut output = NodeOutput::default();
+                    let mut current_context = injected_context.clone();
 
                     while attempts < max_attempts {
                         attempts += 1;
-                        match runner.run(&node, &injected_context, &blackboard).await {
+                        if attempts > 1 && !last_err.is_empty() {
+                            current_context = format!(
+                                "{}\n\n[RETRY ATTEMPT {}/{}]\nPrevious execution failed with error:\n{}\nPlease fix the issue and try again.",
+                                injected_context, attempts, max_attempts, last_err
+                            );
+                            let backoff_ms = (50 * (1 << (attempts - 1))).min(2000);
+                            tokio::time::sleep(tokio::time::Duration::from_millis(backoff_ms)).await;
+                        }
+
+                        match runner.run(&node, &current_context, &blackboard).await {
                             Ok(out) => {
                                 let ok = out.success;
                                 output = out;
@@ -291,13 +358,23 @@ impl GraphExecutor {
                                 last_err = e;
                             }
                         }
-                        tokio::time::sleep(tokio::time::Duration::from_millis(
-                            50 * (attempts as u64),
-                        ))
-                        .await;
                     }
 
                     if !output.success {
+                        if let Some(b) = &bus {
+                            let _ = b
+                                .emit(
+                                    &run_id,
+                                    orbity_core::events::RuntimeEvent::AgentFailed {
+                                        run_id: run_id.clone(),
+                                        task_id: Some(node_id.0.clone()),
+                                        agent_id: node_id.0.clone(),
+                                        agent_name: node.name().to_string(),
+                                        error: last_err.clone(),
+                                    },
+                                )
+                                .await;
+                        }
                         return Err(ExecutionError::NodeFailed {
                             node_id: node_id.0,
                             message: if !last_err.is_empty() {
@@ -308,18 +385,66 @@ impl GraphExecutor {
                         });
                     }
 
-                    // Record FinOps spend
+                    // Commit FinOps spend and release reservation
                     finops
-                        .record_spend(
+                        .commit_spend(
                             &node_id,
                             output.cost_usd,
+                            estimated_cost,
                             output.tokens_input + output.tokens_output,
+                            0,
+                            0,
                         )
                         .await;
 
-                    // Update blackboard
+                    // Publish AgentFinished & TokenUsageUpdated events
+                    if let Some(b) = &bus {
+                        let _ = b
+                            .emit(
+                                &run_id,
+                                orbity_core::events::RuntimeEvent::AgentFinished {
+                                    run_id: run_id.clone(),
+                                    task_id: Some(node_id.0.clone()),
+                                    agent_id: node_id.0.clone(),
+                                    agent_name: node.name().to_string(),
+                                    summary: Some(format!("Output length: {} chars", output.stdout.len())),
+                                },
+                            )
+                            .await;
+
+                        let _ = b
+                            .emit(
+                                &run_id,
+                                orbity_core::events::RuntimeEvent::TokenUsageUpdated {
+                                    run_id: run_id.clone(),
+                                    task_id: Some(node_id.0.clone()),
+                                    agent_name: node.name().to_string(),
+                                    input_tokens: output.tokens_input as u64,
+                                    output_tokens: output.tokens_output as u64,
+                                    cached_tokens: 0,
+                                    reasoning_tokens: 0,
+                                    cost_usd: output.cost_usd,
+                                },
+                            )
+                            .await;
+                    }
+
+                    // Update blackboard with output and structured handoff
                     blackboard
                         .set_node_output(node_id.0.clone(), output.stdout.clone())
+                        .await;
+
+                    blackboard
+                        .record_handoff(crate::blackboard::HandoffEnvelope {
+                            from_node: node_id.0.clone(),
+                            summary: format!("Node {} execution finished successfully", node_id.0),
+                            artifacts: output.artifacts.keys().cloned().collect(),
+                            exit_code: output.exit_code.unwrap_or(0),
+                            timestamp_ms: std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_millis() as u64,
+                        })
                         .await;
 
                     Ok((node_id, output))
@@ -334,12 +459,27 @@ impl GraphExecutor {
                     Ok(Ok((node_id, output))) => {
                         completed_in_batch.push((node_id, output));
                     }
-                    Ok(Err(e)) => return Err(e),
+                    Ok(Err(e)) => {
+                        if let Some(bus) = &self.event_bus {
+                            let _ = bus.emit(&run_id_str, orbity_core::events::RuntimeEvent::RunFailed {
+                                run_id: run_id_str.clone(),
+                                error: e.to_string(),
+                            }).await;
+                        }
+                        return Err(e);
+                    }
                     Err(join_err) => {
-                        return Err(ExecutionError::NodeFailed {
+                        let err = ExecutionError::NodeFailed {
                             node_id: "unknown".to_string(),
                             message: format!("Tokio join error: {}", join_err),
-                        });
+                        };
+                        if let Some(bus) = &self.event_bus {
+                            let _ = bus.emit(&run_id_str, orbity_core::events::RuntimeEvent::RunFailed {
+                                run_id: run_id_str.clone(),
+                                error: err.to_string(),
+                            }).await;
+                        }
+                        return Err(err);
                     }
                 }
             }
@@ -441,6 +581,25 @@ impl GraphExecutor {
             };
 
             ready_nodes = ready_filtered;
+        }
+
+        // Publish RunCompleted event
+        if let Some(bus) = &self.event_bus {
+            let total_tokens = self.finops.total_tokens().await as u64;
+            let total_cost = self.finops.total_cost().await;
+            let duration_ms = start_time.elapsed().as_millis() as u64;
+
+            let _ = bus
+                .emit(
+                    &run_id_str,
+                    orbity_core::events::RuntimeEvent::RunCompleted {
+                        run_id: run_id_str.clone(),
+                        total_tokens,
+                        total_cost_usd: total_cost,
+                        duration_ms,
+                    },
+                )
+                .await;
         }
 
         Ok(())

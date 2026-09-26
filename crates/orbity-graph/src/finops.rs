@@ -184,7 +184,7 @@ mod tests {
         assert!(tracker.reserve_budget(&node_id, 0.40, Some(0.80)).await.is_ok());
 
         // Reserve another $0.50 -> total $0.90 <= $1.0
-        assert!(tracker.reserve_budget(&node_id, 0.50, Some(0.80)).is_err()); // Node limit exceeded ($0.40 + $0.50 > $0.80)
+        assert!(tracker.reserve_budget(&node_id, 0.50, Some(0.80)).await.is_err()); // Node limit exceeded ($0.40 + $0.50 > $0.80)
 
         // Commit first reservation with actual cost $0.35
         tracker.commit_spend(&node_id, 0.35, 0.40, 1500, 200, 100).await;

@@ -170,6 +170,10 @@ impl GraphNode {
         self.description = Some(desc.into());
         self
     }
+
+    pub fn name(&self) -> &str {
+        &self.id.0
+    }
 }
 
 /// The kind of transition edge between nodes.
