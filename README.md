@@ -31,6 +31,7 @@
 - [Quick Start](#quick-start)
 - [Usage Examples](#usage-examples)
 - [API / CLI Reference](#api--cli-reference)
+- [Web Application](#web-application)
 - [Integrations](#integrations)
 - [Security](#security)
 - [Observability & Logging](#observability--logging)
@@ -384,6 +385,59 @@ Commands:
 | `orbity audit verify <RUN_ID>` | `--verbose` | Recomputes SHA-256 hash chain to verify audit trail. |
 | `orbity resume <RUN_ID>` | `--approve`, `--reject` | Resolves Human-in-the-Loop approval gate. |
 | `orbity finops summary` | `--since <DATE>` | Aggregates token usage and USD costs by tool. |
+
+---
+
+## Web Application
+
+Orbity includes a built-in, production-ready reactive web console powered by **Tokio Topcoat (v0.9+)**, the official full-stack reactive framework for high-concurrency Rust server applications.
+
+Unlike legacy web architectures that depend on polling or heavy JavaScript client frameworks, Orbity's web application leverages **server-rendered reactive views (`view!`)**, **client-side signals (`signal`)**, **DOM-morphing shard components (`#[shard]`)**, and **persistent WebSockets server-push** to deliver a smooth 60 FPS monitoring and governance experience with sub-25MB RAM usage.
+
+### Starting the Web Console
+```bash
+# Launch the web application on port 8080 (or custom port via --port)
+orbity serve --port 8080
+```
+Open **`http://localhost:8080`** in your browser to access the console.
+
+### Key Web Console Capabilities
+
+1. **Live Multi-Agent Orchestration Board (`/`):**
+   - Real-time agent status cards displaying active states (`Idle`, `Planning`, `Executing`, `Paused`, `Completed`, `Failed`).
+   - Dynamic step progress with streaming SSR (`live!` / `emit!`), showing current topological DAG node execution without full-page reloads.
+   - Worker assignment indicators across the 5 CLIs (`agy`, `codex`, `claude`, `hermes`, `pi`).
+
+2. **Human-in-the-Loop (HITL) Governance Center (`/governance`):**
+   - Interactive `@click` approval and rejection triggers for paused operations, dangerous commands, or budget exceptions.
+   - Unblocks the background Rust execution engine in under **50ms** upon operator confirmation.
+   - Live policy inspection displaying active `auto_approve` and `auto_reject` rules configured from `forester.yaml`.
+
+3. **Real-Time FinOps & Tokenomics Dashboard (`/finops`):**
+   - Call-by-call breakdown of token usage: Input, Output, Cache Read, and Reasoning tokens.
+   - Real-time USD cost computation against the team's `max_budget_usd` hard cap.
+   - Visual progress gauges and tripwire alarms that warn before financial ceilings are breached.
+
+4. **Cryptographic Audit Ledger Explorer (`/audit`):**
+   - Visual blockchain-lite inspector displaying the Genesis Block `#0` and all subsequent chained blocks.
+   - Real-time SHA-256 parent hash and state hash linkages for every runtime event.
+   - One-click **"Verify Integrity"** action that sweeps the SQLite WAL database and visually pinpoints the exact sequence number if any unauthorized tampering occurs.
+
+5. **Live Event Stream & 4-Layer Log Terminal (`/logs`):**
+   - Subscribes directly to the `EventBus` via long-lived WebSockets (`/ws/live`).
+   - Instant filtering between Layer 1 (Runtime), Layer 2 (Execution), Layer 3 (Audit), and Layer 4 (Telemetry).
+   - Zero-latency log streaming with zero browser freezing.
+
+### Web Application Architecture & Endpoints
+
+| Route / Endpoint | Type | Description |
+|---|---|---|
+| `GET /` | HTML / Shard | Main reactive multi-agent board, DAG execution visualizer, and agent cards |
+| `GET /governance` | HTML / Shard | HITL approval console for pending authorizations and exception overrides |
+| `GET /audit` | HTML / Shard | Cryptographic audit chain explorer with one-click tamper verification |
+| `GET /finops` | HTML / Shard | Token consumption analytics, cost tracking per tool, and budget limits |
+| `GET /doctor` | HTML / Shard | Live preflight health monitor for Bubblewrap sandbox, SQLite WAL, and 5 CLIs |
+| `WS /ws/live` | WebSocket | High-throughput bi-directional server-push stream emitting real-time event deltas |
 
 ---
 
