@@ -260,21 +260,26 @@ pub struct OrchestratorConfig {
     pub team: Vec<WorkerConfig>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AgentConfig {
+    #[serde(default)]
     pub id: String,
     pub name: String,
     pub provider: Option<String>,
     pub tier: Option<String>,
     pub model: Option<String>,
     #[serde(default)]
+    pub cli: Option<String>,
+    #[serde(default)]
     pub tags: Vec<String>,
     pub approval_policy: Option<ApprovalPolicy>,
+    #[serde(default)]
     pub orchestrator: OrchestratorConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AgentFileDefinition {
+    #[serde(default)]
     pub version: String,
     pub agent: AgentConfig,
 }

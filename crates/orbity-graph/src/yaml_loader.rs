@@ -71,13 +71,15 @@ pub struct YamlSimpleAgentWrapper {
     pub agent: YamlSimpleAgent,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct YamlSimpleAgent {
     pub id: Option<String>,
     pub name: String,
     pub role: Option<String>,
     pub cli: Option<String>,
     pub provider: Option<String>,
+    pub runner: Option<String>,
+    pub orchestrator: Option<orbity_core::contracts::OrchestratorConfig>,
     pub tier: Option<String>,
     pub model: Option<String>,
     pub system_prompt: Option<String>,
@@ -128,7 +130,12 @@ impl GraphYamlLoader {
         agent: YamlSimpleAgent,
     ) -> Result<GraphDefinition, GraphYamlError> {
         let agent_id = agent.id.unwrap_or_else(|| agent.name.to_lowercase().replace(' ', "_"));
-        let cli = agent.cli.or(agent.provider).unwrap_or_else(|| "claude".to_string());
+        let cli = agent
+            .cli
+            .or(agent.provider)
+            .or(agent.runner)
+            .or_else(|| agent.orchestrator.as_ref().and_then(|o| o.runner.clone()))
+            .unwrap_or_else(|| "codex".to_string());
         let prompt_str = agent.system_prompt.or_else(|| {
             agent.prompt.and_then(|p| match p {
                 serde_yaml::Value::String(s) => Some(s),
