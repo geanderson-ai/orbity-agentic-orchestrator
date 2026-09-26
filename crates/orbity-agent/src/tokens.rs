@@ -29,42 +29,49 @@ pub struct TokenExtractor;
 impl TokenExtractor {
     /// Extracts token metrics from JSON output or raw text for the 5 supported CLIs.
     pub fn extract(cli: orbity_graph::CliType, output_text: &str) -> CliTokenReport {
-        // Attempt to parse JSON envelope if available
-        if let Ok(val) = serde_json::from_str::<serde_json::Value>(output_text) {
-            if let Some(usage) = val.get("usage") {
-                let input = usage
-                    .get("input_tokens")
-                    .or_else(|| usage.get("prompt_tokens"))
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as u32;
-                let output = usage
-                    .get("output_tokens")
-                    .or_else(|| usage.get("completion_tokens"))
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as u32;
-                let cached = usage
-                    .get("cached_tokens")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as u32;
-                let reasoning = usage
-                    .get("reasoning_tokens")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as u32;
-                let cost = val.get("cost_usd").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        // Attempt to parse JSON envelope or lines (JSONL/NDJSON)
+        for line in output_text.lines().rev() {
+            let trimmed = line.trim();
+            if trimmed.starts_with('{') && trimmed.ends_with('}') {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(trimmed) {
+                    if let Some(usage) = val.get("usage") {
+                        let input = usage
+                            .get("input_tokens")
+                            .or_else(|| usage.get("prompt_tokens"))
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0) as u32;
+                        let output = usage
+                            .get("output_tokens")
+                            .or_else(|| usage.get("completion_tokens"))
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0) as u32;
+                        let cached = usage
+                            .get("cached_tokens")
+                            .or_else(|| usage.get("cached_input_tokens"))
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0) as u32;
+                        let reasoning = usage
+                            .get("reasoning_tokens")
+                            .or_else(|| usage.get("reasoning_output_tokens"))
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0) as u32;
+                        let cost = val.get("cost_usd").and_then(|v| v.as_f64()).unwrap_or(0.0);
 
-                let calc_cost = if cost > 0.0 {
-                    cost
-                } else {
-                    Self::estimate_cost(cli, input, output)
-                };
+                        let calc_cost = if cost > 0.0 {
+                            cost
+                        } else {
+                            Self::estimate_cost(cli, input, output)
+                        };
 
-                return CliTokenReport {
-                    input_tokens: input,
-                    output_tokens: output,
-                    cached_tokens: cached,
-                    reasoning_tokens: reasoning,
-                    cost_usd: calc_cost,
-                };
+                        return CliTokenReport {
+                            input_tokens: input,
+                            output_tokens: output,
+                            cached_tokens: cached,
+                            reasoning_tokens: reasoning,
+                            cost_usd: calc_cost,
+                        };
+                    }
+                }
             }
         }
 

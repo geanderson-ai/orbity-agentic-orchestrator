@@ -156,6 +156,17 @@ impl Sandbox for BwrapSandbox {
         bwrap_cmd.arg("--proc").arg("/proc");
         bwrap_cmd.arg("--dev").arg("/dev");
 
+        // Writable state bindings for LLM CLI tools in user's home
+        if let Ok(home) = std::env::var("HOME") {
+            let home_path = std::path::Path::new(&home);
+            for sub in &[".codex", ".claude", ".gemini", ".hermes", ".cache", ".config", ".local/share"] {
+                let p = home_path.join(sub);
+                if p.exists() {
+                    bwrap_cmd.arg("--bind").arg(&p).arg(&p);
+                }
+            }
+        }
+
         // Working directory inside sandbox
         bwrap_cmd.arg("--chdir").arg("/tmp/workspace");
 
