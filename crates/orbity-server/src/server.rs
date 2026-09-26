@@ -181,7 +181,7 @@ impl TopcoatServer {
 
                     let server = Arc::clone(&this);
                     tokio::spawn(async move {
-                        let mut buf = [0u8; 4096];
+                        let mut buf = vec![0u8; 65536];
                         let n = match stream.read(&mut buf).await {
                             Ok(n) if n > 0 => n,
                             _ => return,
@@ -190,6 +190,49 @@ impl TopcoatServer {
                         let req = String::from_utf8_lossy(&buf[..n]);
                         let first_line = req.lines().next().unwrap_or_default();
                         let path = first_line.split_whitespace().nth(1).unwrap_or("/");
+
+                        // Extract Origin if present for restricted CORS
+                        let mut origin_allowed = "http://127.0.0.1:3000".to_string();
+                        let mut auth_header_valid = true;
+
+                        if let Some(expected_token) = &server.cx().config.auth_token {
+                            auth_header_valid = false;
+                            for line in req.lines() {
+                                if line.to_lowercase().starts_with("authorization:") {
+                                    let val = line[14..].trim();
+                                    if val == format!("Bearer {}", expected_token) || val == expected_token {
+                                        auth_header_valid = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        for line in req.lines() {
+                            if line.to_lowercase().starts_with("origin:") {
+                                let origin_val = line[7..].trim();
+                                if origin_val.starts_with("http://localhost")
+                                    || origin_val.starts_with("http://127.0.0.1")
+                                    || origin_val.starts_with("https://localhost")
+                                    || origin_val.starts_with("https://127.0.0.1")
+                                {
+                                    origin_allowed = origin_val.to_string();
+                                }
+                            }
+                        }
+
+                        // Authenticate protected endpoints if auth_token is configured
+                        if (path.starts_with("/governance") || path.starts_with("/api/")) && !auth_header_valid {
+                            let body = br#"{"error":"unauthorized","message":"Invalid or missing Bearer token"}"#;
+                            let header = format!(
+                                "HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: {}\r\nConnection: close\r\n\r\n",
+                                body.len(),
+                                origin_allowed
+                            );
+                            let _ = stream.write_all(header.as_bytes()).await;
+                            let _ = stream.write_all(body).await;
+                            let _ = stream.flush().await;
+                            return;
+                        }
 
                         let (status, content_type, body_bytes): (&str, &str, Vec<u8>) = match path {
                             "/" | "/index.html" => (
@@ -207,16 +250,80 @@ impl TopcoatServer {
                                 "text/html; charset=utf-8",
                                 server.render_dashboard().into_bytes(),
                             ),
-                            "/health" => (
-                                "200 OK",
-                                "application/json",
-                                r#"{"status":"ok","version":"0.1.0-beta","stage":"beta","server":"Tokio Topcoat 0.9","harness":"Orbity Multi Agentic Harness","uptime":"healthy"}"#.as_bytes().to_vec(),
-                            ),
-                            "/api/status" => (
-                                "200 OK",
-                                "application/json",
-                                r#"{"status":"active","version":"0.1.0-beta","stage":"beta","harness":"Orbity Multi Agentic Harness","finops":{"budget":20.0,"spent":1.25,"tokens":45000},"agents":[{"name":"Codex Worker","role":"codex","status":"Executing"},{"name":"Claude Reviewer","role":"claude","status":"Idle"},{"name":"Agy Researcher","role":"agy","status":"Idle"},{"name":"Hermes Tool","role":"hermes","status":"Idle"},{"name":"Pi Refactor","role":"pi","status":"Idle"}],"audit":{"chain_verified":true,"blocks":14}}"#.as_bytes().to_vec(),
-                            ),
+                            "/health" => {
+                                let pool_ok = match server.cx().pool() {
+                                    Some(pool) => sqlx::query("SELECT 1").execute(pool).await.is_ok(),
+                                    None => true,
+                                };
+                                let bwrap_ok = std::path::Path::new("/usr/bin/bwrap").exists()
+                                    || std::path::Path::new("/usr/local/bin/bwrap").exists()
+                                    || std::process::Command::new("which").arg("bwrap").output().map(|o| o.status.success()).unwrap_or(false);
+
+                                let is_healthy = pool_ok && bwrap_ok;
+                                let status_str = if is_healthy { "ok" } else { "degraded" };
+                                let health_json = serde_json::json!({
+                                    "status": status_str,
+                                    "version": "0.1.0-beta",
+                                    "stage": "beta",
+                                    "server": "Tokio Topcoat 0.9",
+                                    "harness": "Orbity Multi Agentic Harness",
+                                    "uptime": "healthy",
+                                    "checks": {
+                                        "sqlite_pool": pool_ok,
+                                        "bwrap_sandbox": bwrap_ok,
+                                        "event_bus_events": server.cx().bus().events_published_count()
+                                    }
+                                });
+                                (
+                                    "200 OK",
+                                    "application/json",
+                                    serde_json::to_vec(&health_json).unwrap_or_default(),
+                                )
+                            },
+                            "/api/status" => {
+                                let total_events = server.cx().bus().events_published_count();
+                                let mut run_count: i64 = 0;
+                                let mut total_tokens_spent: i64 = 0;
+                                let mut total_cost_usd: f64 = 0.0;
+
+                                if let Some(pool) = server.cx().pool() {
+                                    if let Ok(row) = sqlx::query_as::<_, (i64, Option<i64>, Option<f64>)>(
+                                        "SELECT COUNT(*), SUM(total_tokens), SUM(total_cost_usd) FROM runs"
+                                    ).fetch_one(pool).await {
+                                        run_count = row.0;
+                                        total_tokens_spent = row.1.unwrap_or(0);
+                                        total_cost_usd = row.2.unwrap_or(0.0);
+                                    }
+                                }
+
+                                let status_json = serde_json::json!({
+                                    "status": "active",
+                                    "version": "0.1.0-beta",
+                                    "stage": "beta",
+                                    "harness": "Orbity Multi Agentic Harness",
+                                    "finops": {
+                                        "budget_usd": 20.0,
+                                        "spent_usd": total_cost_usd,
+                                        "total_tokens": total_tokens_spent
+                                    },
+                                    "metrics": {
+                                        "events_published": total_events,
+                                        "total_runs_recorded": run_count
+                                    },
+                                    "agents": [
+                                        {"name": "Codex Worker", "role": "codex", "status": "Ready"},
+                                        {"name": "Claude Reviewer", "role": "claude", "status": "Ready"},
+                                        {"name": "Agy Researcher", "role": "agy", "status": "Ready"},
+                                        {"name": "Hermes Tool", "role": "hermes", "status": "Ready"},
+                                        {"name": "Pi Refactor", "role": "pi", "status": "Ready"}
+                                    ]
+                                });
+                                (
+                                    "200 OK",
+                                    "application/json",
+                                    serde_json::to_vec(&status_json).unwrap_or_default(),
+                                )
+                            },
                             "/api/models" => (
                                 "200 OK",
                                 "application/json",
@@ -240,10 +347,11 @@ impl TopcoatServer {
                         };
 
                         let header = format!(
-                            "HTTP/1.1 {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n",
+                            "HTTP/1.1 {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: {}\r\nConnection: close\r\n\r\n",
                             status,
                             content_type,
-                            body_bytes.len()
+                            body_bytes.len(),
+                            origin_allowed
                         );
 
                         if stream.write_all(header.as_bytes()).await.is_ok() {
