@@ -1223,6 +1223,7 @@
         <li><a href="#arquitetura">Arquitetura</a></li>
         <li><a href="#simulador">Simulador Vivo</a></li>
         <li><a href="#cli">CLI & TUI</a></li>
+        <li><a href="#modelos">Modelos & Tiers</a></li>
         <li><a href="#observabilidade">4 Camadas</a></li>
       </ul>
 
@@ -1633,6 +1634,74 @@
           </tr>
         </tbody>
       </table>
+    </div>
+  </section>
+
+  <!-- Model Discovery & Semantic Tiers Section -->
+  <section id="modelos" class="container" style="margin-top: 4rem; margin-bottom: 4rem;">
+    <h2 class="section-title">Descoberta de Modelos & Tiers Semânticos</h2>
+    <p class="section-subtitle">Arquitetura declarativa <code>agent -> name -> provider -> tier</code>: previne a obsolescência de modelos nos YAMLs e mapeia dinamicamente para as 5 CLIs.</p>
+
+    <div class="layers-table-container">
+      <table class="layers-table">
+        <thead>
+          <tr>
+            <th>Motor / CLI</th>
+            <th>Comando de Descoberta em Tempo Real</th>
+            <th>Flag Canônica</th>
+            <th>Tier 'fast'</th>
+            <th>Tier 'balanced'</th>
+            <th>Tier 'reasoning'</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong style="color:#10b981;">Agy CLI</strong> (Google DeepMind)</td>
+            <td><code>agy models</code></td>
+            <td><code>--model &lt;id&gt; --effort &lt;lvl&gt;</code></td>
+            <td>gemini-3.8-flash-low</td>
+            <td>gemini-3.8-flash-high</td>
+            <td>gemini-3.1-pro-high</td>
+          </tr>
+          <tr>
+            <td><strong style="color:#38bdf8;">Codex CLI</strong> (OpenAI)</td>
+            <td><code>codex --help</code> / config</td>
+            <td><code>-m &lt;MODEL&gt; / --model</code></td>
+            <td>gpt-4o-mini</td>
+            <td>gpt-4o</td>
+            <td>o3-mini</td>
+          </tr>
+          <tr>
+            <td><strong style="color:#c084fc;">Claude Code</strong> (Anthropic)</td>
+            <td><code>claude --help</code> / /model</td>
+            <td><code>--model &lt;alias&gt;</code></td>
+            <td>haiku</td>
+            <td>sonnet</td>
+            <td>opus</td>
+          </tr>
+          <tr>
+            <td><strong style="color:#fbbf24;">Hermes Agent</strong> (Nous Research)</td>
+            <td><code>hermes model</code></td>
+            <td><code>-m &lt;MODEL&gt; --reasoning</code></td>
+            <td>openrouter/auto-fast</td>
+            <td>claude-sonnet-4.6</td>
+            <td>claude-sonnet-4.6:high</td>
+          </tr>
+          <tr>
+            <td><strong style="color:#f43f5e;">Pi Assistant</strong> (pi.dev)</td>
+            <td><code>pi --list-models</code></td>
+            <td><code>--model &lt;pattern&gt;</code></td>
+            <td>llama-cpp</td>
+            <td>sonnet</td>
+            <td>sonnet:high</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+      <a href="/api/models" target="_blank" class="btn btn-outline btn-sm">Inspecionar Endpoint JSON (/api/models)</a>
+      <a href="docs/CLI_MODEL_DISCOVERY.md" target="_blank" class="btn btn-outline btn-sm">Ver Manual Completo (CLI_MODEL_DISCOVERY.md)</a>
     </div>
   </section>
 

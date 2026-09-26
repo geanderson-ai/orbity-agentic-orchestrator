@@ -133,6 +133,9 @@ async fn test_topcoat_embedded_frontend_and_assets() {
     assert!(html.contains("Orbity Multi Agentic Harness"));
     assert!(html.contains("simulador"));
     assert!(html.contains("assets/orbity-logo.jpg"));
+    assert!(html.contains("Descoberta de Modelos"));
+    assert!(html.contains("provider"));
+    assert!(html.contains("tier"));
 
     let logo = server.logo_bytes();
     assert!(!logo.is_empty());
