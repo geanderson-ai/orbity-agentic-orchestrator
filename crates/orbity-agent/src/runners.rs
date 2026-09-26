@@ -24,21 +24,38 @@ impl SandboxCliNodeRunner {
         injected_context: &str,
         extra_args: &[String],
     ) -> (String, Vec<String>) {
+        Self::build_cli_command_with_model(cli, prompt, injected_context, extra_args, None, None)
+    }
+
+    /// Formats the command line invocation for the specified CLI tool, resolving semantic tiers or explicit models.
+    pub fn build_cli_command_with_model(
+        cli: CliType,
+        prompt: &str,
+        injected_context: &str,
+        extra_args: &[String],
+        tier: Option<&str>,
+        explicit_model: Option<&str>,
+    ) -> (String, Vec<String>) {
         let full_prompt = if injected_context.is_empty() {
             prompt.to_string()
         } else {
             format!("{}\n\nContext:\n{}", prompt, injected_context)
         };
 
+        let resolved_model = orbity_graph::ModelTierResolver::resolve(cli, tier, explicit_model);
+
         match cli {
             CliType::Codex => {
-                // codex exec [PROMPT] --json
+                // codex exec [PROMPT] --json [-m MODEL]
                 let mut args = vec!["exec".to_string(), full_prompt, "--json".to_string()];
+                if let Some(res) = resolved_model {
+                    args.extend(res.cli_args);
+                }
                 args.extend_from_slice(extra_args);
                 ("codex".to_string(), args)
             }
             CliType::Claude => {
-                // claude -p [PROMPT] --output-format json --dangerously-skip-permissions
+                // claude -p [PROMPT] --output-format json --dangerously-skip-permissions [--model MODEL]
                 let mut args = vec![
                     "-p".to_string(),
                     full_prompt,
@@ -46,28 +63,37 @@ impl SandboxCliNodeRunner {
                     "json".to_string(),
                     "--dangerously-skip-permissions".to_string(),
                 ];
+                if let Some(res) = resolved_model {
+                    args.extend(res.cli_args);
+                }
                 args.extend_from_slice(extra_args);
                 ("claude".to_string(), args)
             }
             CliType::Agy => {
-                // agy -p [PROMPT] --output-format json --effort medium
+                // agy -p [PROMPT] --output-format json [--model MODEL] [--effort EFFORT]
                 let mut args = vec![
                     "-p".to_string(),
                     full_prompt,
                     "--output-format".to_string(),
                     "json".to_string(),
                 ];
+                if let Some(res) = resolved_model {
+                    args.extend(res.cli_args);
+                }
                 args.extend_from_slice(extra_args);
                 ("agy".to_string(), args)
             }
             CliType::Hermes => {
-                // hermes run [PROMPT] --json
+                // hermes run [PROMPT] --json [-m MODEL]
                 let mut args = vec!["run".to_string(), full_prompt, "--json".to_string()];
+                if let Some(res) = resolved_model {
+                    args.extend(res.cli_args);
+                }
                 args.extend_from_slice(extra_args);
                 ("hermes".to_string(), args)
             }
             CliType::Pi => {
-                // pi -p [PROMPT] --mode json --no-session
+                // pi -p [PROMPT] --mode json --no-session [--model MODEL]
                 let mut args = vec![
                     "-p".to_string(),
                     full_prompt,
@@ -75,6 +101,9 @@ impl SandboxCliNodeRunner {
                     "json".to_string(),
                     "--no-session".to_string(),
                 ];
+                if let Some(res) = resolved_model {
+                    args.extend(res.cli_args);
+                }
                 args.extend_from_slice(extra_args);
                 ("pi".to_string(), args)
             }
@@ -98,8 +127,14 @@ impl NodeRunner for SandboxCliNodeRunner {
         let (cmd, args, timeout_secs, cli_type) = match &node.kind {
             NodeKind::Agent { cli, config } => {
                 let prompt = config.prompt_system.as_deref().unwrap_or(&config.name);
-                let (c, a) =
-                    Self::build_cli_command(*cli, prompt, injected_context, &config.cli_args);
+                let (c, a) = Self::build_cli_command_with_model(
+                    *cli,
+                    prompt,
+                    injected_context,
+                    &config.cli_args,
+                    config.tier.as_deref(),
+                    config.model.as_deref(),
+                );
                 let t = config.timeout_seconds.unwrap_or(60);
                 (c, a, t, *cli)
             }
@@ -197,5 +232,80 @@ impl NodeRunner for SandboxCliNodeRunner {
             cost_usd: token_report.cost_usd,
             duration_ms: exec_res.duration_ms,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_cli_command_with_semantic_tiers() {
+        // Claude with balanced tier
+        let (cmd, args) = SandboxCliNodeRunner::build_cli_command_with_model(
+            CliType::Claude,
+            "refactor",
+            "",
+            &[],
+            Some("balanced"),
+            None,
+        );
+        assert_eq!(cmd, "claude");
+        assert!(args.contains(&"--model".to_string()));
+        assert!(args.contains(&"sonnet".to_string()));
+
+        // Codex with reasoning tier
+        let (cmd, args) = SandboxCliNodeRunner::build_cli_command_with_model(
+            CliType::Codex,
+            "audit",
+            "",
+            &[],
+            Some("reasoning"),
+            None,
+        );
+        assert_eq!(cmd, "codex");
+        assert!(args.contains(&"-m".to_string()));
+        assert!(args.contains(&"o3-mini".to_string()));
+
+        // Agy with fast tier
+        let (cmd, args) = SandboxCliNodeRunner::build_cli_command_with_model(
+            CliType::Agy,
+            "research",
+            "",
+            &[],
+            Some("fast"),
+            None,
+        );
+        assert_eq!(cmd, "agy");
+        assert!(args.contains(&"--model".to_string()));
+        assert!(args.contains(&"gemini-3.8-flash-low".to_string()));
+        assert!(args.contains(&"--effort".to_string()));
+        assert!(args.contains(&"low".to_string()));
+
+        // Hermes with explicit model
+        let (cmd, args) = SandboxCliNodeRunner::build_cli_command_with_model(
+            CliType::Hermes,
+            "execute",
+            "",
+            &[],
+            None,
+            Some("anthropic/claude-sonnet-4.6"),
+        );
+        assert_eq!(cmd, "hermes");
+        assert!(args.contains(&"-m".to_string()));
+        assert!(args.contains(&"anthropic/claude-sonnet-4.6".to_string()));
+
+        // Pi with balanced tier
+        let (cmd, args) = SandboxCliNodeRunner::build_cli_command_with_model(
+            CliType::Pi,
+            "format",
+            "",
+            &[],
+            Some("balanced"),
+            None,
+        );
+        assert_eq!(cmd, "pi");
+        assert!(args.contains(&"--model".to_string()));
+        assert!(args.contains(&"sonnet".to_string()));
     }
 }

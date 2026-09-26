@@ -13,13 +13,16 @@ pub enum GraphYamlError {
     InvalidTopology(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct YamlNodeDef {
     pub id: String,
     #[serde(rename = "type")]
     pub node_type: String,
     pub engine: Option<String>,
     pub cli: Option<String>,
+    pub provider: Option<String>,
+    pub tier: Option<String>,
+    pub model: Option<String>,
     pub command: Option<String>,
     pub predicate_expr: Option<String>,
     pub prompt: Option<String>,
@@ -112,11 +115,21 @@ impl GraphYamlLoader {
                 let mut edges = Vec::new();
 
                 for (idx, w) in def.team.workers.iter().enumerate() {
+                    let provider = w.provider.clone().or_else(|| {
+                        if !w.runner.is_empty() {
+                            Some(w.runner.clone())
+                        } else {
+                            None
+                        }
+                    });
                     nodes.push(YamlNodeDef {
                         id: w.id.clone(),
                         node_type: "agent".to_string(),
                         engine: None,
-                        cli: Some(w.runner.clone()),
+                        cli: provider.clone(),
+                        provider,
+                        tier: w.tier.clone(),
+                        model: w.model.clone(),
                         command: None,
                         predicate_expr: None,
                         prompt: w.prompt.as_ref().map(|p| p.system.clone()),
@@ -124,7 +137,7 @@ impl GraphYamlLoader {
                         quorum: None,
                         retries: Some(1),
                         budget_usd: Some(1.0),
-                        description: w.role.clone(),
+                        description: w.role.clone().or(w.name.clone()),
                     });
 
                     if idx > 0 {
@@ -192,7 +205,10 @@ impl GraphYamlLoader {
                 id: step_id.clone(),
                 node_type: "agent".to_string(),
                 engine: None,
-                cli: Some(cli),
+                cli: Some(cli.clone()),
+                provider: Some(cli),
+                tier: None,
+                model: None,
                 command: step.sandbox_action.clone(),
                 predicate_expr: None,
                 prompt: None,
@@ -262,7 +278,8 @@ impl GraphYamlLoader {
                     engine: n.engine.unwrap_or_else(|| "topcoat".to_string()),
                 },
                 "agent" => {
-                    let cli = match n.cli.as_deref() {
+                    let cli_str = n.provider.as_deref().or(n.cli.as_deref());
+                    let cli = match cli_str {
                         Some("codex") => CliType::Codex,
                         Some("claude") => CliType::Claude,
                         Some("agy") => CliType::Agy,
@@ -275,6 +292,9 @@ impl GraphYamlLoader {
                         config: crate::types::AgentNodeSpec {
                             name: n.id.clone(),
                             role: n.description.clone(),
+                            provider: n.provider.or(n.cli),
+                            tier: n.tier,
+                            model: n.model,
                             prompt_system: n.prompt,
                             timeout_seconds: n.timeout_secs,
                             ..Default::default()

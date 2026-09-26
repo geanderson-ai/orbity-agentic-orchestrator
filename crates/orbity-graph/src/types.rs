@@ -79,6 +79,10 @@ impl std::fmt::Display for CliType {
 pub struct AgentNodeSpec {
     pub name: String,
     pub role: Option<String>,
+    #[serde(default)]
+    pub provider: Option<String>,
+    #[serde(default)]
+    pub tier: Option<String>,
     pub model: Option<String>,
     pub prompt_system: Option<String>,
     #[serde(default)]

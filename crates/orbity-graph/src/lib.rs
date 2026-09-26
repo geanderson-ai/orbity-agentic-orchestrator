@@ -4,6 +4,7 @@ pub mod blackboard;
 pub mod checkpoint;
 pub mod executor;
 pub mod finops;
+pub mod model_resolver;
 pub mod predicate;
 pub mod topology;
 pub mod types;
@@ -13,6 +14,7 @@ pub use blackboard::{Blackboard, TaskArtifact};
 pub use checkpoint::{CheckpointError, GraphCheckpointStore};
 pub use executor::{DefaultNodeRunner, ExecutionError, GraphExecutor, NodeRunner};
 pub use finops::GraphFinOpsTracker;
+pub use model_resolver::{ModelTier, ModelTierResolver, ResolvedModel};
 pub use predicate::ConditionalEvaluator;
 pub use topology::{TopologyError, TopologyValidator};
 pub use types::{

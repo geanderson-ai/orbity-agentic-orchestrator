@@ -94,7 +94,11 @@ pub struct WorkerConfig {
     pub id: String,
     pub name: Option<String>,
     pub role: Option<String>,
+    #[serde(default)]
     pub runner: String,
+    pub provider: Option<String>,
+    pub tier: Option<String>,
+    pub model: Option<String>,
     pub cli_command: Option<String>,
     pub cli_subcommand: Option<String>,
     #[serde(default)]
@@ -257,6 +261,9 @@ pub struct OrchestratorConfig {
 pub struct AgentConfig {
     pub id: String,
     pub name: String,
+    pub provider: Option<String>,
+    pub tier: Option<String>,
+    pub model: Option<String>,
     #[serde(default)]
     pub tags: Vec<String>,
     pub approval_policy: Option<ApprovalPolicy>,
