@@ -11,9 +11,10 @@ use async_trait::async_trait;
 use orbity_core::bus::EventBus;
 use orbity_core::contracts::ApprovalDecision;
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::{RwLock, Semaphore};
 use uuid::Uuid;
 
 #[derive(Debug, Error)]
@@ -105,8 +106,9 @@ pub struct GraphExecutor {
     event_bus: Option<EventBus>,
     runner: Arc<dyn NodeRunner>,
     execution_id: Uuid,
-    step_counter: Mutex<u32>,
+    step_counter: Arc<AtomicU32>,
     completed_nodes: Arc<RwLock<HashSet<NodeId>>>,
+    concurrency_semaphore: Option<Arc<Semaphore>>,
 }
 
 impl GraphExecutor {
@@ -124,9 +126,17 @@ impl GraphExecutor {
             event_bus: None,
             runner,
             execution_id: Uuid::new_v4(),
-            step_counter: Mutex::new(0),
+            step_counter: Arc::new(AtomicU32::new(0)),
             completed_nodes: Arc::new(RwLock::new(HashSet::new())),
+            concurrency_semaphore: None,
         }
+    }
+
+    pub fn with_max_concurrency(mut self, max_concurrency: usize) -> Self {
+        if max_concurrency > 0 {
+            self.concurrency_semaphore = Some(Arc::new(Semaphore::new(max_concurrency)));
+        }
+        self
     }
 
     pub fn with_checkpoints(mut self, store: GraphCheckpointStore) -> Self {
@@ -175,8 +185,17 @@ impl GraphExecutor {
                 let finops = self.finops.clone();
                 let runner = self.runner.clone();
                 let preds = TopologyValidator::get_predecessors(&self.graph, &node_id);
+                let sem = self.concurrency_semaphore.clone();
 
                 join_set.spawn(async move {
+                    let _permit = match &sem {
+                        Some(s) => Some(s.acquire().await.map_err(|e| ExecutionError::NodeFailed {
+                            node_id: node_id.0.clone(),
+                            message: format!("Concurrency semaphore error: {}", e),
+                        })?),
+                        None => None,
+                    };
+
                     // Check FinOps
                     finops
                         .check_budget(&node_id, node.budget_limit_usd)
@@ -284,14 +303,13 @@ impl GraphExecutor {
 
             // Checkpoint if configured
             if let Some(store) = &self.checkpoint_store {
-                let mut step = self.step_counter.lock().await;
-                *step += 1;
+                let step = self.step_counter.fetch_add(1, Ordering::SeqCst) + 1;
                 let active = ready_nodes.clone();
                 let comp_vec: Vec<NodeId> =
                     self.completed_nodes.read().await.iter().cloned().collect();
                 let snapshot = self.blackboard.snapshot().await;
                 store
-                    .save_checkpoint(self.execution_id, *step, active, comp_vec, snapshot)
+                    .save_checkpoint(self.execution_id, step, active, comp_vec, snapshot)
                     .await?;
             }
 
@@ -354,21 +372,24 @@ impl GraphExecutor {
             }
 
             // If any feedback loop fired, reset completed state for target and its dependencies so loop re-runs
-            if !feedback_targets.is_empty() {
+            let ready_filtered = {
                 let mut comp = self.completed_nodes.write().await;
-                for target in &feedback_targets {
-                    comp.remove(target);
+                if !feedback_targets.is_empty() {
+                    for target in &feedback_targets {
+                        comp.remove(target);
+                    }
+                    for (node_id, _) in &completed_in_batch {
+                        comp.remove(node_id);
+                    }
                 }
-                for (node_id, _) in &completed_in_batch {
-                    comp.remove(node_id);
-                }
-            }
 
-            let comp = self.completed_nodes.read().await;
-            ready_nodes = next_candidates
-                .into_iter()
-                .filter(|n| !comp.contains(n) || feedback_targets.contains(n))
-                .collect();
+                next_candidates
+                    .into_iter()
+                    .filter(|n| !comp.contains(n) || feedback_targets.contains(n))
+                    .collect()
+            };
+
+            ready_nodes = ready_filtered;
         }
 
         Ok(())
