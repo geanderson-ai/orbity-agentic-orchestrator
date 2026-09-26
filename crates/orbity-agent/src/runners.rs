@@ -238,10 +238,10 @@ impl NodeRunner for SandboxCliNodeRunner {
                     duration_ms: 1,
                 });
             }
-            NodeKind::JoinBarrier { mode, timeout_secs } => {
+            NodeKind::JoinBarrier { quorum } => {
                 let summary = format!(
-                    "=== Join Barrier Synchronized ===\nMode: {:?}\nTimeout: {}s\nPredecessors Context Length: {} chars",
-                    mode, timeout_secs, injected_context.len()
+                    "=== Join Barrier Synchronized ===\nQuorum: {:?}\nPredecessors Context Length: {} chars",
+                    quorum, injected_context.len()
                 );
                 return Ok(NodeOutput {
                     success: true,
