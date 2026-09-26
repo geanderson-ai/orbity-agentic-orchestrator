@@ -46,8 +46,14 @@ impl SandboxCliNodeRunner {
 
         match cli {
             CliType::Codex => {
-                // codex exec [PROMPT] --json [-m MODEL]
-                let mut args = vec!["exec".to_string(), full_prompt, "--json".to_string()];
+                // codex exec [PROMPT] --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox [-m MODEL]
+                let mut args = vec![
+                    "exec".to_string(),
+                    full_prompt,
+                    "--json".to_string(),
+                    "--skip-git-repo-check".to_string(),
+                    "--dangerously-bypass-approvals-and-sandbox".to_string(),
+                ];
                 if let Some(res) = resolved_model {
                     args.extend(res.cli_args);
                 }
@@ -70,12 +76,13 @@ impl SandboxCliNodeRunner {
                 ("claude".to_string(), args)
             }
             CliType::Agy => {
-                // agy -p [PROMPT] --output-format json [--model MODEL] [--effort EFFORT]
+                // agy -p [PROMPT] --output-format json --dangerously-skip-permissions [--model MODEL] [--effort EFFORT]
                 let mut args = vec![
                     "-p".to_string(),
                     full_prompt,
                     "--output-format".to_string(),
                     "json".to_string(),
+                    "--dangerously-skip-permissions".to_string(),
                 ];
                 if let Some(res) = resolved_model {
                     args.extend(res.cli_args);
