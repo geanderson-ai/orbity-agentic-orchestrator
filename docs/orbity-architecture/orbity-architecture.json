@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Orbity Multi-Agent Orchestrator Architecture",
+    "output": "orbity-architecture.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "execution-path",
+        "label": "Execution path",
+        "focus": ["operator", "cli", "orchestrator", "graph", "sandbox", "workers"],
+        "note": "Follow a governed run from the CLI into DAG execution and isolated agent workers."
+      },
+      {
+        "id": "state-and-audit",
+        "label": "State and audit",
+        "focus": ["orchestrator", "core", "storage", "sqlite", "telemetry"],
+        "note": "See shared contracts, durable state, hash-chained audit records, and runtime evidence."
+      },
+      {
+        "id": "web-control-plane",
+        "label": "Web control plane",
+        "focus": ["operator", "server", "orchestrator", "storage", "telemetry"],
+        "note": "Trace the reactive server and WebSocket path into the same orchestration core."
+      }
+    ]
+  },
+  "components": [
+    { "id": "operator", "type": "external", "label": "Operator / YAML", "sublabel": "teams + agents", "pos": [40, 300], "size": [138, 64] },
+    { "id": "cli", "type": "frontend", "label": "orbity-cli", "sublabel": "Clap binary + sync", "pos": [245, 300], "size": [140, 64] },
+    { "id": "server", "type": "frontend", "label": "orbity-server", "sublabel": "Topcoat + WebSockets", "pos": [245, 500], "size": [140, 64] },
+    { "id": "core", "type": "backend", "label": "orbity-core", "sublabel": "contracts + events", "pos": [465, 300], "size": [142, 64] },
+    { "id": "orchestrator", "type": "backend", "label": "orbity-agent", "sublabel": "manager + runners", "pos": [685, 300], "size": [150, 64] },
+    { "id": "graph", "type": "backend", "label": "orbity-graph", "sublabel": "DAG + fan-out/in", "pos": [900, 195], "size": [150, 64] },
+    { "id": "sandbox", "type": "security", "label": "orbity-sandbox", "sublabel": "Bubblewrap isolation", "pos": [900, 405], "size": [150, 64] },
+    { "id": "workers", "type": "external", "label": "CLI agent workers", "sublabel": "agy · codex · claude · hermes · pi", "pos": [1120, 405], "size": [188, 64] },
+    { "id": "storage", "type": "backend", "label": "orbity-storage", "sublabel": "pool + DAOs + audit", "pos": [900, 560], "size": [160, 64] },
+    { "id": "sqlite", "type": "database", "label": "SQLite WAL", "sublabel": "SHA-256 audit chain", "pos": [1120, 560], "size": [160, 64] },
+    { "id": "telemetry", "type": "cloud", "label": "orbity-telemetry", "sublabel": "logs + spans + metrics", "pos": [1120, 85], "size": [170, 64] },
+    { "id": "finops", "type": "backend", "label": "FinOps controls", "sublabel": "token budgets + tripwires", "pos": [685, 560], "size": [160, 64] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Orbity Rust workspace", "wraps": ["cli", "server", "core", "orchestrator", "graph", "sandbox", "storage", "telemetry", "finops"], "pad": 24 },
+    { "kind": "security-group", "label": "isolated execution boundary", "wraps": ["sandbox", "workers"], "pad": 16 }
+  ],
+  "connections": [
+    { "from": "operator", "to": "cli", "label": "YAML + commands", "variant": "emphasis", "labelAt": [212, 280] },
+    { "from": "operator", "to": "server", "label": "web control", "route": "orthogonal-v", "labelAt": [205, 430] },
+    { "from": "cli", "to": "core", "label": "load + validate", "variant": "emphasis" },
+    { "from": "server", "to": "core", "label": "HTTP / WebSocket", "variant": "emphasis", "route": "orthogonal-h", "labelDy": 56 },
+    { "from": "core", "to": "orchestrator", "label": "events + contracts", "variant": "emphasis", "labelDy": 56 },
+    { "from": "orchestrator", "to": "graph", "label": "execute DAG", "variant": "emphasis" },
+    { "from": "orchestrator", "to": "sandbox", "label": "run isolated", "variant": "security", "fromSide": "bottom", "toSide": "top", "via": [[760, 390], [975, 390]], "labelAt": [700, 450] },
+    { "from": "graph", "to": "workers", "label": "dispatch tools", "variant": "dashed", "route": "orthogonal-h" },
+    { "from": "sandbox", "to": "workers", "label": "bwrap process", "variant": "security", "labelAt": [1000, 350] },
+    { "from": "orchestrator", "to": "storage", "label": "persist state", "route": "orthogonal-h", "labelAt": [850, 505] },
+    { "from": "storage", "to": "sqlite", "label": "SQLite WAL + audit", "variant": "security", "labelDy": 70 },
+    { "from": "orchestrator", "to": "telemetry", "label": "runtime evidence", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "via": [[760, 270], [760, 180], [1205, 180]], "labelAt": [1080, 180] },
+    { "from": "orchestrator", "to": "finops", "label": "budget checks", "variant": "security", "fromSide": "bottom", "toSide": "top", "labelDx": -70 },
+    { "from": "finops", "to": "storage", "label": "usage ledger", "variant": "dashed", "labelDy": 70 }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Control Plane", "items": ["CLI and reactive server enter the same core contracts", "YAML defines teams, agents, and governance inputs", "The orchestrator coordinates lifecycle and execution"] },
+    { "dot": "rose", "title": "Execution Boundary", "items": ["DAG scheduling provides deterministic fan-out and fan-in", "Bubblewrap confines worker processes", "Five native CLI adapters remain outside the core runtime"] },
+    { "dot": "emerald", "title": "Evidence and Cost", "items": ["SQLite WAL stores durable state and a SHA-256 audit chain", "Telemetry captures logs, spans, and metrics", "FinOps tripwires enforce token budgets during runs"] }
+  ]
+}
