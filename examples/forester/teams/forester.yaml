@@ -101,7 +101,7 @@ team:
         Supervisione a integridade criptográfica no SQLite e emita relatório FinOps com métricas de tokens.
       # Campos opcionais adicionais do prompt:
       # guidelines: ["Nunca exponha segredos", "Sempre reporte custos"]
-      # context_variables: { repository: "meza-agentic-orchestrator" }
+      # context_variables: { repository: "orbity-agentic-orchestrator" }
 
     plan:
       # Estratégia declarada do plano. O runtime também aceita uma lista simples em `steps`.

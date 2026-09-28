@@ -16,7 +16,7 @@ version = "0.1.0-beta"
 edition = "2021"
 authors = ["Meza Agentic Team <team@meza.ai>"]
 license = "MIT"
-repository = "https://github.com/meza/meza-agentic-orchestrator"
+repository = "https://github.com/geanderson-ai/orbity-agentic-orchestrator"
 
 [workspace.dependencies]
 # Internal crates

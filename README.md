@@ -5,7 +5,7 @@
 
   [![Version](https://img.shields.io/badge/version-0.1.0--beta-blue?style=for-the-badge)](Cargo.toml)
   [![Stage](https://img.shields.io/badge/stage-beta-orange?style=for-the-badge)](Cargo.toml)
-  [![Made in Brazil](https://img.shields.io/badge/Made%20in-Brazil%20%F0%9F%87%A7%F0%9F%87%B7-009c3b?style=for-the-badge&logoColor=white)](https://github.com/geanderson-ai/meza-agentic-orchestrator)
+  [![Made in Brazil](https://img.shields.io/badge/Made%20in-Brazil%20%F0%9F%87%A7%F0%9F%87%B7-009c3b?style=for-the-badge&logoColor=white)](https://github.com/geanderson-ai/orbity-agentic-orchestrator)
   [![Rust](https://img.shields.io/badge/Rust-2021_%2F_2024_Compatible-orange?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
   [![SQLite](https://img.shields.io/badge/SQLite-WAL_%2B_SHA--256-blue?style=for-the-badge&logo=sqlite)](https://sqlite.org)
   [![Sandbox](https://img.shields.io/badge/Sandbox-Bubblewrap-cyan?style=for-the-badge)](https://github.com/containers/bubblewrap)
@@ -234,8 +234,8 @@ It automatically:
 
 ```bash
 # Clone the repository
-git clone https://github.com/geanderson-ai/meza-agentic-orchestrator.git
-cd meza-agentic-orchestrator
+git clone https://github.com/geanderson-ai/orbity-agentic-orchestrator.git
+cd orbity-agentic-orchestrator
 
 # Interactive mode (asks for confirmation before applying system changes):
 ./setup.sh
@@ -848,8 +848,8 @@ Contributions are welcomed! Please follow these steps:
 
 ```bash
 # Clone the repository
-git clone https://github.com/geanderson-ai/meza-agentic-orchestrator.git
-cd meza-agentic-orchestrator
+git clone https://github.com/geanderson-ai/orbity-agentic-orchestrator.git
+cd orbity-agentic-orchestrator
 
 # Run tests in watch mode
 cargo test --workspace
@@ -871,7 +871,7 @@ cargo run -p orbity-cli -- doctor
 ## Issues
 
 If you encounter a bug or wish to propose a feature:
-- Check existing issues at [GitHub Issues](https://github.com/geanderson-ai/meza-agentic-orchestrator/issues).
+- Check existing issues at [GitHub Issues](https://github.com/geanderson-ai/orbity-agentic-orchestrator/issues).
 - Provide minimal reproduction steps, system details (`orbity doctor` output), and log extracts.
 
 ---
@@ -924,7 +924,7 @@ Orbity adheres to the **Contributor Covenant Code of Conduct** (v2.1). We are co
 
 - **GitHub Discussions:** Join architecture discussions and share community templates.
 - **Interactive Documentation:** Visit our live interactive documentation portal at [`docs/index.html`](docs/index.html).
-- **Issue Tracker:** Report vulnerabilities and bugs via [GitHub Issues](https://github.com/geanderson-ai/meza-agentic-orchestrator/issues).
+- **Issue Tracker:** Report vulnerabilities and bugs via [GitHub Issues](https://github.com/geanderson-ai/orbity-agentic-orchestrator/issues).
 
 ---
 

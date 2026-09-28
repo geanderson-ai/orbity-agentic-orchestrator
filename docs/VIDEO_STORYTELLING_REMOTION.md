@@ -296,7 +296,7 @@
 - Rodapé com selos de credibilidade:
   - 🇧🇷 *Orgulhosamente desenhado e construído no Brasil*
   - 🦀 *100% Rust 2024 Edition • Open Source*
-  - 🌐 *GitHub: github.com/geanderson/meza-agentic-orchestrator*
+  - 🌐 *GitHub: github.com/geanderson-ai/orbity-agentic-orchestrator*
 - Fade out suave para preto com o som de um coração cibernético pulsando uma última vez.
 
 #### 🔊 Áudio & SFX:
@@ -312,7 +312,7 @@
 #### 💬 Texto em Tela:
 > **ORBITY**  
 > *A Próxima Fronteira da Orquestração Multi-Agente.*  
-> 🔗 `github.com/geanderson/meza-agentic-orchestrator`
+> 🔗 `github.com/geanderson-ai/orbity-agentic-orchestrator`
 
 ---
 
